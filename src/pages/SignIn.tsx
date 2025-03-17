@@ -135,7 +135,7 @@ const SignIn = () => {
 
       {/* Image Side */}
       <div className="hidden lg:flex lg:flex-1 bg-black items-center justify-center relative">
-        <div className="relative z-10 text-white max-w-md p-8 text-center">
+        <div className="relative z-10 max-w-md p-8 text-center">
           <h2 className="text-3xl font-bold mb-4 text-youtube-red">Expand Your Global Reach</h2>
           <p className="text-lg text-white opacity-90">
             Join creators who are expanding their audience with AI-powered dubbing and subtitles.

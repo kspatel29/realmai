@@ -10,9 +10,10 @@ const plans = [
     period: "per month",
     description: "Perfect for creators just getting started with global content",
     features: [
-      "10 minutes of video dubbing per month",
-      "5 videos with subtitles generation",
-      "3 automated clips per video",
+      "100 credits per month",
+      "1 credit = 1 minute of video dubbing",
+      "1 credit = 3 minutes of subtitle generation",
+      "1 credit = 5 automated clips",
       "Basic analytics dashboard",
       "Email support"
     ],
@@ -29,9 +30,10 @@ const plans = [
     period: "per month",
     description: "For growing creators expanding their international reach",
     features: [
-      "30 minutes of video dubbing per month",
-      "Unlimited subtitle generation",
-      "10 automated clips per video",
+      "300 credits per month",
+      "1 credit = 1 minute of video dubbing",
+      "1 credit = 3 minutes of subtitle generation",
+      "1 credit = 5 automated clips",
       "Advanced analytics dashboard",
       "Priority support",
       "Custom voice training",
@@ -47,9 +49,10 @@ const plans = [
     period: "per month",
     description: "For established creators maximizing their global presence",
     features: [
-      "Unlimited video dubbing",
-      "Unlimited subtitle generation",
-      "Unlimited clip generation",
+      "1000 credits per month",
+      "1 credit = 1 minute of video dubbing",
+      "1 credit = 3 minutes of subtitle generation",
+      "1 credit = 5 automated clips",
       "Advanced analytics with revenue insights",
       "Dedicated account manager",
       "Custom voice training with fine-tuning",
@@ -63,7 +66,7 @@ const plans = [
 
 const CallToAction = () => {
   return (
-    <section id="pricing" className="py-24 bg-gradient-accent">
+    <section id="pricing" className="py-24 bg-gradient-cta">
       <div className="container mx-auto px-6">
         <div className="text-center max-w-3xl mx-auto mb-16">
           <span className="inline-block px-3 py-1 bg-youtube-red/10 text-youtube-red rounded-full text-sm font-medium mb-3">
@@ -73,7 +76,7 @@ const CallToAction = () => {
             Choose the Right Plan for Your <span className="text-youtube-red">Growth</span>
           </h2>
           <p className="text-lg text-muted-foreground">
-            All plans start with a 14-day free trial. No credit card required.
+            All plans start with a 14-day free trial with 50 free credits. No credit card required.
           </p>
         </div>
 

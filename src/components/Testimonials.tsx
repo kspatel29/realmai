@@ -1,7 +1,7 @@
 
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
-import { ChevronLeft, ChevronRight, Star, ExternalLink } from "lucide-react";
+import { ChevronLeft, ChevronRight, ExternalLink } from "lucide-react";
 
 const testimonials = [
   {
@@ -14,17 +14,17 @@ const testimonials = [
   },
   {
     id: 2,
-    name: "Revenue Impact",
-    title: "Multilingual Revenue Boost",
-    quote: "Creators who localize content see an average 45% increase in ad revenue from international markets within the first 3 months, based on YouTube partner program statistics.",
+    name: "Market Analysis",
+    title: "Multilingual Revenue Potential",
+    quote: "Studies from viewstats.com show that videos with localized content in multiple languages can generate up to 45% more engagement from international viewers.",
     stat: "+45%",
-    statLabel: "ad revenue"
+    statLabel: "engagement"
   },
   {
     id: 3,
     name: "Engagement Metrics",
-    title: "Audience Engagement",
-    quote: "Videos with native-language subtitles have 40% higher retention rates and significantly more comments from non-English speaking viewers.",
+    title: "Audience Retention",
+    quote: "According to global content research by viewstats.com, videos with native-language subtitles have 40% higher retention rates from non-English speaking viewers.",
     stat: "40%",
     statLabel: "higher retention"
   }
@@ -42,14 +42,14 @@ const Testimonials = () => {
   };
 
   return (
-    <section id="testimonials" className="py-24 relative overflow-hidden bg-gradient-subtle">
+    <section id="testimonials" className="py-24 relative overflow-hidden bg-gradient-testimonial">
       <div className="absolute top-0 right-0 w-1/3 h-1/3 bg-youtube-red/5 rounded-full filter blur-3xl"></div>
       <div className="absolute bottom-0 left-0 w-1/3 h-1/3 bg-youtube-red/5 rounded-full filter blur-3xl"></div>
       
       <div className="container mx-auto px-6 relative z-10">
         <div className="text-center max-w-3xl mx-auto mb-16">
           <span className="inline-block px-3 py-1 bg-youtube-red/10 text-youtube-red rounded-full text-sm font-medium mb-3">
-            Growth Potential
+            Market Insights
           </span>
           <h2 className="text-3xl md:text-4xl font-bold mb-4">
             The Impact of Global Content Strategy

@@ -5,33 +5,18 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Checkbox } from "@/components/ui/checkbox";
-import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Switch } from "@/components/ui/switch";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Slider } from "@/components/ui/slider";
-import { Upload, Scissors, Clock, Download, Sparkles, Wand2, CheckCircle2, Play } from "lucide-react";
+import { Upload, FileText, Scissors, Video, Clock, Download, DownloadCloud } from "lucide-react";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { useToast } from "@/hooks/use-toast";
-
-const videoAspectRatios = [
-  { id: "portrait", name: "Portrait (9:16)", icon: "■" },
-  { id: "square", name: "Square (1:1)", icon: "▣" },
-  { id: "landscape", name: "Landscape (16:9)", icon: "▭" },
-];
 
 const ClipsGenerator = () => {
   const [file, setFile] = useState<File | null>(null);
   const [isUploading, setIsUploading] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
   const [progress, setProgress] = useState(0);
-  const [clipCount, setClipCount] = useState(5);
-  const [clipMode, setClipMode] = useState("auto");
-  const [clipAspectRatio, setClipAspectRatio] = useState("portrait");
-  const [generateTitleOption, setGenerateTitleOption] = useState(true);
-  const [generateCaptionsOption, setGenerateCaptionsOption] = useState(true);
-  const [addMusicOption, setAddMusicOption] = useState(true);
-  const [addBrandingOption, setAddBrandingOption] = useState(true);
   const [generatedClips, setGeneratedClips] = useState<any[]>([]);
   
   const { toast } = useToast();
@@ -77,22 +62,14 @@ const ClipsGenerator = () => {
     // Simulate processing
     setTimeout(() => {
       setIsProcessing(false);
-      
-      // Generate sample clips
-      const clips = Array.from({ length: clipCount }, (_, i) => ({
-        id: i + 1,
-        title: `Amazing Viral Clip ${i + 1}`,
-        duration: `${Math.floor(Math.random() * 20 + 10)} sec`,
-        thumbnail: "/placeholder.svg",
-        aspect: clipAspectRatio,
-        views: Math.floor(Math.random() * 1000),
-      }));
-      
-      setGeneratedClips(clips);
-      
+      setGeneratedClips([
+        { id: 1, title: "Exciting Moment", duration: "0:42", thumbnail: "" },
+        { id: 2, title: "Key Insight", duration: "1:15", thumbnail: "" },
+        { id: 3, title: "Highlight", duration: "0:38", thumbnail: "" }
+      ]);
       toast({
         title: "Clips generated",
-        description: `${clipCount} viral clips have been generated.`
+        description: "We've generated 3 clips from your video."
       });
     }, 3000);
   };
@@ -102,23 +79,23 @@ const ClipsGenerator = () => {
       <div>
         <h1 className="text-2xl font-bold tracking-tight mb-2">Clips Generator</h1>
         <p className="text-muted-foreground">
-          Automatically generate viral short-form clips from your long-form content.
+          Automatically create short, engaging clips from your longer videos to share on social media.
         </p>
       </div>
 
       <Tabs defaultValue="upload" className="w-full">
         <TabsList className="grid grid-cols-3 w-full max-w-md">
           <TabsTrigger value="upload">Upload</TabsTrigger>
-          <TabsTrigger value="settings">Settings</TabsTrigger>
-          <TabsTrigger value="clips">Generated Clips</TabsTrigger>
+          <TabsTrigger value="generate">Generate</TabsTrigger>
+          <TabsTrigger value="preview">Preview & Export</TabsTrigger>
         </TabsList>
         
         <TabsContent value="upload" className="mt-6">
           <Card>
             <CardHeader>
-              <CardTitle>Upload Long-Form Video</CardTitle>
+              <CardTitle>Upload Video</CardTitle>
               <CardDescription>
-                Upload the video you want to extract viral clips from.
+                Upload the video you want to generate clips from.
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">
@@ -126,7 +103,7 @@ const ClipsGenerator = () => {
                 {file ? (
                   <div className="space-y-2">
                     <div className="bg-muted rounded h-48 flex items-center justify-center">
-                      <Scissors className="h-12 w-12 text-muted-foreground" />
+                      <Video className="h-12 w-12 text-muted-foreground" />
                     </div>
                     <p className="font-medium">{file.name}</p>
                     <p className="text-sm text-muted-foreground">
@@ -141,11 +118,11 @@ const ClipsGenerator = () => {
                     <div>
                       <p className="font-medium">Drag and drop or click to upload</p>
                       <p className="text-sm text-muted-foreground mt-1">
-                        Supports MP4, MOV, AVI up to 2GB
+                        Supports MP4, MOV, AVI up to 500MB
                       </p>
                     </div>
                     <Input 
-                      id="clips-upload" 
+                      id="video-upload" 
                       type="file" 
                       accept="video/*" 
                       className="hidden" 
@@ -153,7 +130,7 @@ const ClipsGenerator = () => {
                     />
                     <Button 
                       variant="outline" 
-                      onClick={() => document.getElementById('clips-upload')?.click()}
+                      onClick={() => document.getElementById('video-upload')?.click()}
                     >
                       Select Video
                     </Button>
@@ -170,12 +147,6 @@ const ClipsGenerator = () => {
                   <div>
                     <Label htmlFor="description">Description (Optional)</Label>
                     <Input id="description" className="mt-1" placeholder="Enter video description" />
-                  </div>
-                  <div className="flex items-center space-x-2">
-                    <Checkbox id="analyze-content" defaultChecked />
-                    <label htmlFor="analyze-content" className="text-sm font-medium">
-                      Analyze content for viral moments automatically
-                    </label>
                   </div>
                 </div>
               )}
@@ -196,170 +167,147 @@ const ClipsGenerator = () => {
           </Card>
         </TabsContent>
         
-        <TabsContent value="settings" className="mt-6">
+        <TabsContent value="generate" className="mt-6">
           <div className="grid md:grid-cols-5 gap-6">
             <Card className="md:col-span-2">
               <CardHeader>
-                <CardTitle>Basic Settings</CardTitle>
+                <CardTitle>Clip Settings</CardTitle>
                 <CardDescription>
-                  Configure how your clips are generated.
+                  Configure how your clips will be generated.
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-6">
                 <div className="space-y-2">
-                  <Label>Clip Generation Mode</Label>
-                  <RadioGroup value={clipMode} onValueChange={setClipMode} className="space-y-2">
-                    <div className="flex items-center space-x-2">
-                      <RadioGroupItem value="auto" id="auto" />
-                      <label htmlFor="auto" className="text-sm font-medium">
-                        Fully Automatic
-                      </label>
-                    </div>
-                    <div className="flex items-center space-x-2">
-                      <RadioGroupItem value="assisted" id="assisted" />
-                      <label htmlFor="assisted" className="text-sm font-medium">
-                        AI-Assisted Selection
-                      </label>
-                    </div>
-                    <div className="flex items-center space-x-2">
-                      <RadioGroupItem value="manual" id="manual" />
-                      <label htmlFor="manual" className="text-sm font-medium">
-                        Manual Selection
-                      </label>
-                    </div>
-                  </RadioGroup>
+                  <Label htmlFor="clip-type">Clip Type</Label>
+                  <Select defaultValue="highlights">
+                    <SelectTrigger id="clip-type">
+                      <SelectValue placeholder="Select clip type" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="highlights">Key Highlights</SelectItem>
+                      <SelectItem value="insights">Valuable Insights</SelectItem>
+                      <SelectItem value="quotes">Quotable Moments</SelectItem>
+                      <SelectItem value="custom">Custom (Manual Selection)</SelectItem>
+                    </SelectContent>
+                  </Select>
                 </div>
 
                 <div className="space-y-2">
-                  <div className="flex justify-between">
-                    <Label>Number of Clips</Label>
-                    <span className="text-sm text-muted-foreground">{clipCount} clips</span>
-                  </div>
-                  <Slider
-                    value={[clipCount]}
-                    min={1}
-                    max={10}
-                    step={1}
-                    onValueChange={(value) => setClipCount(value[0])}
-                    className="py-4"
-                  />
-                  <p className="text-xs text-muted-foreground">
-                    Each clip uses 1 credit from your plan
-                  </p>
+                  <Label htmlFor="clips-count">Number of Clips</Label>
+                  <Select defaultValue="3">
+                    <SelectTrigger id="clips-count">
+                      <SelectValue placeholder="Select number of clips" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="1">1 Clip</SelectItem>
+                      <SelectItem value="3">3 Clips</SelectItem>
+                      <SelectItem value="5">5 Clips</SelectItem>
+                      <SelectItem value="10">10 Clips</SelectItem>
+                    </SelectContent>
+                  </Select>
                 </div>
 
                 <div className="space-y-2">
                   <Label>Clip Duration</Label>
-                  <Select defaultValue="auto">
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select clip duration" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="short">Short (15-30 seconds)</SelectItem>
-                      <SelectItem value="medium">Medium (30-45 seconds)</SelectItem>
-                      <SelectItem value="long">Long (45-60 seconds)</SelectItem>
-                      <SelectItem value="auto">Auto (AI optimized)</SelectItem>
-                    </SelectContent>
-                  </Select>
+                  <div className="flex justify-between items-center">
+                    <span className="text-sm">30 seconds</span>
+                    <span className="text-sm">2 minutes</span>
+                  </div>
+                  <Slider defaultValue={[45]} max={120} step={15} />
+                  <p className="text-xs text-muted-foreground">Selected duration: 45 seconds</p>
+                </div>
+
+                <div className="space-y-2">
+                  <div className="flex items-center space-x-2">
+                    <Checkbox id="add-captions" defaultChecked />
+                    <label htmlFor="add-captions" className="text-sm font-medium">
+                      Add captions to clips
+                    </label>
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <Checkbox id="add-intro" />
+                    <label htmlFor="add-intro" className="text-sm font-medium">
+                      Add intro & outro
+                    </label>
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <Checkbox id="optimize-vertical" defaultChecked />
+                    <label htmlFor="optimize-vertical" className="text-sm font-medium">
+                      Optimize for vertical (9:16)
+                    </label>
+                  </div>
                 </div>
               </CardContent>
             </Card>
 
             <Card className="md:col-span-3">
               <CardHeader>
-                <CardTitle>Advanced Options</CardTitle>
+                <CardTitle>AI Analysis</CardTitle>
                 <CardDescription>
-                  Fine-tune your clip generation settings.
+                  Our AI will analyze your video to find the most engaging moments.
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-6">
                 <div className="space-y-2">
-                  <Label>Clip Aspect Ratio</Label>
-                  <div className="grid grid-cols-3 gap-2">
-                    {videoAspectRatios.map((ratio) => (
-                      <Button
-                        key={ratio.id}
-                        variant="outline"
-                        className={`justify-start ${
-                          clipAspectRatio === ratio.id 
-                            ? "border-youtube-red bg-youtube-red/10 text-youtube-red" 
-                            : ""
-                        }`}
-                        onClick={() => setClipAspectRatio(ratio.id)}
-                      >
-                        <span className="mr-2 text-xl">{ratio.icon}</span>
-                        {ratio.name}
-                      </Button>
-                    ))}
+                  <Label>AI Detection Focus</Label>
+                  <div className="grid grid-cols-2 gap-2">
+                    <div className="flex items-center space-x-2">
+                      <Checkbox id="focus-energy" defaultChecked />
+                      <label htmlFor="focus-energy" className="text-sm font-medium">
+                        High energy moments
+                      </label>
+                    </div>
+                    <div className="flex items-center space-x-2">
+                      <Checkbox id="focus-insights" defaultChecked />
+                      <label htmlFor="focus-insights" className="text-sm font-medium">
+                        Key insights
+                      </label>
+                    </div>
+                    <div className="flex items-center space-x-2">
+                      <Checkbox id="focus-humor" defaultChecked />
+                      <label htmlFor="focus-humor" className="text-sm font-medium">
+                        Humor & entertainment
+                      </label>
+                    </div>
+                    <div className="flex items-center space-x-2">
+                      <Checkbox id="focus-facts" />
+                      <label htmlFor="focus-facts" className="text-sm font-medium">
+                        Facts & statistics
+                      </label>
+                    </div>
                   </div>
                 </div>
 
-                <div className="space-y-4">
-                  <Label>Enhancement Options</Label>
-                  <div className="space-y-4">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center space-x-2">
-                        <Sparkles className="h-4 w-4 text-muted-foreground" />
-                        <Label htmlFor="generate-title" className="text-sm font-medium">
-                          Generate catchy titles
-                        </Label>
-                      </div>
-                      <Switch
-                        id="generate-title"
-                        checked={generateTitleOption}
-                        onCheckedChange={setGenerateTitleOption}
-                      />
-                    </div>
+                <div className="space-y-2">
+                  <Label>Optimization Target</Label>
+                  <Select defaultValue="tiktok">
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select platform" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All Platforms</SelectItem>
+                      <SelectItem value="tiktok">TikTok</SelectItem>
+                      <SelectItem value="instagram">Instagram Reels</SelectItem>
+                      <SelectItem value="youtube">YouTube Shorts</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
 
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center space-x-2">
-                        <Scissors className="h-4 w-4 text-muted-foreground" />
-                        <Label htmlFor="generate-captions" className="text-sm font-medium">
-                          Add automatic captions
-                        </Label>
-                      </div>
-                      <Switch
-                        id="generate-captions"
-                        checked={generateCaptionsOption}
-                        onCheckedChange={setGenerateCaptionsOption}
-                      />
-                    </div>
-
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center space-x-2">
-                        <Wand2 className="h-4 w-4 text-muted-foreground" />
-                        <Label htmlFor="add-music" className="text-sm font-medium">
-                          Add trending background music
-                        </Label>
-                      </div>
-                      <Switch
-                        id="add-music"
-                        checked={addMusicOption}
-                        onCheckedChange={setAddMusicOption}
-                      />
-                    </div>
-
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center space-x-2">
-                        <CheckCircle2 className="h-4 w-4 text-muted-foreground" />
-                        <Label htmlFor="add-branding" className="text-sm font-medium">
-                          Add channel branding
-                        </Label>
-                      </div>
-                      <Switch
-                        id="add-branding"
-                        checked={addBrandingOption}
-                        onCheckedChange={setAddBrandingOption}
-                      />
-                    </div>
+                <div className="text-center py-6">
+                  <div className="mx-auto w-16 h-16 rounded-full bg-muted/30 flex items-center justify-center mb-3">
+                    <Scissors className="h-8 w-8 text-youtube-red" />
                   </div>
+                  <h3 className="font-medium text-lg">Ready to generate clips</h3>
+                  <p className="text-sm text-muted-foreground mt-1 max-w-md mx-auto">
+                    Our AI will analyze your video and extract the most engaging moments based on your settings.
+                  </p>
                 </div>
               </CardContent>
-              <CardFooter className="border-t pt-6">
+              <CardFooter className="flex justify-end border-t pt-6">
                 <Button 
                   onClick={handleGenerateClips} 
                   disabled={!file || isProcessing}
-                  className="ml-auto bg-youtube-red hover:bg-youtube-darkred"
+                  className={isProcessing ? "" : "bg-youtube-red hover:bg-youtube-darkred"}
                 >
                   {isProcessing ? "Processing..." : "Generate Clips"}
                   <Scissors className="ml-2 h-4 w-4" />
@@ -369,74 +317,65 @@ const ClipsGenerator = () => {
           </div>
         </TabsContent>
         
-        <TabsContent value="clips" className="mt-6">
+        <TabsContent value="preview" className="mt-6">
           <Card>
             <CardHeader>
-              <CardTitle>Generated Clips</CardTitle>
+              <CardTitle>Preview & Export Clips</CardTitle>
               <CardDescription>
-                Preview and download your viral clips.
+                Review, edit, and download your generated clips.
               </CardDescription>
             </CardHeader>
-            <CardContent>
+            <CardContent className="space-y-6">
               {generatedClips.length === 0 ? (
                 <div className="text-center py-12">
                   <div className="mx-auto w-12 h-12 rounded-full bg-muted flex items-center justify-center mb-4">
-                    <Scissors className="h-6 w-6 text-muted-foreground" />
+                    <FileText className="h-6 w-6 text-muted-foreground" />
                   </div>
                   <h3 className="font-medium">No clips generated yet</h3>
                   <p className="text-sm text-muted-foreground mt-1">
-                    Configure your settings and generate clips to see them here
+                    Upload a video and generate clips to see them here
                   </p>
                 </div>
               ) : (
-                <ScrollArea className="h-[500px] pr-4">
-                  <div className="space-y-6">
-                    {generatedClips.map((clip) => (
-                      <div key={clip.id} className="border rounded-lg overflow-hidden">
-                        <div className="relative aspect-video bg-muted">
-                          <div className="absolute inset-0 flex items-center justify-center">
-                            <Button variant="ghost" size="icon" className="rounded-full bg-black/20 hover:bg-black/40">
-                              <Play className="h-8 w-8 text-white" />
-                            </Button>
+                <div className="space-y-6">
+                  <ScrollArea className="h-[500px] pr-4">
+                    <div className="space-y-6">
+                      {generatedClips.map((clip) => (
+                        <div key={clip.id} className="border rounded-lg overflow-hidden">
+                          <div className="aspect-video bg-black flex items-center justify-center">
+                            <Video className="h-12 w-12 text-white/30" />
                           </div>
-                          <div className={`absolute bottom-2 right-2 px-2 py-1 text-xs font-medium bg-black/50 text-white rounded-md`}>
-                            {clip.duration}
-                          </div>
-                        </div>
-                        <div className="p-4">
-                          <h3 className="font-medium">{clip.title}</h3>
-                          <div className="flex justify-between items-center mt-2">
-                            <span className="text-sm text-muted-foreground">{clip.views} potential views</span>
-                            <div className="flex gap-2">
-                              <Button variant="outline" size="sm">
+                          <div className="p-4">
+                            <div className="flex justify-between items-center mb-2">
+                              <h3 className="font-medium">{clip.title}</h3>
+                              <span className="text-sm text-muted-foreground flex items-center">
+                                <Clock className="h-3 w-3 mr-1" /> {clip.duration}
+                              </span>
+                            </div>
+                            <div className="flex space-x-2 mt-4">
+                              <Button variant="outline" size="sm" className="flex-1">
                                 Edit
                               </Button>
-                              <Button variant="outline" size="sm">
-                                <Download className="mr-2 h-3 w-3" />
-                                Download
+                              <Button variant="outline" size="sm" className="flex-1">
+                                <Download className="h-4 w-4 mr-1" /> Download
                               </Button>
                             </div>
                           </div>
                         </div>
-                      </div>
-                    ))}
-                  </div>
-                </ScrollArea>
+                      ))}
+                    </div>
+                  </ScrollArea>
+                </div>
               )}
             </CardContent>
-            <CardFooter className="border-t pt-6">
-              <div className="ml-auto space-x-2">
-                <Button variant="outline" disabled={generatedClips.length === 0}>
-                  Generate More
-                </Button>
-                <Button 
-                  className="bg-youtube-red hover:bg-youtube-darkred"
-                  disabled={generatedClips.length === 0}
-                >
-                  <Download className="mr-2 h-4 w-4" />
-                  Download All Clips
-                </Button>
-              </div>
+            <CardFooter className="flex justify-end border-t pt-6">
+              <Button 
+                className="bg-youtube-red hover:bg-youtube-darkred" 
+                disabled={generatedClips.length === 0}
+              >
+                <DownloadCloud className="mr-2 h-4 w-4" />
+                Download All Clips
+              </Button>
             </CardFooter>
           </Card>
         </TabsContent>
