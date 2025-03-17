@@ -31,23 +31,23 @@ const Navbar = () => {
         {/* Desktop Navigation */}
         <div className="hidden md:flex items-center space-x-8">
           <div className="flex space-x-6">
-            <Link to="/" className="text-foreground hover-link font-medium">
+            <Link to="/" className="text-white hover-link font-medium">
               Home
             </Link>
-            <a href="#features" className="text-foreground hover-link font-medium">
+            <a href="#features" className="text-white hover-link font-medium">
               Features
             </a>
-            <a href="#testimonials" className="text-foreground hover-link font-medium">
+            <a href="#testimonials" className="text-white hover-link font-medium">
               Testimonials
             </a>
-            <a href="#pricing" className="text-foreground hover-link font-medium">
+            <a href="#pricing" className="text-white hover-link font-medium">
               Pricing
             </a>
           </div>
 
           <div className="flex items-center space-x-3">
             <Link to="/signin">
-              <Button variant="ghost" className="font-medium">
+              <Button variant="ghost" className="font-medium text-white hover:bg-white/10">
                 Sign In
               </Button>
             </Link>
@@ -66,6 +66,7 @@ const Navbar = () => {
             size="icon" 
             onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
             aria-label="Toggle menu"
+            className="text-white"
           >
             {isMobileMenuOpen ? <X size={24} /> : <Menu size={24} />}
           </Button>
@@ -74,39 +75,39 @@ const Navbar = () => {
 
       {/* Mobile Menu */}
       {isMobileMenuOpen && (
-        <div className="md:hidden absolute top-full left-0 right-0 bg-white border-b border-gray-200 shadow-lg animate-fade-in-up">
+        <div className="md:hidden absolute top-full left-0 right-0 bg-gray-900 border-b border-gray-800 shadow-lg animate-fade-in-up">
           <div className="container mx-auto px-6 py-4 flex flex-col space-y-4">
             <Link 
               to="/" 
-              className="text-foreground py-2 hover:text-youtube-red transition-colors"
+              className="text-white py-2 hover:text-youtube-red transition-colors"
               onClick={() => setIsMobileMenuOpen(false)}
             >
               Home
             </Link>
             <a 
               href="#features" 
-              className="text-foreground py-2 hover:text-youtube-red transition-colors"
+              className="text-white py-2 hover:text-youtube-red transition-colors"
               onClick={() => setIsMobileMenuOpen(false)}
             >
               Features
             </a>
             <a 
               href="#testimonials" 
-              className="text-foreground py-2 hover:text-youtube-red transition-colors"
+              className="text-white py-2 hover:text-youtube-red transition-colors"
               onClick={() => setIsMobileMenuOpen(false)}
             >
               Testimonials
             </a>
             <a 
               href="#pricing" 
-              className="text-foreground py-2 hover:text-youtube-red transition-colors"
+              className="text-white py-2 hover:text-youtube-red transition-colors"
               onClick={() => setIsMobileMenuOpen(false)}
             >
               Pricing
             </a>
-            <div className="flex flex-col space-y-3 pt-3 border-t border-gray-100">
+            <div className="flex flex-col space-y-3 pt-3 border-t border-gray-800">
               <Link to="/signin" onClick={() => setIsMobileMenuOpen(false)}>
-                <Button variant="outline" className="w-full">
+                <Button variant="outline" className="w-full text-white border-gray-700 hover:bg-gray-800">
                   Sign In
                 </Button>
               </Link>

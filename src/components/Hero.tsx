@@ -12,7 +12,7 @@ const Hero = () => {
   }, []);
 
   return (
-    <section className="relative min-h-screen flex items-center pt-20 overflow-hidden bg-gradient-to-b from-gray-900 to-gray-800">
+    <section className="relative min-h-screen flex items-center pt-20 overflow-hidden bg-gradient-to-b from-black to-gray-900">
       {/* Background Elements */}
       <div className="absolute inset-0 z-0">
         <div className="absolute top-20 right-10 w-64 h-64 bg-youtube-red/10 rounded-full filter blur-3xl opacity-70"></div>
@@ -73,15 +73,15 @@ const Hero = () => {
             }`}
           >
             {/* Hero image with gradient glow */}
-            <div className="relative">
+            <div className="relative flex justify-center items-center">
               {/* Gradient glow effect */}
-              <div className="absolute -inset-1 bg-gradient-to-r from-white via-youtube-red to-white opacity-70 blur-lg rounded-lg"></div>
+              <div className="absolute inset-0 bg-gradient-to-r from-white/30 via-youtube-red/40 to-white/30 opacity-70 blur-xl rounded-lg"></div>
               
-              {/* Actual image */}
+              {/* Actual image with proper dimensions */}
               <img 
                 src="/lovable-uploads/9d8e6170-a9f6-4620-b326-07c2f67a7db6.png" 
                 alt="YouTube creators collage" 
-                className="relative z-10 rounded-lg w-full h-auto shadow-2xl"
+                className="relative z-10 rounded-lg w-full max-w-md mx-auto h-auto object-contain shadow-2xl"
               />
             </div>
 
