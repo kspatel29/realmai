@@ -42,11 +42,10 @@ const SignUp = () => {
   return (
     <div className="min-h-screen flex flex-col lg:flex-row">
       {/* Image Side */}
-      <div className="hidden lg:flex lg:flex-1 bg-gradient-to-br from-youtube-red to-youtube-darkred items-center justify-center relative">
-        <div className="absolute inset-0 bg-black/20"></div>
+      <div className="hidden lg:flex lg:flex-1 bg-black items-center justify-center relative">
         <div className="relative z-10 text-white max-w-md p-8 text-center">
-          <h2 className="text-3xl font-bold mb-4">Join the Global Creator Economy</h2>
-          <p className="text-lg opacity-90">
+          <h2 className="text-3xl font-bold mb-4 text-youtube-red">Join the Global Creator Economy</h2>
+          <p className="text-lg text-white opacity-90">
             Create once, reach billions. Our AI-powered tools help you break language barriers and multiply your revenue.
           </p>
         </div>
@@ -66,7 +65,7 @@ const SignUp = () => {
           </div>
 
           {error && (
-            <div className="bg-red-50 text-red-600 p-3 rounded-md text-sm">
+            <div className="bg-red-50 text-red-600 p-3 rounded-md text-sm dark:bg-red-900/20">
               {error}
             </div>
           )}

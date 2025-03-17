@@ -46,11 +46,42 @@
     --sidebar-border: 240 3.7% 15.9%;
     --sidebar-ring: 0 91% 50%;
   }
+
+  .dark {
+    --background: 240 10% 3.9%;
+    --foreground: 0 0% 98%;
+
+    --card: 240 10% 3.9%;
+    --card-foreground: 0 0% 98%;
+
+    --popover: 240 10% 3.9%;
+    --popover-foreground: 0 0% 98%;
+
+    --primary: 0 91% 50%;
+    --primary-foreground: 0 0% 98%;
+
+    --secondary: 240 3.7% 15.9%;
+    --secondary-foreground: 0 0% 98%;
+
+    --muted: 240 3.7% 15.9%;
+    --muted-foreground: 240 5% 64.9%;
+
+    --accent: 240 3.7% 15.9%;
+    --accent-foreground: 0 0% 98%;
+
+    --destructive: 0 62.8% 30.6%;
+    --destructive-foreground: 0 0% 98%;
+
+    --border: 240 3.7% 15.9%;
+    --input: 240 3.7% 15.9%;
+    --ring: 240 4.9% 83.9%;
+  }
 }
 
 @layer base {
   * {
     @apply border-border;
+    scroll-behavior: smooth;
   }
 
   body {
@@ -64,11 +95,11 @@
   }
 
   .glass-card {
-    @apply bg-white/90 backdrop-blur-sm border border-gray-200/50 shadow-lg;
+    @apply bg-white/90 backdrop-blur-sm border border-gray-200/50 shadow-lg dark:bg-black/60 dark:border-gray-800/50;
   }
 
   .glass-navbar {
-    @apply bg-white/80 backdrop-blur-md border-b border-gray-200/20 shadow-sm;
+    @apply bg-white/80 backdrop-blur-md border-b border-gray-200/20 shadow-sm dark:bg-black/60 dark:border-gray-800/20;
   }
 
   .text-balance {
@@ -86,5 +117,18 @@
 
   .hover-link {
     @apply relative after:absolute after:bottom-0 after:left-0 after:w-full after:h-0.5 after:bg-youtube-red after:origin-bottom-right after:scale-x-0 hover:after:origin-bottom-left hover:after:scale-x-100 after:transition-transform after:duration-300;
+  }
+  
+  /* Background gradients */
+  .bg-gradient-subtle {
+    @apply bg-gradient-to-br from-gray-50 to-white dark:from-gray-900 dark:to-gray-800;
+  }
+  
+  .bg-gradient-primary {
+    @apply bg-gradient-to-br from-youtube-red/90 to-youtube-darkred dark:from-youtube-red/80 dark:to-youtube-darkred/90;
+  }
+  
+  .bg-gradient-accent {
+    @apply bg-gradient-to-tr from-gray-100 via-gray-50 to-white dark:from-gray-900 dark:via-gray-800 dark:to-gray-900;
   }
 }

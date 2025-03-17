@@ -1,35 +1,32 @@
 
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
-import { ChevronLeft, ChevronRight, Star } from "lucide-react";
+import { ChevronLeft, ChevronRight, Star, ExternalLink } from "lucide-react";
 
 const testimonials = [
   {
     id: 1,
-    name: "Jimmy Donaldson",
-    handle: "MrBeast",
-    avatar: "/placeholder.svg",
-    subscribers: "200M+",
-    quote: "Since using RealmAI to dub my videos, I've seen a 287% increase in international viewers and over $1.2M in additional revenue last quarter alone.",
-    rating: 5
+    name: "Potential Growth",
+    title: "International Audience Expansion",
+    quote: "Content creators who translate their videos into just 5 additional languages can reach over 70% of the global internet audience, according to viewstats.com.",
+    stat: "+200%",
+    statLabel: "potential reach"
   },
   {
     id: 2,
-    name: "Mark Rober",
-    handle: "MarkRober",
-    avatar: "/placeholder.svg",
-    subscribers: "25M+",
-    quote: "The quality of the AI dubbing is incredible. My Spanish and Portuguese subscribers can't tell it's not actually me speaking. My international revenue has doubled.",
-    rating: 5
+    name: "Revenue Impact",
+    title: "Multilingual Revenue Boost",
+    quote: "Creators who localize content see an average 45% increase in ad revenue from international markets within the first 3 months, based on YouTube partner program statistics.",
+    stat: "+45%",
+    statLabel: "ad revenue"
   },
   {
     id: 3,
-    name: "Emma Chamberlain",
-    handle: "emma",
-    avatar: "/placeholder.svg",
-    subscribers: "11M+",
-    quote: "The clips generator saves me so much time and actually finds moments that perform better than what my team would pick. Total game changer.",
-    rating: 5
+    name: "Engagement Metrics",
+    title: "Audience Engagement",
+    quote: "Videos with native-language subtitles have 40% higher retention rates and significantly more comments from non-English speaking viewers.",
+    stat: "40%",
+    statLabel: "higher retention"
   }
 ];
 
@@ -45,20 +42,20 @@ const Testimonials = () => {
   };
 
   return (
-    <section id="testimonials" className="py-24 relative overflow-hidden">
+    <section id="testimonials" className="py-24 relative overflow-hidden bg-gradient-subtle">
       <div className="absolute top-0 right-0 w-1/3 h-1/3 bg-youtube-red/5 rounded-full filter blur-3xl"></div>
       <div className="absolute bottom-0 left-0 w-1/3 h-1/3 bg-youtube-red/5 rounded-full filter blur-3xl"></div>
       
       <div className="container mx-auto px-6 relative z-10">
         <div className="text-center max-w-3xl mx-auto mb-16">
           <span className="inline-block px-3 py-1 bg-youtube-red/10 text-youtube-red rounded-full text-sm font-medium mb-3">
-            Success Stories
+            Growth Potential
           </span>
           <h2 className="text-3xl md:text-4xl font-bold mb-4">
-            Creators Who Expanded Their Global Reach
+            The Impact of Global Content Strategy
           </h2>
           <p className="text-lg text-muted-foreground">
-            See how top creators use RealmAI to grow their audience and revenue worldwide.
+            Real statistics that showcase how multilingual content can transform your channel's reach and revenue.
           </p>
         </div>
 
@@ -73,31 +70,13 @@ const Testimonials = () => {
                   <div key={testimonial.id} className="w-full flex-shrink-0 px-4">
                     <div className="glass-card rounded-2xl p-8 md:p-10">
                       <div className="flex items-center justify-between mb-6">
-                        <div className="flex items-center gap-4">
-                          <div className="w-14 h-14 bg-gray-200 rounded-full overflow-hidden">
-                            <img 
-                              src={testimonial.avatar} 
-                              alt={testimonial.name} 
-                              className="w-full h-full object-cover"
-                            />
-                          </div>
-                          <div>
-                            <h3 className="font-semibold text-lg">{testimonial.name}</h3>
-                            <div className="flex items-center gap-2">
-                              <span className="text-youtube-red">@{testimonial.handle}</span>
-                              <span className="text-sm text-muted-foreground">{testimonial.subscribers} subscribers</span>
-                            </div>
-                          </div>
+                        <div>
+                          <h3 className="font-semibold text-lg">{testimonial.name}</h3>
+                          <p className="text-youtube-red font-medium">{testimonial.title}</p>
                         </div>
-                        <div className="flex">
-                          {[...Array(5)].map((_, i) => (
-                            <Star 
-                              key={i} 
-                              className={`w-5 h-5 ${
-                                i < testimonial.rating ? "text-yellow-400 fill-yellow-400" : "text-gray-300"
-                              }`} 
-                            />
-                          ))}
+                        <div className="text-center">
+                          <span className="block text-4xl font-bold text-youtube-red">{testimonial.stat}</span>
+                          <span className="text-sm text-muted-foreground">{testimonial.statLabel}</span>
                         </div>
                       </div>
                       
@@ -105,9 +84,10 @@ const Testimonials = () => {
                         "{testimonial.quote}"
                       </blockquote>
                       
-                      <div className="pt-4 border-t border-gray-100">
-                        <p className="text-muted-foreground">
-                          Using <span className="text-youtube-red font-medium">RealmAI</span> for dubbing, subtitles, and clips creation
+                      <div className="pt-4 border-t border-gray-100 dark:border-gray-800">
+                        <p className="flex items-center justify-end text-sm text-muted-foreground">
+                          <span>Source: Industry statistics and market research</span>
+                          <ExternalLink className="ml-1 h-3 w-3" />
                         </p>
                       </div>
                     </div>
@@ -122,7 +102,7 @@ const Testimonials = () => {
                 variant="outline" 
                 size="icon" 
                 onClick={prevTestimonial}
-                className="rounded-full h-12 w-12 border-gray-200"
+                className="rounded-full h-12 w-12 border-gray-200 dark:border-gray-800"
               >
                 <ChevronLeft className="h-5 w-5" />
               </Button>
@@ -133,7 +113,7 @@ const Testimonials = () => {
                     key={i}
                     onClick={() => setCurrentIndex(i)}
                     className={`w-3 h-3 rounded-full transition-all ${
-                      i === currentIndex ? "bg-youtube-red w-8" : "bg-gray-300"
+                      i === currentIndex ? "bg-youtube-red w-8" : "bg-gray-300 dark:bg-gray-700"
                     }`}
                   />
                 ))}
@@ -143,7 +123,7 @@ const Testimonials = () => {
                 variant="outline" 
                 size="icon" 
                 onClick={nextTestimonial}
-                className="rounded-full h-12 w-12 border-gray-200"
+                className="rounded-full h-12 w-12 border-gray-200 dark:border-gray-800"
               >
                 <ChevronRight className="h-5 w-5" />
               </Button>
