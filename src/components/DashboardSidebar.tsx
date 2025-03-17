@@ -33,7 +33,7 @@ const DashboardSidebar = ({ isSidebarOpen, toggleSidebar }: DashboardSidebarProp
     },
     {
       title: "Video Dubbing",
-      href: "/dashboard/dubbing",
+      href: "/dashboard/video-dubbing",
       icon: <Video className="h-5 w-5" />,
     },
     {
@@ -139,7 +139,7 @@ const DashboardSidebar = ({ isSidebarOpen, toggleSidebar }: DashboardSidebarProp
                 </Link>
               ))}
               
-              <Link to="/dashboard/logout" onClick={toggleSidebar}>
+              <Link to="/dashboard/logout">
                 <div
                   className="flex items-center gap-3 rounded-lg px-3 py-2 text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground transition-colors"
                 >

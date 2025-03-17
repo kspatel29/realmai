@@ -1,14 +1,24 @@
 
 import { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import ServiceCard from "@/components/ServiceCard";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { toast } from "sonner";
 import { Globe, Video, MessageSquare, Scissors, Upload, BarChart3, ArrowUpRight, TrendingUp, Users, DollarSign } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 
 const Dashboard = () => {
   const { user } = useAuth();
+  const navigate = useNavigate();
   const [isLoaded, setIsLoaded] = useState(false);
+  const [isUploading, setIsUploading] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState(0);
+  const [videoFile, setVideoFile] = useState<File | null>(null);
+  const [videoTitle, setVideoTitle] = useState("");
 
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -18,27 +28,71 @@ const Dashboard = () => {
     return () => clearTimeout(timer);
   }, []);
 
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files[0]) {
+      const file = e.target.files[0];
+      setVideoFile(file);
+      
+      // Auto-set title based on filename without extension
+      const fileNameWithoutExt = file.name.split('.').slice(0, -1).join('.');
+      setVideoTitle(fileNameWithoutExt);
+    }
+  };
+
+  const handleUpload = async () => {
+    if (!videoFile) {
+      toast.error("Please select a video file first");
+      return;
+    }
+
+    if (!videoTitle.trim()) {
+      toast.error("Please enter a title for your video");
+      return;
+    }
+
+    setIsUploading(true);
+    
+    // Simulate upload progress
+    let progress = 0;
+    const interval = setInterval(() => {
+      progress += 5;
+      setUploadProgress(progress);
+      
+      if (progress >= 100) {
+        clearInterval(interval);
+        setIsUploading(false);
+        toast.success("Video uploaded successfully!");
+        setVideoFile(null);
+        setVideoTitle("");
+        navigate("/dashboard/video-dubbing");
+      }
+    }, 200);
+  };
+
   const services = [
     {
       title: "Video Dubbing",
       description: "Convert your content into 50+ languages with AI voice cloning.",
       icon: <Video className="h-6 w-6 text-blue-600" />,
       action: "Start Dubbing",
-      color: "#2563eb"
+      color: "#2563eb",
+      href: "/dashboard/video-dubbing"
     },
     {
       title: "Subtitle Generator",
       description: "Create accurate subtitles in multiple languages automatically.",
       icon: <MessageSquare className="h-6 w-6 text-purple-600" />,
       action: "Generate Subtitles",
-      color: "#9333ea"
+      color: "#9333ea",
+      href: "/dashboard/subtitles"
     },
     {
       title: "Clips Generator",
       description: "Create viral clips from your long-form content automatically.",
       icon: <Scissors className="h-6 w-6 text-orange-600" />,
       action: "Generate Clips",
-      color: "#ea580c"
+      color: "#ea580c",
+      href: "/dashboard/clips"
     }
   ];
 
@@ -82,10 +136,110 @@ const Dashboard = () => {
             Welcome back, {user?.name || "Creator"}! Here's an overview of your global reach.
           </p>
         </div>
-        <Button className="bg-youtube-red hover:bg-youtube-darkred text-white gap-2">
-          <Upload className="h-4 w-4" />
-          Upload New Video
-        </Button>
+        <Dialog>
+          <DialogTrigger asChild>
+            <Button className="bg-youtube-red hover:bg-youtube-darkred text-white gap-2">
+              <Upload className="h-4 w-4" />
+              Upload New Video
+            </Button>
+          </DialogTrigger>
+          <DialogContent className="sm:max-w-md">
+            <DialogHeader>
+              <DialogTitle>Upload New Video</DialogTitle>
+              <DialogDescription>
+                Upload a video to get started with dubbing, subtitles, or clips generation.
+              </DialogDescription>
+            </DialogHeader>
+            <div className="space-y-4 py-4">
+              {videoFile ? (
+                <div className="bg-muted rounded p-4 text-center">
+                  <Video className="h-12 w-12 mx-auto mb-2 text-muted-foreground" />
+                  <p className="font-medium truncate">{videoFile.name}</p>
+                  <p className="text-sm text-muted-foreground">
+                    {(videoFile.size / (1024 * 1024)).toFixed(2)} MB
+                  </p>
+                  <Button 
+                    variant="ghost" 
+                    size="sm" 
+                    onClick={() => setVideoFile(null)} 
+                    className="mt-2"
+                  >
+                    Change
+                  </Button>
+                </div>
+              ) : (
+                <div className="border-2 border-dashed border-muted-foreground/25 rounded-lg p-6 text-center">
+                  <Upload className="h-8 w-8 mx-auto mb-4 text-muted-foreground" />
+                  <p className="mb-2 font-medium">Drag and drop or click to upload</p>
+                  <p className="text-sm text-muted-foreground mb-4">
+                    Supports MP4, MOV, AVI up to 500MB
+                  </p>
+                  <Input 
+                    id="video-upload" 
+                    type="file" 
+                    accept="video/*" 
+                    className="hidden" 
+                    onChange={handleFileChange}
+                  />
+                  <Button 
+                    variant="outline" 
+                    onClick={() => document.getElementById('video-upload')?.click()}
+                  >
+                    Select Video
+                  </Button>
+                </div>
+              )}
+
+              {videoFile && (
+                <div className="space-y-2">
+                  <Label htmlFor="title">Video Title</Label>
+                  <Input 
+                    id="title" 
+                    value={videoTitle} 
+                    onChange={(e) => setVideoTitle(e.target.value)} 
+                    placeholder="Enter a title for your video"
+                  />
+                </div>
+              )}
+
+              {isUploading && (
+                <div className="space-y-2">
+                  <div className="flex justify-between text-sm">
+                    <span>Uploading...</span>
+                    <span>{uploadProgress}%</span>
+                  </div>
+                  <div className="h-2 bg-muted rounded-full overflow-hidden">
+                    <div 
+                      className="h-full bg-youtube-red transition-all duration-300" 
+                      style={{ width: `${uploadProgress}%` }}
+                    ></div>
+                  </div>
+                </div>
+              )}
+            </div>
+            <DialogFooter>
+              <Button 
+                type="button" 
+                variant="secondary" 
+                onClick={() => {
+                  setVideoFile(null);
+                  setVideoTitle("");
+                }}
+                disabled={isUploading}
+              >
+                Cancel
+              </Button>
+              <Button 
+                type="button" 
+                onClick={handleUpload} 
+                disabled={!videoFile || isUploading}
+                className="bg-youtube-red hover:bg-youtube-darkred"
+              >
+                {isUploading ? "Uploading..." : "Upload & Continue"}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
       </div>
 
       {/* Stats */}

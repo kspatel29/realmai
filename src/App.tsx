@@ -3,8 +3,8 @@ import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route } from "react-router-dom";
-import { AuthProvider, RequireAuth } from "@/hooks/useAuth";
+import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+import { AuthProvider, RequireAuth, useAuth } from "@/hooks/useAuth";
 
 import Index from "./pages/Index";
 import SignIn from "./pages/SignIn";
@@ -15,9 +15,20 @@ import VideoDubbing from "./pages/VideoDubbing";
 import Subtitles from "./pages/Subtitles";
 import ClipsGenerator from "./pages/ClipsGenerator";
 import Analytics from "./pages/Analytics";
+import Settings from "./pages/Settings";
+import Support from "./pages/Support";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
+
+// Logout component that handles the logout logic
+const Logout = () => {
+  const { logout } = useAuth();
+  
+  // Call logout and redirect to home
+  logout();
+  return <Navigate to="/" />;
+};
 
 const App = () => (
   <QueryClientProvider client={queryClient}>
@@ -40,8 +51,11 @@ const App = () => (
               <Route index element={<Dashboard />} />
               <Route path="video-dubbing" element={<VideoDubbing />} />
               <Route path="subtitles" element={<Subtitles />} />
-              <Route path="clips-generator" element={<ClipsGenerator />} />
+              <Route path="clips" element={<ClipsGenerator />} />
               <Route path="analytics" element={<Analytics />} />
+              <Route path="settings" element={<Settings />} />
+              <Route path="support" element={<Support />} />
+              <Route path="logout" element={<Logout />} />
             </Route>
             
             {/* 404 page */}
