@@ -12,7 +12,7 @@ const Hero = () => {
   }, []);
 
   return (
-    <section className="relative min-h-screen flex items-center pt-20 overflow-hidden">
+    <section className="relative min-h-screen flex items-center pt-20 overflow-hidden bg-gradient-to-b from-gray-900 to-gray-800">
       {/* Background Elements */}
       <div className="absolute inset-0 z-0">
         <div className="absolute top-20 right-10 w-64 h-64 bg-youtube-red/10 rounded-full filter blur-3xl opacity-70"></div>
@@ -30,10 +30,10 @@ const Hero = () => {
               <span className="inline-block px-3 py-1 bg-youtube-red/10 text-youtube-red rounded-full text-sm font-medium">
                 Revenue Maximizer for YouTubers
               </span>
-              <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold leading-tight text-balance">
+              <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold leading-tight text-balance text-white">
                 <span className="text-youtube-red">Global Reach,</span> Greater Revenue
               </h1>
-              <p className="text-lg md:text-xl text-muted-foreground mt-4 max-w-lg">
+              <p className="text-lg md:text-xl text-gray-300 mt-4 max-w-lg">
                 AI-powered tools to dub, subtitle, and clip your content for international audiences. Your content, in any language, on autopilot.
               </p>
             </div>
@@ -49,7 +49,7 @@ const Hero = () => {
                 </Button>
               </Link>
               <Link to="/signin">
-                <Button variant="outline" className="h-12 px-6 font-medium text-lg" size="lg">
+                <Button variant="outline" className="h-12 px-6 font-medium text-lg border-gray-600 text-white hover:bg-gray-700" size="lg">
                   Sign In
                 </Button>
               </Link>
@@ -57,11 +57,11 @@ const Hero = () => {
 
             <div className="flex items-center space-x-2 pt-2">
               <div className="flex -space-x-2">
-                <div className="w-8 h-8 rounded-full bg-gray-300 border-2 border-white flex items-center justify-center text-xs font-bold">J</div>
-                <div className="w-8 h-8 rounded-full bg-gray-300 border-2 border-white flex items-center justify-center text-xs font-bold">M</div>
-                <div className="w-8 h-8 rounded-full bg-gray-300 border-2 border-white flex items-center justify-center text-xs font-bold">P</div>
+                <div className="w-8 h-8 rounded-full bg-gray-700 border-2 border-gray-800 flex items-center justify-center text-xs font-bold text-white">J</div>
+                <div className="w-8 h-8 rounded-full bg-gray-700 border-2 border-gray-800 flex items-center justify-center text-xs font-bold text-white">M</div>
+                <div className="w-8 h-8 rounded-full bg-gray-700 border-2 border-gray-800 flex items-center justify-center text-xs font-bold text-white">P</div>
               </div>
-              <span className="text-sm text-muted-foreground">
+              <span className="text-sm text-gray-400">
                 Trusted by top creators worldwide
               </span>
             </div>
@@ -72,31 +72,17 @@ const Hero = () => {
               isVisible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-12"
             }`}
           >
-            <div className="relative z-10 bg-white rounded-lg shadow-xl overflow-hidden hover-scale border border-gray-100">
-              <div className="aspect-video bg-gray-100 relative flex items-center justify-center">
-                <div className="absolute inset-0 flex items-center justify-center bg-gradient-to-r from-gray-100 to-gray-200">
-                  <div className="w-16 h-16 rounded-full bg-youtube-red text-white flex items-center justify-center">
-                    <svg className="w-6 h-6" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                      <path d="M10 9V15L15 12L10 9Z" fill="currentColor" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                    </svg>
-                  </div>
-                </div>
-              </div>
-              <div className="p-6">
-                <div className="flex items-center space-x-2">
-                  <div className="w-8 h-8 rounded-full bg-gray-300"></div>
-                  <div>
-                    <h3 className="font-medium">MrBeast</h3>
-                    <p className="text-sm text-muted-foreground">12M+ views • 3 weeks ago</p>
-                  </div>
-                </div>
-                <div className="mt-4 space-y-2">
-                  <h3 className="font-semibold text-lg">How I Made $1M with Global Content</h3>
-                  <p className="text-sm text-muted-foreground">
-                    In this video, I explain how I increased my revenue by 350% using RealmAI to dub my content in 12 languages...
-                  </p>
-                </div>
-              </div>
+            {/* Hero image with gradient glow */}
+            <div className="relative">
+              {/* Gradient glow effect */}
+              <div className="absolute -inset-1 bg-gradient-to-r from-white via-youtube-red to-white opacity-70 blur-lg rounded-lg"></div>
+              
+              {/* Actual image */}
+              <img 
+                src="/lovable-uploads/9d8e6170-a9f6-4620-b326-07c2f67a7db6.png" 
+                alt="YouTube creators collage" 
+                className="relative z-10 rounded-lg w-full h-auto shadow-2xl"
+              />
             </div>
 
             <div className="absolute -bottom-4 -right-4 w-40 h-40 bg-youtube-red/10 rounded-full filter blur-xl z-0"></div>
