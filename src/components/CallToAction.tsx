@@ -6,11 +6,11 @@ import { ArrowRight, CheckCircle, X } from "lucide-react";
 const plans = [
   {
     name: "Starter",
-    price: "$29",
-    period: "per month",
+    price: "Free",
+    period: "",
     description: "Perfect for creators just getting started with global content",
     features: [
-      "100 credits per month",
+      "50 credits included in your account",
       "1 credit = 1 minute of video dubbing",
       "1 credit = 3 minutes of subtitle generation",
       "1 credit = 5 automated clips",
@@ -21,7 +21,7 @@ const plans = [
       "No custom voice training",
       "Limited language options (10 languages)"
     ],
-    cta: "Start Free Trial",
+    cta: "Sign Up",
     highlight: false
   },
   {
@@ -40,7 +40,7 @@ const plans = [
       "All 50+ languages supported"
     ],
     limitations: [],
-    cta: "Start Free Trial",
+    cta: "Upgrade Plan",
     highlight: true
   },
   {
@@ -76,7 +76,7 @@ const CallToAction = () => {
             Choose the Right Plan for Your <span className="text-youtube-red">Growth</span>
           </h2>
           <p className="text-lg text-muted-foreground">
-            All plans start with a 14-day free trial with 50 free credits. No credit card required.
+            Every account starts with 50 free credits. Upgrade anytime as your needs grow.
           </p>
         </div>
 

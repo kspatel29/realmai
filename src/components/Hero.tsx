@@ -48,11 +48,6 @@ const Hero = () => {
                   <ChevronRight className="ml-2 h-4 w-4 transition-transform group-hover:translate-x-1" />
                 </Button>
               </Link>
-              <Link to="/signin">
-                <Button variant="outline" className="h-12 px-6 font-medium text-lg border-gray-600 text-white hover:bg-gray-700" size="lg">
-                  Sign In
-                </Button>
-              </Link>
             </div>
 
             <div className="flex items-center space-x-2 pt-2">
@@ -75,14 +70,20 @@ const Hero = () => {
             {/* Hero image with gradient glow */}
             <div className="relative flex justify-center items-center">
               {/* Gradient glow effect */}
-              <div className="absolute inset-0 bg-gradient-to-r from-white/30 via-youtube-red/40 to-white/30 opacity-70 blur-xl rounded-lg"></div>
+              <div className="absolute inset-0 bg-gradient-to-r from-white/10 via-youtube-red/30 to-white/10 opacity-70 blur-xl rounded-2xl"></div>
               
               {/* Actual image with proper dimensions */}
-              <img 
-                src="/lovable-uploads/9d8e6170-a9f6-4620-b326-07c2f67a7db6.png" 
-                alt="YouTube creators collage" 
-                className="relative z-10 rounded-lg w-full max-w-md mx-auto h-auto object-contain shadow-2xl"
-              />
+              <div className="relative w-full max-w-lg h-[450px] mx-auto">
+                <img 
+                  src="/lovable-uploads/d7ce67c7-4d1c-4ff5-93f5-f79e964ebac8.png" 
+                  alt="YouTube creators collage" 
+                  className="w-full h-full object-contain rounded-xl shadow-2xl"
+                  style={{ 
+                    maskImage: 'linear-gradient(to bottom, black 98%, transparent 100%)',
+                    WebkitMaskImage: 'linear-gradient(to bottom, black 98%, transparent 100%)'
+                  }}
+                />
+              </div>
             </div>
 
             <div className="absolute -bottom-4 -right-4 w-40 h-40 bg-youtube-red/10 rounded-full filter blur-xl z-0"></div>
