@@ -5,8 +5,13 @@ import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { User, Session } from "@supabase/supabase-js";
 
+// Extend the User type to include metadata properties
+interface UserWithMetadata extends User {
+  name?: string;
+}
+
 interface AuthContextType {
-  user: User | null;
+  user: UserWithMetadata | null;
   session: Session | null;
   isLoading: boolean;
   isAuthenticated: boolean;
@@ -18,17 +23,30 @@ interface AuthContextType {
 const AuthContext = createContext<AuthContextType | null>(null);
 
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
-  const [user, setUser] = useState<User | null>(null);
+  const [user, setUser] = useState<UserWithMetadata | null>(null);
   const [session, setSession] = useState<Session | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const navigate = useNavigate();
+
+  // Helper function to extract and add name to user object
+  const formatUser = (session: Session | null): UserWithMetadata | null => {
+    if (!session || !session.user) return null;
+    
+    // Create a new user object with the name from metadata
+    const formattedUser: UserWithMetadata = {
+      ...session.user,
+      name: session.user.user_metadata?.name || session.user.user_metadata?.full_name || ''
+    };
+    
+    return formattedUser;
+  };
 
   useEffect(() => {
     // Set up auth state listener
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (_event, session) => {
         setSession(session);
-        setUser(session?.user ?? null);
+        setUser(formatUser(session));
         setIsLoading(false);
       }
     );
@@ -36,7 +54,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     // Get initial session
     supabase.auth.getSession().then(({ data: { session } }) => {
       setSession(session);
-      setUser(session?.user ?? null);
+      setUser(formatUser(session));
       setIsLoading(false);
     });
 
