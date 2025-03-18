@@ -68,14 +68,14 @@ const Hero = () => {
             }`}
           >
             {/* Hero image with gradient glow */}
-            <div className="relative flex justify-center items-center">
+            <div className="relative flex justify-center items-center w-full">
               {/* Gradient glow effect */}
               <div className="absolute inset-0 bg-gradient-to-r from-white/10 via-youtube-red/30 to-white/10 opacity-70 blur-xl rounded-2xl"></div>
               
               {/* Actual image with proper dimensions */}
-              <div className="relative w-full max-w-lg h-[450px] mx-auto">
+              <div className="relative w-full h-[450px] mx-auto">
                 <img 
-                  src="/lovable-uploads/d7ce67c7-4d1c-4ff5-93f5-f79e964ebac8.png" 
+                  src="/lovable-uploads/9074c80c-dd83-4590-876c-cf18a0366903.png" 
                   alt="YouTube creators collage" 
                   className="w-full h-full object-contain rounded-xl shadow-2xl"
                   style={{ 

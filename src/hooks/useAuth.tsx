@@ -2,71 +2,56 @@
 import { createContext, useContext, useEffect, useState, ReactNode } from "react";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
-
-interface User {
-  id: string;
-  email: string;
-  name: string;
-}
+import { supabase } from "@/integrations/supabase/client";
+import { User, Session } from "@supabase/supabase-js";
 
 interface AuthContextType {
   user: User | null;
+  session: Session | null;
   isLoading: boolean;
   isAuthenticated: boolean;
   login: (email: string, password: string) => Promise<void>;
   signup: (name: string, email: string, password: string) => Promise<void>;
-  logout: () => void;
+  logout: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | null>(null);
 
-// Mock database of users (in a real app, this would be a backend service)
-const USERS = [
-  {
-    id: "1",
-    email: "demo@realmaiapp.com",
-    password: "password123",
-    name: "Demo User"
-  }
-];
-
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [user, setUser] = useState<User | null>(null);
+  const [session, setSession] = useState<Session | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const navigate = useNavigate();
 
   useEffect(() => {
-    // Check if user is already logged in
-    const storedUser = localStorage.getItem("realmaiUser");
-    if (storedUser) {
-      try {
-        setUser(JSON.parse(storedUser));
-      } catch (error) {
-        console.error("Failed to parse stored user:", error);
-        localStorage.removeItem("realmaiUser");
+    // Set up auth state listener
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      async (_event, session) => {
+        setSession(session);
+        setUser(session?.user ?? null);
+        setIsLoading(false);
       }
-    }
-    setIsLoading(false);
+    );
+
+    // Get initial session
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setSession(session);
+      setUser(session?.user ?? null);
+      setIsLoading(false);
+    });
+
+    return () => subscription.unsubscribe();
   }, []);
 
   const login = async (email: string, password: string) => {
     setIsLoading(true);
     try {
-      // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      const { error } = await supabase.auth.signInWithPassword({
+        email,
+        password,
+      });
       
-      const foundUser = USERS.find(
-        user => user.email === email && user.password === password
-      );
-      
-      if (!foundUser) {
-        throw new Error("Invalid email or password");
-      }
-      
-      // Remove password from user object before storing/setting
-      const { password: _, ...userWithoutPassword } = foundUser;
-      localStorage.setItem("realmaiUser", JSON.stringify(userWithoutPassword));
-      setUser(userWithoutPassword);
+      if (error) throw error;
       
       toast.success("Logged in successfully!");
       navigate("/dashboard");
@@ -81,32 +66,19 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const signup = async (name: string, email: string, password: string) => {
     setIsLoading(true);
     try {
-      // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      
-      // Check if user already exists
-      if (USERS.some(user => user.email === email)) {
-        throw new Error("User with this email already exists");
-      }
-      
-      // Create new user
-      const newUser = {
-        id: String(USERS.length + 1),
+      const { error } = await supabase.auth.signUp({
         email,
         password,
-        name
-      };
+        options: {
+          data: {
+            name
+          }
+        }
+      });
       
-      // In a real app, this would be an API call to create a user
-      USERS.push(newUser);
+      if (error) throw error;
       
-      // Remove password from user object before storing/setting
-      const { password: _, ...userWithoutPassword } = newUser;
-      localStorage.setItem("realmaiUser", JSON.stringify(userWithoutPassword));
-      setUser(userWithoutPassword);
-      
-      toast.success("Account created successfully!");
-      navigate("/dashboard");
+      toast.success("Account created successfully! Please check your email for verification.");
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Signup failed");
       throw error;
@@ -115,17 +87,23 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     }
   };
 
-  const logout = () => {
-    localStorage.removeItem("realmaiUser");
-    setUser(null);
-    toast.success("Logged out successfully");
-    navigate("/");
+  const logout = async () => {
+    try {
+      const { error } = await supabase.auth.signOut();
+      if (error) throw error;
+      
+      toast.success("Logged out successfully");
+      navigate("/");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Logout failed");
+    }
   };
 
   return (
     <AuthContext.Provider
       value={{
         user,
+        session,
         isLoading,
         isAuthenticated: !!user,
         login,
