@@ -3,8 +3,9 @@ import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/hooks/useAuth";
 import { ArrowRight } from "lucide-react";
+import { toast } from "sonner";
 
 const SignIn = () => {
   const [email, setEmail] = useState("");
@@ -12,6 +13,7 @@ const SignIn = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState("");
   
+  const { login } = useAuth();
   const navigate = useNavigate();
 
   const handleEmailSignIn = async (e: React.FormEvent) => {
@@ -20,17 +22,22 @@ const SignIn = () => {
     setIsLoading(true);
     
     try {
-      const { error: signInError } = await supabase.auth.signInWithPassword({
-        email,
-        password,
-      });
-      
-      if (signInError) throw signInError;
-      
-      navigate("/dashboard");
+      await login(email, password);
+      // No need to navigate here as the useAuth hook will handle the redirect
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to login");
-    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleDemoLogin = async () => {
+    setIsLoading(true);
+    try {
+      await login("demo@example.com", "demo123456");
+      // The useAuth hook will handle the redirect
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to login as demo user");
+      toast.error("Demo login failed. Please try again.");
       setIsLoading(false);
     }
   };
@@ -143,6 +150,17 @@ const SignIn = () => {
               <ArrowRight className="ml-2 h-4 w-4" />
             </Button>
           </form>
+
+          <div className="text-center">
+            <Button
+              variant="ghost"
+              className="w-full text-muted-foreground hover:text-youtube-red"
+              onClick={handleDemoLogin}
+              disabled={isLoading}
+            >
+              Sign in as demo user
+            </Button>
+          </div>
 
           <div className="text-center text-sm">
             <span className="text-muted-foreground">Don't have an account?</span>{" "}

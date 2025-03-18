@@ -26,7 +26,7 @@ const Navbar = () => {
       <nav 
         className={`transition-all duration-300 ease-in-out ${
           isScrolled 
-            ? "container mx-auto max-w-5xl bg-black/80 backdrop-blur-md border-none rounded-full px-6 py-2 shadow-lg" 
+            ? "container mx-auto max-w-5xl bg-black/80 backdrop-blur-md rounded-full px-6 py-2 shadow-lg" 
             : "container mx-auto px-6 bg-transparent"
         }`}
       >
@@ -83,7 +83,7 @@ const Navbar = () => {
 
       {/* Mobile Menu */}
       {isMobileMenuOpen && (
-        <div className="md:hidden absolute top-full left-0 right-0 mt-2 mx-4 bg-black/90 backdrop-blur-md border-none rounded-2xl shadow-lg animate-fade-in-up">
+        <div className="md:hidden absolute top-full left-0 right-0 mt-2 mx-4 bg-black/90 backdrop-blur-md rounded-2xl shadow-lg animate-fade-in-up">
           <div className="container mx-auto px-6 py-4 flex flex-col space-y-4">
             <Link 
               to="/" 
