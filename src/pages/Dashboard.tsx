@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import ServiceCard from "@/components/ServiceCard";
@@ -86,6 +85,7 @@ const Dashboard = () => {
     }, 200);
   };
 
+  // Define service costs
   const services = [
     {
       title: "Video Dubbing",
@@ -93,7 +93,8 @@ const Dashboard = () => {
       icon: <Video className="h-6 w-6 text-blue-600" />,
       action: "Start Dubbing",
       color: "#2563eb",
-      href: "/dashboard/video-dubbing"
+      href: "/dashboard/video-dubbing",
+      cost: 10
     },
     {
       title: "Subtitle Generator",
@@ -101,7 +102,8 @@ const Dashboard = () => {
       icon: <MessageSquare className="h-6 w-6 text-purple-600" />,
       action: "Generate Subtitles",
       color: "#9333ea",
-      href: "/dashboard/subtitles"
+      href: "/dashboard/subtitles",
+      cost: 5
     },
     {
       title: "Clips Generator",
@@ -109,7 +111,8 @@ const Dashboard = () => {
       icon: <Scissors className="h-6 w-6 text-orange-600" />,
       action: "Generate Clips",
       color: "#ea580c",
-      href: "/dashboard/clips"
+      href: "/dashboard/clips",
+      cost: 15
     }
   ];
 

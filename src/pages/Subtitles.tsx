@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -7,10 +6,14 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Upload, FileText, Clock, Download, DownloadCloud, Globe, Check } from "lucide-react";
+import { Upload, FileText, Clock, Download, DownloadCloud, Globe, Check, Coins } from "lucide-react";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
+import { toast } from "sonner";
+import ServiceCostDisplay from "@/components/ServiceCostDisplay";
+import CreditConfirmDialog from "@/components/CreditConfirmDialog";
+import { useCredits } from "@/hooks/useCredits";
 
 const languages = [
   { code: "es", name: "Spanish" },
@@ -37,6 +40,14 @@ const formats = [
   { id: "json", name: "JSON" },
 ];
 
+const CREDIT_COSTS = {
+  BASE_COST: 3,
+  PER_LANGUAGE: 2,
+  HIGH_ACCURACY: 3,
+  PREMIUM_ACCURACY: 6,
+  CULTURAL_ADAPTATION: 2
+};
+
 const Subtitles = () => {
   const [file, setFile] = useState<File | null>(null);
   const [isUploading, setIsUploading] = useState(false);
@@ -45,6 +56,10 @@ const Subtitles = () => {
   const [selectedFormats, setSelectedFormats] = useState<string[]>(["srt"]);
   const [progress, setProgress] = useState(0);
   const [editableText, setEditableText] = useState("");
+  const [showCreditConfirm, setShowCreditConfirm] = useState(false);
+  const [accuracyLevel, setAccuracyLevel] = useState<'standard' | 'high' | 'premium'>('standard');
+  const [useCulturalAdaptation, setUseCulturalAdaptation] = useState(false);
+  const { credits, useCredits: spendCredits, hasEnoughCredits } = useCredits();
   
   const { toast } = useToast();
 
@@ -66,7 +81,6 @@ const Subtitles = () => {
     
     setIsUploading(true);
     
-    // Simulate upload process
     let progress = 0;
     const interval = setInterval(() => {
       progress += 5;
@@ -86,26 +100,54 @@ const Subtitles = () => {
     }, 300);
   };
 
+  const calculateCost = (): number => {
+    if (!file || selectedLanguages.length === 0) return 0;
+    
+    let totalCost = CREDIT_COSTS.BASE_COST;
+    totalCost += selectedLanguages.length * CREDIT_COSTS.PER_LANGUAGE;
+    if (accuracyLevel === 'high') {
+      totalCost += CREDIT_COSTS.HIGH_ACCURACY;
+    } else if (accuracyLevel === 'premium') {
+      totalCost += CREDIT_COSTS.PREMIUM_ACCURACY;
+    }
+    if (useCulturalAdaptation) {
+      totalCost += CREDIT_COSTS.CULTURAL_ADAPTATION;
+    }
+    
+    return totalCost;
+  };
+
+  const totalCost = calculateCost();
+
   const handleProcessSubtitles = () => {
     if (selectedLanguages.length === 0) {
-      toast({
-        title: "No languages selected",
-        description: "Please select at least one language for subtitles.",
-        variant: "destructive"
-      });
+      toast.error("Please select at least one language for subtitles.");
       return;
     }
     
-    setIsProcessing(true);
+    setShowCreditConfirm(true);
+  };
+
+  const confirmAndProcess = () => {
+    const cost = calculateCost();
     
-    // Simulate processing
-    setTimeout(() => {
-      setIsProcessing(false);
-      toast({
-        title: "Subtitles generated",
-        description: `Subtitles have been generated in ${selectedLanguages.length} languages.`
-      });
-    }, 3000);
+    spendCredits.mutate({
+      amount: cost,
+      service: "Subtitle Generator",
+      description: `Generated subtitles in ${selectedLanguages.length} languages, with ${accuracyLevel} accuracy${useCulturalAdaptation ? ' and cultural adaptation' : ''}`
+    }, {
+      onSuccess: () => {
+        setIsProcessing(true);
+        
+        setTimeout(() => {
+          setIsProcessing(false);
+          toast.success(`Subtitles have been generated in ${selectedLanguages.length} languages.`);
+        }, 3000);
+      },
+      onError: (error) => {
+        toast.error(`Failed to process: ${error.message}`);
+      }
+    });
   };
 
   const toggleLanguage = (langCode: string) => {
@@ -134,6 +176,15 @@ const Subtitles = () => {
           Create accurate subtitles in multiple languages automatically.
         </p>
       </div>
+
+      <CreditConfirmDialog
+        open={showCreditConfirm}
+        setOpen={setShowCreditConfirm}
+        serviceName="Subtitle Generator"
+        creditCost={totalCost}
+        onConfirm={confirmAndProcess}
+        description={`This will use ${totalCost} credits to generate subtitles in ${selectedLanguages.length} languages with ${accuracyLevel} accuracy${useCulturalAdaptation ? ' and cultural adaptation' : ''}.`}
+      />
 
       <Tabs defaultValue="upload" className="w-full">
         <TabsList className="grid grid-cols-4 w-full max-w-md">
@@ -233,8 +284,15 @@ const Subtitles = () => {
               </CardHeader>
               <CardContent className="space-y-6">
                 <div className="space-y-2">
-                  <Label htmlFor="accuracy-level">Accuracy Level</Label>
-                  <Select defaultValue="high">
+                  <div className="flex justify-between items-center">
+                    <Label htmlFor="accuracy-level">Accuracy Level</Label>
+                    <ServiceCostDisplay 
+                      cost={accuracyLevel === 'high' ? CREDIT_COSTS.HIGH_ACCURACY : 
+                            accuracyLevel === 'premium' ? CREDIT_COSTS.PREMIUM_ACCURACY : 0} 
+                      showLabel={false} 
+                    />
+                  </div>
+                  <Select value={accuracyLevel} onValueChange={(val: 'standard' | 'high' | 'premium') => setAccuracyLevel(val)}>
                     <SelectTrigger id="accuracy-level">
                       <SelectValue placeholder="Select accuracy level" />
                     </SelectTrigger>
@@ -277,11 +335,20 @@ const Subtitles = () => {
                       Apply grammar correction
                     </label>
                   </div>
-                  <div className="flex items-center space-x-2">
-                    <Checkbox id="cultural-adaptation" />
-                    <label htmlFor="cultural-adaptation" className="text-sm font-medium">
-                      Cultural adaptation
-                    </label>
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center space-x-2">
+                      <Checkbox 
+                        id="cultural-adaptation" 
+                        checked={useCulturalAdaptation}
+                        onCheckedChange={(checked) => setUseCulturalAdaptation(checked === true)}
+                      />
+                      <label htmlFor="cultural-adaptation" className="text-sm font-medium">
+                        Cultural adaptation
+                      </label>
+                    </div>
+                    {useCulturalAdaptation && (
+                      <ServiceCostDisplay cost={CREDIT_COSTS.CULTURAL_ADAPTATION} showLabel={false} />
+                    )}
                   </div>
                 </div>
               </CardContent>
@@ -289,10 +356,18 @@ const Subtitles = () => {
 
             <Card className="md:col-span-3">
               <CardHeader>
-                <CardTitle>Target Languages</CardTitle>
-                <CardDescription>
-                  Select the languages you want to generate subtitles in.
-                </CardDescription>
+                <div className="flex justify-between items-start">
+                  <div>
+                    <CardTitle>Target Languages</CardTitle>
+                    <CardDescription>
+                      Select the languages you want to generate subtitles in.
+                    </CardDescription>
+                  </div>
+                  <ServiceCostDisplay 
+                    cost={selectedLanguages.length * CREDIT_COSTS.PER_LANGUAGE} 
+                    label="Per language" 
+                  />
+                </div>
               </CardHeader>
               <CardContent>
                 <ScrollArea className="h-[300px] pr-4">
@@ -316,15 +391,23 @@ const Subtitles = () => {
                 </ScrollArea>
               </CardContent>
               <CardFooter className="flex justify-between border-t pt-6">
-                <div className="text-sm text-muted-foreground">
-                  {selectedLanguages.length} languages selected
+                <div className="flex items-center gap-4">
+                  <div className="text-sm text-muted-foreground">
+                    {selectedLanguages.length} languages selected
+                  </div>
+                  {totalCost > 0 && (
+                    <div className="flex items-center gap-1 text-sm font-medium">
+                      <Coins className="h-4 w-4 text-yellow-500" />
+                      Total: {totalCost} credits
+                    </div>
+                  )}
                 </div>
                 <Button 
                   onClick={handleProcessSubtitles} 
-                  disabled={!file || isProcessing || selectedLanguages.length === 0}
+                  disabled={!file || isProcessing || selectedLanguages.length === 0 || !hasEnoughCredits(totalCost)}
                   className={isProcessing ? "" : "bg-youtube-red hover:bg-youtube-darkred"}
                 >
-                  {isProcessing ? "Processing..." : "Generate Subtitles"}
+                  {isProcessing ? "Processing..." : hasEnoughCredits(totalCost) ? "Generate Subtitles" : "Not Enough Credits"}
                 </Button>
               </CardFooter>
             </Card>

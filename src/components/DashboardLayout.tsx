@@ -5,6 +5,7 @@ import DashboardSidebar from "./DashboardSidebar";
 import { Button } from "@/components/ui/button";
 import { Menu, Bell, User } from "lucide-react";
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
+import UserCredits from "./UserCredits";
 
 const DashboardLayout = () => {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
@@ -33,6 +34,7 @@ const DashboardLayout = () => {
             </div>
             
             <div className="flex flex-1 items-center justify-end gap-4">
+              <UserCredits />
               <Button variant="ghost" size="icon">
                 <Bell className="h-5 w-5" />
               </Button>

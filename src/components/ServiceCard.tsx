@@ -3,6 +3,7 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { ArrowRight } from "lucide-react";
+import ServiceCostDisplay from "./ServiceCostDisplay";
 
 interface ServiceCardProps {
   title: string;
@@ -10,9 +11,11 @@ interface ServiceCardProps {
   icon: React.ReactNode;
   action: string;
   color: string;
+  cost?: number;
+  href?: string;
 }
 
-const ServiceCard = ({ title, description, icon, action, color }: ServiceCardProps) => {
+const ServiceCard = ({ title, description, icon, action, color, cost, href }: ServiceCardProps) => {
   const [isHovered, setIsHovered] = useState(false);
 
   return (
@@ -33,6 +36,7 @@ const ServiceCard = ({ title, description, icon, action, color }: ServiceCardPro
           <div className={`p-3 rounded-lg bg-opacity-10`} style={{ backgroundColor: `${color}20` }}>
             {icon}
           </div>
+          {cost !== undefined && <ServiceCostDisplay cost={cost} />}
         </div>
         <CardTitle className="mt-4">{title}</CardTitle>
         <CardDescription>{description}</CardDescription>

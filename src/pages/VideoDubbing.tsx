@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -7,9 +6,13 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Slider } from "@/components/ui/slider";
-import { Upload, Play, Pause, Globe, Mic, Wand2 } from "lucide-react";
+import { Upload, Play, Pause, Globe, Mic, Wand2, Coins } from "lucide-react";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { useToast } from "@/hooks/use-toast";
+import { toast } from "sonner";
+import ServiceCostDisplay from "@/components/ServiceCostDisplay";
+import CreditConfirmDialog from "@/components/CreditConfirmDialog";
+import { useCredits } from "@/hooks/useCredits";
 
 const languages = [
   { code: "es", name: "Spanish" },
@@ -29,6 +32,13 @@ const languages = [
   { code: "pl", name: "Polish" },
 ];
 
+const CREDIT_COSTS = {
+  BASE_COST: 5,
+  PER_LANGUAGE: 3,
+  VOICE_CLONE: 5,
+  PREMIUM_QUALITY: 3
+};
+
 const VideoDubbing = () => {
   const [file, setFile] = useState<File | null>(null);
   const [isUploading, setIsUploading] = useState(false);
@@ -38,6 +48,9 @@ const VideoDubbing = () => {
   const [voicePreference, setVoicePreference] = useState("male1");
   const [progress, setProgress] = useState(0);
   const [isPlaying, setIsPlaying] = useState(false);
+  const [showCreditConfirm, setShowCreditConfirm] = useState(false);
+  const [qualityLevel, setQualityLevel] = useState<'standard' | 'premium'>('standard');
+  const { credits, useCredits: spendCredits, hasEnoughCredits } = useCredits();
   
   const { toast } = useToast();
 
@@ -59,7 +72,6 @@ const VideoDubbing = () => {
     
     setIsUploading(true);
     
-    // Simulate upload process
     let progress = 0;
     const interval = setInterval(() => {
       progress += 5;
@@ -76,26 +88,52 @@ const VideoDubbing = () => {
     }, 300);
   };
 
+  const calculateCost = (): number => {
+    if (!file || selectedLanguages.length === 0) return 0;
+    
+    let totalCost = CREDIT_COSTS.BASE_COST;
+    totalCost += selectedLanguages.length * CREDIT_COSTS.PER_LANGUAGE;
+    if (voiceType === 'clone') {
+      totalCost += CREDIT_COSTS.VOICE_CLONE;
+    }
+    if (qualityLevel === 'premium') {
+      totalCost += CREDIT_COSTS.PREMIUM_QUALITY;
+    }
+    
+    return totalCost;
+  };
+
+  const totalCost = calculateCost();
+
   const handleProcessVideo = () => {
     if (selectedLanguages.length === 0) {
-      toast({
-        title: "No languages selected",
-        description: "Please select at least one language for dubbing.",
-        variant: "destructive"
-      });
+      toast.error("Please select at least one language for dubbing.");
       return;
     }
     
-    setIsProcessing(true);
+    setShowCreditConfirm(true);
+  };
+
+  const confirmAndProcess = () => {
+    const cost = calculateCost();
     
-    // Simulate processing
-    setTimeout(() => {
-      setIsProcessing(false);
-      toast({
-        title: "Dubbing complete",
-        description: `Your video has been dubbed in ${selectedLanguages.length} languages.`
-      });
-    }, 3000);
+    spendCredits.mutate({
+      amount: cost,
+      service: "Video Dubbing",
+      description: `Dubbed video in ${selectedLanguages.length} languages, ${voiceType === 'clone' ? 'with voice cloning' : 'with AI voice'}`
+    }, {
+      onSuccess: () => {
+        setIsProcessing(true);
+        
+        setTimeout(() => {
+          setIsProcessing(false);
+          toast.success(`Your video has been dubbed in ${selectedLanguages.length} languages.`);
+        }, 3000);
+      },
+      onError: (error) => {
+        toast.error(`Failed to process: ${error.message}`);
+      }
+    });
   };
 
   const toggleLanguage = (langCode: string) => {
@@ -114,6 +152,15 @@ const VideoDubbing = () => {
           Convert your videos into multiple languages with AI-powered voice cloning.
         </p>
       </div>
+
+      <CreditConfirmDialog
+        open={showCreditConfirm}
+        setOpen={setShowCreditConfirm}
+        serviceName="Video Dubbing"
+        creditCost={totalCost}
+        onConfirm={confirmAndProcess}
+        description={`This will use ${totalCost} credits to dub your video in ${selectedLanguages.length} languages ${voiceType === 'clone' ? 'with voice cloning' : 'with AI voice'}.`}
+      />
 
       <Tabs defaultValue="upload" className="w-full">
         <TabsList className="grid grid-cols-3 w-full max-w-md">
@@ -210,7 +257,13 @@ const VideoDubbing = () => {
               </CardHeader>
               <CardContent className="space-y-6">
                 <div className="space-y-2">
-                  <Label>Voice Type</Label>
+                  <div className="flex justify-between items-center">
+                    <Label>Voice Type</Label>
+                    <ServiceCostDisplay 
+                      cost={voiceType === 'clone' ? CREDIT_COSTS.VOICE_CLONE : 0} 
+                      showLabel={false} 
+                    />
+                  </div>
                   <div className="grid grid-cols-2 gap-2">
                     <Button 
                       variant={voiceType === "clone" ? "default" : "outline"}
@@ -250,6 +303,32 @@ const VideoDubbing = () => {
                 )}
 
                 <div className="space-y-2">
+                  <div className="flex justify-between items-center">
+                    <Label>Quality Level</Label>
+                    <ServiceCostDisplay 
+                      cost={qualityLevel === 'premium' ? CREDIT_COSTS.PREMIUM_QUALITY : 0} 
+                      showLabel={false}
+                    />
+                  </div>
+                  <div className="grid grid-cols-2 gap-2">
+                    <Button 
+                      variant={qualityLevel === "standard" ? "default" : "outline"}
+                      onClick={() => setQualityLevel("standard")}
+                      className={qualityLevel === "standard" ? "bg-youtube-red hover:bg-youtube-darkred" : ""}
+                    >
+                      Standard
+                    </Button>
+                    <Button 
+                      variant={qualityLevel === "premium" ? "default" : "outline"}
+                      onClick={() => setQualityLevel("premium")}
+                      className={qualityLevel === "premium" ? "bg-youtube-red hover:bg-youtube-darkred" : ""}
+                    >
+                      Premium
+                    </Button>
+                  </div>
+                </div>
+
+                <div className="space-y-2">
                   <Label>Voice Settings</Label>
                   <div className="space-y-4">
                     <div className="space-y-2">
@@ -273,10 +352,18 @@ const VideoDubbing = () => {
 
             <Card className="md:col-span-3">
               <CardHeader>
-                <CardTitle>Target Languages</CardTitle>
-                <CardDescription>
-                  Select the languages you want to dub your video into.
-                </CardDescription>
+                <div className="flex justify-between items-start">
+                  <div>
+                    <CardTitle>Target Languages</CardTitle>
+                    <CardDescription>
+                      Select the languages you want to dub your video into.
+                    </CardDescription>
+                  </div>
+                  <ServiceCostDisplay 
+                    cost={selectedLanguages.length * CREDIT_COSTS.PER_LANGUAGE} 
+                    label="Per language" 
+                  />
+                </div>
               </CardHeader>
               <CardContent>
                 <ScrollArea className="h-[300px] pr-4">
@@ -300,15 +387,23 @@ const VideoDubbing = () => {
                 </ScrollArea>
               </CardContent>
               <CardFooter className="flex justify-between border-t pt-6">
-                <div className="text-sm text-muted-foreground">
-                  {selectedLanguages.length} languages selected
+                <div className="flex items-center gap-4">
+                  <div className="text-sm text-muted-foreground">
+                    {selectedLanguages.length} languages selected
+                  </div>
+                  {totalCost > 0 && (
+                    <div className="flex items-center gap-1 text-sm font-medium">
+                      <Coins className="h-4 w-4 text-yellow-500" />
+                      Total: {totalCost} credits
+                    </div>
+                  )}
                 </div>
                 <Button 
                   onClick={handleProcessVideo} 
-                  disabled={!file || isProcessing || selectedLanguages.length === 0}
+                  disabled={!file || isProcessing || selectedLanguages.length === 0 || !hasEnoughCredits(totalCost)}
                   className={isProcessing ? "" : "bg-youtube-red hover:bg-youtube-darkred"}
                 >
-                  {isProcessing ? "Processing..." : "Generate Dubbed Videos"}
+                  {isProcessing ? "Processing..." : hasEnoughCredits(totalCost) ? "Generate Dubbed Videos" : "Not Enough Credits"}
                 </Button>
               </CardFooter>
             </Card>

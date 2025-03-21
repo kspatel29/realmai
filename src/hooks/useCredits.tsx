@@ -13,6 +13,12 @@ export interface UserCredits {
   updated_at: string;
 }
 
+export interface CreditTransaction {
+  amount: number;
+  service: string;
+  description: string;
+}
+
 export const useCredits = () => {
   const { user } = useAuth();
   const queryClient = useQueryClient();
@@ -68,9 +74,12 @@ export const useCredits = () => {
 
   // Use credits (decrement)
   const useCredits = useMutation({
-    mutationFn: async (amount: number) => {
+    mutationFn: async ({ amount, service, description }: CreditTransaction) => {
       if (!user || !credits) throw new Error('User or credits not found');
-      if (credits.credits_balance < amount) throw new Error('Not enough credits');
+      if (credits.credits_balance < amount) {
+        toast.error(`Not enough credits for this operation. Need ${amount} credits, but you have ${credits.credits_balance}.`);
+        throw new Error(`Not enough credits: ${credits.credits_balance} < ${amount}`);
+      }
       
       const newBalance = credits.credits_balance - amount;
       const { data, error } = await supabase
@@ -86,12 +95,48 @@ export const useCredits = () => {
         throw error;
       }
       
-      return data;
+      return { transaction: { amount, service, description }, updatedCredits: data };
     },
-    onSuccess: (newCredits) => {
-      queryClient.setQueryData(['user-credits', user?.id], newCredits);
+    onSuccess: ({ transaction, updatedCredits }) => {
+      queryClient.setQueryData(['user-credits', user?.id], updatedCredits);
+      toast.success(`${transaction.amount} credits used for ${transaction.service}`);
+    },
+    onError: (error) => {
+      console.error('Credit transaction failed:', error);
+    }
+  });
+
+  // Add credits (increment)
+  const addCredits = useMutation({
+    mutationFn: async ({ amount, description }: Omit<CreditTransaction, 'service'>) => {
+      if (!user || !credits) throw new Error('User or credits not found');
+      
+      const newBalance = credits.credits_balance + amount;
+      const { data, error } = await supabase
+        .from('user_credits')
+        .update({ credits_balance: newBalance, updated_at: new Date().toISOString() })
+        .eq('user_id', user.id)
+        .select()
+        .single();
+      
+      if (error) {
+        console.error('Error adding credits:', error);
+        toast.error('Failed to add credits');
+        throw error;
+      }
+      
+      return { amount, description, updatedCredits: data };
+    },
+    onSuccess: ({ amount, description, updatedCredits }) => {
+      queryClient.setQueryData(['user-credits', user?.id], updatedCredits);
+      toast.success(`${amount} credits added: ${description}`);
     },
   });
+
+  // Check if user has enough credits
+  const hasEnoughCredits = (amount: number): boolean => {
+    return !!credits && credits.credits_balance >= amount;
+  };
 
   return {
     credits: credits?.credits_balance || 0,
@@ -99,5 +144,7 @@ export const useCredits = () => {
     error,
     updateCredits,
     useCredits,
+    addCredits,
+    hasEnoughCredits,
   };
 };
