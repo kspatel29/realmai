@@ -8,8 +8,10 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
-import { Globe, Video, MessageSquare, Scissors, Upload, BarChart3, ArrowUpRight, TrendingUp, Users, DollarSign } from "lucide-react";
+import { Globe, Video, MessageSquare, Scissors, Upload, BarChart3, ArrowUpRight, TrendingUp, Users, DollarSign, RefreshCw } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
+import { useCredits } from "@/hooks/useCredits";
+import { useYouTubeAnalytics } from "@/hooks/useYouTubeAnalytics";
 
 const Dashboard = () => {
   const { user } = useAuth();
@@ -19,6 +21,14 @@ const Dashboard = () => {
   const [uploadProgress, setUploadProgress] = useState(0);
   const [videoFile, setVideoFile] = useState<File | null>(null);
   const [videoTitle, setVideoTitle] = useState("");
+  
+  const { credits, isLoading: isLoadingCredits } = useCredits();
+  const { 
+    videos, 
+    totalStats, 
+    isLoading: isLoadingAnalytics,
+    syncYouTubeAnalytics
+  } = useYouTubeAnalytics();
 
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -27,6 +37,13 @@ const Dashboard = () => {
     
     return () => clearTimeout(timer);
   }, []);
+
+  // Automatically sync YouTube analytics when dashboard loads
+  useEffect(() => {
+    if (user && !isLoadingAnalytics && videos?.length === 0) {
+      syncYouTubeAnalytics.mutate();
+    }
+  }, [user, isLoadingAnalytics]);
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
@@ -96,17 +113,18 @@ const Dashboard = () => {
     }
   ];
 
+  // Use real stats from our YouTube analytics hook if available
   const stats = [
     {
-      title: "Total Earnings",
-      value: "$12,426",
-      change: "+16.5%",
+      title: "Available Credits",
+      value: isLoadingCredits ? "Loading..." : credits.toString(),
+      change: "+50",
       positive: true,
       icon: <DollarSign className="h-5 w-5 text-emerald-500" />
     },
     {
       title: "Global Views",
-      value: "8.2M",
+      value: isLoadingAnalytics || !totalStats ? "Loading..." : `${(totalStats.views / 1000000).toFixed(1)}M`,
       change: "+32.1%",
       positive: true,
       icon: <Globe className="h-5 w-5 text-blue-500" />
@@ -136,110 +154,121 @@ const Dashboard = () => {
             Welcome back, {user?.name || "Creator"}! Here's an overview of your global reach.
           </p>
         </div>
-        <Dialog>
-          <DialogTrigger asChild>
-            <Button className="bg-youtube-red hover:bg-youtube-darkred text-white gap-2">
-              <Upload className="h-4 w-4" />
-              Upload New Video
-            </Button>
-          </DialogTrigger>
-          <DialogContent className="sm:max-w-md">
-            <DialogHeader>
-              <DialogTitle>Upload New Video</DialogTitle>
-              <DialogDescription>
-                Upload a video to get started with dubbing, subtitles, or clips generation.
-              </DialogDescription>
-            </DialogHeader>
-            <div className="space-y-4 py-4">
-              {videoFile ? (
-                <div className="bg-muted rounded p-4 text-center">
-                  <Video className="h-12 w-12 mx-auto mb-2 text-muted-foreground" />
-                  <p className="font-medium truncate">{videoFile.name}</p>
-                  <p className="text-sm text-muted-foreground">
-                    {(videoFile.size / (1024 * 1024)).toFixed(2)} MB
-                  </p>
-                  <Button 
-                    variant="ghost" 
-                    size="sm" 
-                    onClick={() => setVideoFile(null)} 
-                    className="mt-2"
-                  >
-                    Change
-                  </Button>
-                </div>
-              ) : (
-                <div className="border-2 border-dashed border-muted-foreground/25 rounded-lg p-6 text-center">
-                  <Upload className="h-8 w-8 mx-auto mb-4 text-muted-foreground" />
-                  <p className="mb-2 font-medium">Drag and drop or click to upload</p>
-                  <p className="text-sm text-muted-foreground mb-4">
-                    Supports MP4, MOV, AVI up to 500MB
-                  </p>
-                  <Input 
-                    id="video-upload" 
-                    type="file" 
-                    accept="video/*" 
-                    className="hidden" 
-                    onChange={handleFileChange}
-                  />
-                  <Button 
-                    variant="outline" 
-                    onClick={() => document.getElementById('video-upload')?.click()}
-                  >
-                    Select Video
-                  </Button>
-                </div>
-              )}
-
-              {videoFile && (
-                <div className="space-y-2">
-                  <Label htmlFor="title">Video Title</Label>
-                  <Input 
-                    id="title" 
-                    value={videoTitle} 
-                    onChange={(e) => setVideoTitle(e.target.value)} 
-                    placeholder="Enter a title for your video"
-                  />
-                </div>
-              )}
-
-              {isUploading && (
-                <div className="space-y-2">
-                  <div className="flex justify-between text-sm">
-                    <span>Uploading...</span>
-                    <span>{uploadProgress}%</span>
-                  </div>
-                  <div className="h-2 bg-muted rounded-full overflow-hidden">
-                    <div 
-                      className="h-full bg-youtube-red transition-all duration-300" 
-                      style={{ width: `${uploadProgress}%` }}
-                    ></div>
-                  </div>
-                </div>
-              )}
-            </div>
-            <DialogFooter>
-              <Button 
-                type="button" 
-                variant="secondary" 
-                onClick={() => {
-                  setVideoFile(null);
-                  setVideoTitle("");
-                }}
-                disabled={isUploading}
-              >
-                Cancel
+        <div className="flex gap-2">
+          <Button 
+            variant="outline" 
+            onClick={() => syncYouTubeAnalytics.mutate()} 
+            disabled={syncYouTubeAnalytics.isPending}
+            className="gap-2"
+          >
+            <RefreshCw className={`h-4 w-4 ${syncYouTubeAnalytics.isPending ? 'animate-spin' : ''}`} />
+            Sync Analytics
+          </Button>
+          <Dialog>
+            <DialogTrigger asChild>
+              <Button className="bg-youtube-red hover:bg-youtube-darkred text-white gap-2">
+                <Upload className="h-4 w-4" />
+                Upload New Video
               </Button>
-              <Button 
-                type="button" 
-                onClick={handleUpload} 
-                disabled={!videoFile || isUploading}
-                className="bg-youtube-red hover:bg-youtube-darkred"
-              >
-                {isUploading ? "Uploading..." : "Upload & Continue"}
-              </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
+            </DialogTrigger>
+            <DialogContent className="sm:max-w-md">
+              <DialogHeader>
+                <DialogTitle>Upload New Video</DialogTitle>
+                <DialogDescription>
+                  Upload a video to get started with dubbing, subtitles, or clips generation.
+                </DialogDescription>
+              </DialogHeader>
+              <div className="space-y-4 py-4">
+                {videoFile ? (
+                  <div className="bg-muted rounded p-4 text-center">
+                    <Video className="h-12 w-12 mx-auto mb-2 text-muted-foreground" />
+                    <p className="font-medium truncate">{videoFile.name}</p>
+                    <p className="text-sm text-muted-foreground">
+                      {(videoFile.size / (1024 * 1024)).toFixed(2)} MB
+                    </p>
+                    <Button 
+                      variant="ghost" 
+                      size="sm" 
+                      onClick={() => setVideoFile(null)} 
+                      className="mt-2"
+                    >
+                      Change
+                    </Button>
+                  </div>
+                ) : (
+                  <div className="border-2 border-dashed border-muted-foreground/25 rounded-lg p-6 text-center">
+                    <Upload className="h-8 w-8 mx-auto mb-4 text-muted-foreground" />
+                    <p className="mb-2 font-medium">Drag and drop or click to upload</p>
+                    <p className="text-sm text-muted-foreground mb-4">
+                      Supports MP4, MOV, AVI up to 500MB
+                    </p>
+                    <Input 
+                      id="video-upload" 
+                      type="file" 
+                      accept="video/*" 
+                      className="hidden" 
+                      onChange={handleFileChange}
+                    />
+                    <Button 
+                      variant="outline" 
+                      onClick={() => document.getElementById('video-upload')?.click()}
+                    >
+                      Select Video
+                    </Button>
+                  </div>
+                )}
+
+                {videoFile && (
+                  <div className="space-y-2">
+                    <Label htmlFor="title">Video Title</Label>
+                    <Input 
+                      id="title" 
+                      value={videoTitle} 
+                      onChange={(e) => setVideoTitle(e.target.value)} 
+                      placeholder="Enter a title for your video"
+                    />
+                  </div>
+                )}
+
+                {isUploading && (
+                  <div className="space-y-2">
+                    <div className="flex justify-between text-sm">
+                      <span>Uploading...</span>
+                      <span>{uploadProgress}%</span>
+                    </div>
+                    <div className="h-2 bg-muted rounded-full overflow-hidden">
+                      <div 
+                        className="h-full bg-youtube-red transition-all duration-300" 
+                        style={{ width: `${uploadProgress}%` }}
+                      ></div>
+                    </div>
+                  </div>
+                )}
+              </div>
+              <DialogFooter>
+                <Button 
+                  type="button" 
+                  variant="secondary" 
+                  onClick={() => {
+                    setVideoFile(null);
+                    setVideoTitle("");
+                  }}
+                  disabled={isUploading}
+                >
+                  Cancel
+                </Button>
+                <Button 
+                  type="button" 
+                  onClick={handleUpload} 
+                  disabled={!videoFile || isUploading}
+                  className="bg-youtube-red hover:bg-youtube-darkred"
+                >
+                  {isUploading ? "Uploading..." : "Upload & Continue"}
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
+        </div>
       </div>
 
       {/* Stats */}
@@ -283,18 +312,39 @@ const Dashboard = () => {
           </CardHeader>
           <CardContent>
             <div className="space-y-4">
-              {[1, 2, 3].map((_, i) => (
-                <div key={i} className="flex items-center gap-4 pb-4 border-b last:border-0 last:pb-0">
-                  <div className="w-10 h-10 rounded bg-gray-100 flex items-center justify-center shrink-0">
-                    <Video className="h-5 w-5 text-gray-500" />
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="font-medium truncate">How I Made $100K in a Day</p>
-                    <p className="text-sm text-muted-foreground">Dubbed in Spanish, French, German</p>
-                  </div>
-                  <div className="text-sm text-muted-foreground shrink-0">2 hours ago</div>
+              {isLoadingAnalytics ? (
+                <div className="text-center py-4">
+                  <RefreshCw className="h-5 w-5 mx-auto animate-spin text-muted-foreground" />
+                  <p className="text-muted-foreground mt-2">Loading video data...</p>
                 </div>
-              ))}
+              ) : videos && videos.length > 0 ? (
+                videos.slice(0, 3).map((video, i) => (
+                  <div key={i} className="flex items-center gap-4 pb-4 border-b last:border-0 last:pb-0">
+                    <div className="w-10 h-10 rounded bg-gray-100 flex items-center justify-center shrink-0">
+                      <Video className="h-5 w-5 text-gray-500" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="font-medium truncate">{video.title}</p>
+                      <p className="text-sm text-muted-foreground">Dubbed in Spanish, French, German</p>
+                    </div>
+                    <div className="text-sm text-muted-foreground shrink-0">
+                      {new Date(video.updated_at).toLocaleDateString()}
+                    </div>
+                  </div>
+                ))
+              ) : (
+                <div className="text-center py-4">
+                  <p className="text-muted-foreground">No videos found</p>
+                  <Button 
+                    variant="outline" 
+                    size="sm" 
+                    className="mt-2"
+                    onClick={() => syncYouTubeAnalytics.mutate()}
+                  >
+                    Sync Videos
+                  </Button>
+                </div>
+              )}
             </div>
           </CardContent>
         </Card>
@@ -311,14 +361,25 @@ const Dashboard = () => {
             </Button>
           </CardHeader>
           <CardContent className="pt-4">
-            <div className="h-[200px] flex items-center justify-center border border-dashed rounded-lg">
-              <div className="text-center">
-                <BarChart3 className="h-8 w-8 text-muted-foreground mx-auto mb-2" />
-                <p className="text-muted-foreground text-sm">
-                  Revenue analytics chart will appear here
-                </p>
+            {isLoadingAnalytics ? (
+              <div className="h-[200px] flex items-center justify-center">
+                <RefreshCw className="h-8 w-8 animate-spin text-muted-foreground" />
               </div>
-            </div>
+            ) : (
+              <div className="h-[200px] flex items-center justify-center border border-dashed rounded-lg">
+                <div className="text-center">
+                  <BarChart3 className="h-8 w-8 text-muted-foreground mx-auto mb-2" />
+                  <p className="font-medium mb-1">
+                    {totalStats ? `${totalStats.views.toLocaleString()} Total Views` : "No data available"}
+                  </p>
+                  {totalStats && (
+                    <p className="text-sm text-muted-foreground">
+                      ~${(totalStats.views * 0.005).toFixed(2)} estimated revenue
+                    </p>
+                  )}
+                </div>
+              </div>
+            )}
           </CardContent>
         </Card>
       </div>

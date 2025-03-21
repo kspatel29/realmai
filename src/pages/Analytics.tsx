@@ -1,335 +1,228 @@
+
+import { useState, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { BarChart, LineChart, PieChart } from "@/components/ui/charts";
-import { DollarSign, Globe, TrendingUp, Users, BarChart3, Download } from "lucide-react";
-
-const videoOptions = [
-  { value: "all", label: "All Videos" },
-  { value: "video1", label: "How to Make Amazing Content" },
-  { value: "video2", label: "My Product Review" },
-  { value: "video3", label: "Travel Vlog: Paris" },
-];
-
-const timeOptions = [
-  { value: "7d", label: "Last 7 days" },
-  { value: "30d", label: "Last 30 days" },
-  { value: "90d", label: "Last 90 days" },
-  { value: "year", label: "Last year" },
-];
+import { useAuth } from "@/hooks/useAuth";
+import { useYouTubeAnalytics } from "@/hooks/useYouTubeAnalytics";
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
+import { ArrowUpRight, RefreshCw, Globe, ThumbsUp, MessageSquare, Clock } from "lucide-react";
 
 const Analytics = () => {
+  const { user } = useAuth();
+  const [isLoaded, setIsLoaded] = useState(false);
+  const { videos, totalStats, isLoading, syncYouTubeAnalytics } = useYouTubeAnalytics();
+  
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setIsLoaded(true);
+    }, 100);
+    
+    return () => clearTimeout(timer);
+  }, []);
+
+  const countryData = [
+    { name: "United States", views: 42 },
+    { name: "India", views: 15 },
+    { name: "UK", views: 12 },
+    { name: "Canada", views: 8 },
+    { name: "Germany", views: 7 },
+    { name: "Others", views: 16 }
+  ];
+
+  const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#A28DFF', '#FF6B6B'];
+
+  const formatNumber = (num: number): string => {
+    if (num >= 1000000) {
+      return (num / 1000000).toFixed(1) + 'M';
+    }
+    if (num >= 1000) {
+      return (num / 1000).toFixed(1) + 'K';
+    }
+    return num.toString();
+  };
+
+  const handleRefreshAnalytics = () => {
+    syncYouTubeAnalytics.mutate();
+  };
+
   return (
-    <div className="space-y-8 animate-fade-in">
+    <div className={`space-y-8 transition-opacity duration-500 ${isLoaded ? "opacity-100" : "opacity-0"}`}>
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight mb-1">Analytics</h1>
+          <h1 className="text-2xl font-bold tracking-tight">Analytics</h1>
           <p className="text-muted-foreground">
-            Track the performance of your content across languages and regions.
+            Track your content performance and audience growth.
           </p>
         </div>
-        
-        <div className="flex flex-col sm:flex-row gap-3">
-          <Select defaultValue="all">
-            <SelectTrigger className="w-full sm:w-[180px]">
-              <SelectValue placeholder="Select video" />
-            </SelectTrigger>
-            <SelectContent>
-              {videoOptions.map((option) => (
-                <SelectItem key={option.value} value={option.value}>
-                  {option.label}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-          
-          <Select defaultValue="30d">
-            <SelectTrigger className="w-full sm:w-[150px]">
-              <SelectValue placeholder="Select time period" />
-            </SelectTrigger>
-            <SelectContent>
-              {timeOptions.map((option) => (
-                <SelectItem key={option.value} value={option.value}>
-                  {option.label}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-          
-          <Button variant="outline" size="icon">
-            <Download className="h-4 w-4" />
-          </Button>
+        <Button 
+          onClick={handleRefreshAnalytics} 
+          disabled={syncYouTubeAnalytics.isPending}
+          className="gap-2 w-full sm:w-auto"
+        >
+          <RefreshCw className={`h-4 w-4 ${syncYouTubeAnalytics.isPending ? 'animate-spin' : ''}`} />
+          Refresh Analytics
+        </Button>
+      </div>
+
+      {isLoading ? (
+        <div className="h-64 flex items-center justify-center">
+          <RefreshCw className="h-8 w-8 animate-spin text-muted-foreground" />
         </div>
-      </div>
-
-      {/* Key Metrics */}
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium">Global Views</CardTitle>
-            <Globe className="h-4 w-4 text-blue-500" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">8.2M</div>
-            <p className="flex items-center text-xs text-emerald-500">
-              <span>+32.1%</span>
-              <TrendingUp className="ml-1 h-3 w-3" />
-              <span className="text-muted-foreground ml-1">from last month</span>
-            </p>
-          </CardContent>
-        </Card>
-        
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium">Estimated Revenue</CardTitle>
-            <DollarSign className="h-4 w-4 text-emerald-500" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">$12,426</div>
-            <p className="flex items-center text-xs text-emerald-500">
-              <span>+16.5%</span>
-              <TrendingUp className="ml-1 h-3 w-3" />
-              <span className="text-muted-foreground ml-1">from last month</span>
-            </p>
-          </CardContent>
-        </Card>
-        
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium">Watch Time</CardTitle>
-            <BarChart3 className="h-4 w-4 text-purple-500" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">324K hrs</div>
-            <p className="flex items-center text-xs text-emerald-500">
-              <span>+24.3%</span>
-              <TrendingUp className="ml-1 h-3 w-3" />
-              <span className="text-muted-foreground ml-1">from last month</span>
-            </p>
-          </CardContent>
-        </Card>
-        
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium">New Subscribers</CardTitle>
-            <Users className="h-4 w-4 text-orange-500" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">142K</div>
-            <p className="flex items-center text-xs text-emerald-500">
-              <span>+54.2%</span>
-              <TrendingUp className="ml-1 h-3 w-3" />
-              <span className="text-muted-foreground ml-1">from last month</span>
-            </p>
-          </CardContent>
-        </Card>
-      </div>
-
-      <Tabs defaultValue="performance" className="space-y-4">
-        <TabsList>
-          <TabsTrigger value="performance">Performance</TabsTrigger>
-          <TabsTrigger value="audience">Audience</TabsTrigger>
-          <TabsTrigger value="revenue">Revenue</TabsTrigger>
-          <TabsTrigger value="languages">Languages</TabsTrigger>
-        </TabsList>
-        
-        <TabsContent value="performance" className="space-y-4">
-          <Card>
-            <CardHeader>
-              <CardTitle>Views by Language</CardTitle>
-              <CardDescription>
-                How your content performs across different languages
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="h-[300px] flex items-center justify-center">
-              <LineChart 
-                className="w-full aspect-[4/2]"
-                data={{
-                  labels: ["Jan", "Feb", "Mar", "Apr", "May", "Jun"],
-                  datasets: [
-                    {
-                      label: "English",
-                      data: [200, 250, 300, 450, 500, 550],
-                      borderColor: "#2563eb",
-                      backgroundColor: "#93c5fd",
-                    },
-                    {
-                      label: "Spanish",
-                      data: [150, 200, 220, 280, 350, 420],
-                      borderColor: "#16a34a",
-                      backgroundColor: "#86efac",
-                    },
-                    {
-                      label: "French",
-                      data: [50, 90, 95, 110, 170, 210],
-                      borderColor: "#ca8a04",
-                      backgroundColor: "#fde047",
-                    },
-                    {
-                      label: "Others",
-                      data: [100, 120, 150, 180, 220, 270],
-                      borderColor: "#9333ea",
-                      backgroundColor: "#d8b4fe",
-                    },
-                  ],
-                }}
-              />
-            </CardContent>
-          </Card>
-        </TabsContent>
-        
-        <TabsContent value="audience" className="space-y-4">
-          <div className="grid gap-4 md:grid-cols-2">
-            <Card>
-              <CardHeader>
-                <CardTitle>Audience Geography</CardTitle>
-                <CardDescription>
-                  Where your viewers are located
-                </CardDescription>
+      ) : (
+        <>
+          {/* Overview Stats */}
+          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+            <Card className="animate-fade-in" style={{ animationDelay: "100ms" }}>
+              <CardHeader className="flex flex-row items-center justify-between pb-2">
+                <CardTitle className="text-sm font-medium">Total Views</CardTitle>
+                <Globe className="h-5 w-5 text-muted-foreground" />
               </CardHeader>
-              <CardContent className="h-[300px] flex items-center justify-center">
-                <PieChart 
-                  className="w-full aspect-square max-w-[300px]"
-                  data={{
-                    labels: ["USA", "Europe", "Asia", "Latin America", "Other"],
-                    datasets: [
-                      {
-                        label: "Viewers",
-                        data: [35, 25, 20, 15, 5],
-                        backgroundColor: [
-                          "#3b82f6", "#10b981", "#f59e0b", "#6366f1", "#ec4899",
-                        ],
-                      },
-                    ],
-                  }}
-                />
+              <CardContent>
+                <div className="text-2xl font-bold">{formatNumber(totalStats?.views || 0)}</div>
+                <p className="text-xs text-muted-foreground mt-1">Across all videos</p>
               </CardContent>
             </Card>
             
-            <Card>
-              <CardHeader>
-                <CardTitle>Age Demographics</CardTitle>
-                <CardDescription>
-                  Age distribution of your audience
-                </CardDescription>
+            <Card className="animate-fade-in" style={{ animationDelay: "200ms" }}>
+              <CardHeader className="flex flex-row items-center justify-between pb-2">
+                <CardTitle className="text-sm font-medium">Total Likes</CardTitle>
+                <ThumbsUp className="h-5 w-5 text-muted-foreground" />
               </CardHeader>
-              <CardContent className="h-[300px] flex items-center justify-center">
-                <BarChart 
-                  className="w-full aspect-[4/3]"
-                  data={{
-                    labels: ["13-17", "18-24", "25-34", "35-44", "45-54", "55+"],
-                    datasets: [
-                      {
-                        label: "Viewers by Age",
-                        data: [5, 30, 35, 15, 10, 5],
-                        backgroundColor: "#f87171",
-                      },
-                    ],
-                  }}
-                />
+              <CardContent>
+                <div className="text-2xl font-bold">{formatNumber(totalStats?.likes || 0)}</div>
+                <p className="text-xs text-muted-foreground mt-1">
+                  Engagement rate: {totalStats ? ((totalStats.likes / totalStats.views) * 100).toFixed(1) + '%' : '0%'}
+                </p>
+              </CardContent>
+            </Card>
+            
+            <Card className="animate-fade-in" style={{ animationDelay: "300ms" }}>
+              <CardHeader className="flex flex-row items-center justify-between pb-2">
+                <CardTitle className="text-sm font-medium">Comments</CardTitle>
+                <MessageSquare className="h-5 w-5 text-muted-foreground" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">{formatNumber(totalStats?.comments || 0)}</div>
+                <p className="text-xs text-muted-foreground mt-1">Community engagement</p>
+              </CardContent>
+            </Card>
+            
+            <Card className="animate-fade-in" style={{ animationDelay: "400ms" }}>
+              <CardHeader className="flex flex-row items-center justify-between pb-2">
+                <CardTitle className="text-sm font-medium">Watch Time</CardTitle>
+                <Clock className="h-5 w-5 text-muted-foreground" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">{totalStats?.watchTimeHours || 0} hours</div>
+                <p className="text-xs text-muted-foreground mt-1">Avg: {totalStats && videos ? Math.round((totalStats.watchTimeHours / videos.length) / 3600) : 0} hours per video</p>
               </CardContent>
             </Card>
           </div>
-        </TabsContent>
-        
-        <TabsContent value="revenue" className="space-y-4">
-          <Card>
-            <CardHeader>
-              <CardTitle>Revenue by Source</CardTitle>
-              <CardDescription>
-                How your revenue is distributed
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="h-[300px] flex items-center justify-center">
-              <BarChart 
-                className="w-full aspect-[4/2]"
-                data={{
-                  labels: ["Jan", "Feb", "Mar", "Apr", "May", "Jun"],
-                  datasets: [
-                    {
-                      label: "Ad Revenue",
-                      data: [1200, 1350, 1400, 1600, 1800, 2100],
-                      backgroundColor: "#22c55e",
-                    },
-                    {
-                      label: "Sponsorships",
-                      data: [800, 800, 1000, 1200, 1400, 1500],
-                      backgroundColor: "#3b82f6",
-                    },
-                    {
-                      label: "Merchandise",
-                      data: [500, 600, 650, 700, 800, 850],
-                      backgroundColor: "#eab308",
-                    },
-                  ],
-                }}
-              />
-            </CardContent>
-          </Card>
-        </TabsContent>
-        
-        <TabsContent value="languages" className="space-y-4">
-          <Card>
-            <CardHeader>
-              <CardTitle>Performance by Language</CardTitle>
-              <CardDescription>
-                How different languages contribute to your channel
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-4">
-                <div className="grid grid-cols-3 gap-4">
-                  <div className="col-span-2 space-y-4">
-                    {[
-                      { language: "English", views: "4.2M", watchTime: "168K hrs", engagement: "High" },
-                      { language: "Spanish", views: "1.8M", watchTime: "67K hrs", engagement: "Medium" },
-                      { language: "Portuguese", views: "980K", watchTime: "41K hrs", engagement: "Medium" },
-                      { language: "French", views: "560K", watchTime: "24K hrs", engagement: "Medium" },
-                      { language: "German", views: "430K", watchTime: "18K hrs", engagement: "Low" },
-                      { language: "Others", views: "210K", watchTime: "6K hrs", engagement: "Low" },
-                    ].map((item, i) => (
-                      <div key={i} className="flex items-center justify-between border-b pb-2 last:border-0">
-                        <div>
-                          <div className="font-medium">{item.language}</div>
-                          <div className="text-sm text-muted-foreground">
-                            {item.views} views • {item.watchTime}
-                          </div>
-                        </div>
-                        <div className={`px-2 py-1 rounded text-xs font-medium ${
-                          item.engagement === "High" ? "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400" : 
-                          item.engagement === "Medium" ? "bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400" :
-                          "bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-400"
-                        }`}>
-                          {item.engagement} Engagement
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                  
-                  <div>
-                    <PieChart 
-                      className="w-full aspect-square"
-                      data={{
-                        labels: ["English", "Spanish", "Portuguese", "French", "German", "Others"],
-                        datasets: [
-                          {
-                            label: "Views Distribution",
-                            data: [51, 22, 12, 7, 5, 3],
-                            backgroundColor: [
-                              "#3b82f6", "#ef4444", "#eab308", "#22c55e", "#8b5cf6", "#94a3b8",
-                            ],
-                          },
-                        ],
-                      }}
-                    />
-                  </div>
+
+          {/* Charts and Tables */}
+          <div className="grid gap-6 md:grid-cols-2">
+            {/* Video Performance Chart */}
+            <Card className="md:col-span-2 animate-fade-in" style={{ animationDelay: "500ms" }}>
+              <CardHeader>
+                <CardTitle>Video Performance</CardTitle>
+                <CardDescription>Views and engagement metrics by video</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="h-80">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <BarChart
+                      data={videos?.map(video => ({
+                        name: video.title.length > 20 ? `${video.title.substring(0, 20)}...` : video.title,
+                        views: video.views,
+                        likes: video.likes,
+                        comments: video.comments
+                      }))}
+                      margin={{ top: 20, right: 30, left: 20, bottom: 60 }}
+                    >
+                      <CartesianGrid strokeDasharray="3 3" />
+                      <XAxis dataKey="name" angle={-45} textAnchor="end" height={80} />
+                      <YAxis />
+                      <Tooltip />
+                      <Bar dataKey="views" fill="#8884d8" name="Views" />
+                      <Bar dataKey="likes" fill="#82ca9d" name="Likes" />
+                      <Bar dataKey="comments" fill="#ffc658" name="Comments" />
+                    </BarChart>
+                  </ResponsiveContainer>
                 </div>
-              </div>
-            </CardContent>
-          </Card>
-        </TabsContent>
-      </Tabs>
+              </CardContent>
+            </Card>
+
+            {/* Audience Geography */}
+            <Card className="animate-fade-in" style={{ animationDelay: "600ms" }}>
+              <CardHeader className="flex flex-row items-center justify-between">
+                <div>
+                  <CardTitle>Audience Geography</CardTitle>
+                  <CardDescription>Views by country</CardDescription>
+                </div>
+                <Button variant="ghost" size="sm" className="gap-1">
+                  View All
+                  <ArrowUpRight className="h-3 w-3" />
+                </Button>
+              </CardHeader>
+              <CardContent>
+                <div className="h-64">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <PieChart>
+                      <Pie
+                        data={countryData}
+                        cx="50%"
+                        cy="50%"
+                        outerRadius={80}
+                        fill="#8884d8"
+                        dataKey="views"
+                        label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
+                      >
+                        {countryData.map((entry, index) => (
+                          <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                        ))}
+                      </Pie>
+                      <Tooltip formatter={(value) => [`${value}%`, 'Views']} />
+                    </PieChart>
+                  </ResponsiveContainer>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Video Details Table */}
+            <Card className="animate-fade-in" style={{ animationDelay: "700ms" }}>
+              <CardHeader>
+                <CardTitle>Video Details</CardTitle>
+                <CardDescription>Performance metrics by video</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Video</TableHead>
+                      <TableHead className="text-right">Views</TableHead>
+                      <TableHead className="text-right">Likes</TableHead>
+                      <TableHead className="text-right">Comments</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {videos?.map((video) => (
+                      <TableRow key={video.video_id}>
+                        <TableCell className="font-medium">
+                          {video.title.length > 25 ? `${video.title.substring(0, 25)}...` : video.title}
+                        </TableCell>
+                        <TableCell className="text-right">{formatNumber(video.views)}</TableCell>
+                        <TableCell className="text-right">{formatNumber(video.likes)}</TableCell>
+                        <TableCell className="text-right">{formatNumber(video.comments)}</TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </CardContent>
+            </Card>
+          </div>
+        </>
+      )}
     </div>
   );
 };

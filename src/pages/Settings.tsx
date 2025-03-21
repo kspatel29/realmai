@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -11,15 +10,18 @@ import { Switch } from "@/components/ui/switch";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth";
 import { User, CreditCard, Bell, Lock, Languages, Monitor } from "lucide-react";
+import { useCredits } from "@/hooks/useCredits";
 
 const Settings = () => {
   const { user } = useAuth();
   const { toast } = useToast();
+  const { credits, isLoading: isLoadingCredits } = useCredits();
   const [nameInput, setNameInput] = useState(user?.name || "");
   const [emailInput, setEmailInput] = useState(user?.email || "");
   const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
+  const [selectedPlan, setSelectedPlan] = useState("pro");
 
   const handleProfileUpdate = (e: React.FormEvent) => {
     e.preventDefault();
@@ -44,6 +46,49 @@ const Settings = () => {
       description: "Your password has been changed successfully."
     });
   };
+
+  const handlePlanSelection = (plan: string) => {
+    setSelectedPlan(plan);
+  };
+
+  const handleChangePlan = () => {
+    toast.success("Your plan will be updated at the start of the next billing cycle");
+  };
+
+  const handleCheckout = () => {
+    toast.success("Redirecting to checkout...");
+    setTimeout(() => {
+      toast.success("Payment successful! Credits added to your account.");
+    }, 2000);
+  };
+
+  const formatCredits = (num: number): string => {
+    return num.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+  };
+
+  const plans = [
+    {
+      id: "basic",
+      name: "Basic",
+      price: 19.99,
+      credits: 3000,
+      isCurrent: selectedPlan === "basic"
+    },
+    {
+      id: "pro",
+      name: "Pro",
+      price: 49.99,
+      credits: 10000,
+      isCurrent: selectedPlan === "pro"
+    },
+    {
+      id: "enterprise",
+      name: "Enterprise",
+      price: 99.99,
+      credits: 25000,
+      isCurrent: selectedPlan === "enterprise"
+    }
+  ];
 
   return (
     <div className="space-y-8 animate-fade-in">
@@ -202,46 +247,67 @@ const Settings = () => {
                 <div className="space-y-2">
                   <div className="flex items-center justify-between">
                     <span className="text-sm">Credits used this month</span>
-                    <span className="text-sm font-medium">3,245 / 10,000</span>
+                    <span className="text-sm font-medium">
+                      {isLoadingCredits 
+                        ? "Loading..." 
+                        : `${formatCredits(10000 - credits)} / 10,000`}
+                    </span>
                   </div>
                   <div className="h-2 rounded-full bg-muted overflow-hidden">
-                    <div className="h-full bg-youtube-red" style={{ width: "32.45%" }}></div>
+                    <div 
+                      className="h-full bg-youtube-red" 
+                      style={{ width: `${isLoadingCredits ? 0 : (100 - (credits / 100))}%` }}
+                    ></div>
                   </div>
                 </div>
               </div>
               
               <div className="grid gap-4 sm:grid-cols-3">
-                <Card className="hover:shadow-md transition-shadow cursor-pointer">
-                  <CardHeader className="p-4">
-                    <CardTitle className="text-base">Basic</CardTitle>
-                  </CardHeader>
-                  <CardContent className="p-4 pt-0">
-                    <div className="text-2xl font-bold">$19.99<span className="text-sm font-normal text-muted-foreground">/mo</span></div>
-                    <p className="text-sm text-muted-foreground mt-2">3,000 credits per month</p>
-                  </CardContent>
-                </Card>
-                <Card className="border-2 border-youtube-red hover:shadow-md transition-shadow cursor-pointer">
-                  <CardHeader className="p-4">
-                    <CardTitle className="text-base">Pro</CardTitle>
-                    <div className="absolute top-0 right-0 bg-youtube-red text-white text-xs px-2 py-1 rounded-bl-md">Current</div>
-                  </CardHeader>
-                  <CardContent className="p-4 pt-0">
-                    <div className="text-2xl font-bold">$49.99<span className="text-sm font-normal text-muted-foreground">/mo</span></div>
-                    <p className="text-sm text-muted-foreground mt-2">10,000 credits per month</p>
-                  </CardContent>
-                </Card>
-                <Card className="hover:shadow-md transition-shadow cursor-pointer">
-                  <CardHeader className="p-4">
-                    <CardTitle className="text-base">Enterprise</CardTitle>
-                  </CardHeader>
-                  <CardContent className="p-4 pt-0">
-                    <div className="text-2xl font-bold">$99.99<span className="text-sm font-normal text-muted-foreground">/mo</span></div>
-                    <p className="text-sm text-muted-foreground mt-2">25,000 credits per month</p>
-                  </CardContent>
-                </Card>
+                {plans.map(plan => (
+                  <Card 
+                    key={plan.id}
+                    className={`hover:shadow-md transition-shadow cursor-pointer ${
+                      plan.isCurrent ? 'border-2 border-youtube-red' : ''
+                    }`}
+                    onClick={() => handlePlanSelection(plan.id)}
+                  >
+                    <CardHeader className="p-4">
+                      <CardTitle className="text-base">{plan.name}</CardTitle>
+                      {plan.isCurrent && (
+                        <div className="absolute top-0 right-0 bg-youtube-red text-white text-xs px-2 py-1 rounded-bl-md">
+                          Current
+                        </div>
+                      )}
+                    </CardHeader>
+                    <CardContent className="p-4 pt-0">
+                      <div className="text-2xl font-bold">
+                        ${plan.price}<span className="text-sm font-normal text-muted-foreground">/mo</span>
+                      </div>
+                      <p className="text-sm text-muted-foreground mt-2">
+                        {formatCredits(plan.credits)} credits per month
+                      </p>
+                    </CardContent>
+                  </Card>
+                ))}
               </div>
 
-              <Button className="w-full">Change Plan</Button>
+              <div className="flex flex-col gap-4 sm:flex-row">
+                <Button 
+                  className="w-full sm:w-auto"
+                  onClick={handleChangePlan}
+                  disabled={selectedPlan === "pro"}
+                >
+                  {selectedPlan === "pro" ? "Current Plan" : "Change Plan"}
+                </Button>
+                
+                <Button 
+                  variant="outline" 
+                  className="w-full sm:w-auto"
+                  onClick={handleCheckout}
+                >
+                  Buy Additional Credits
+                </Button>
+              </div>
             </CardContent>
           </Card>
           
@@ -372,3 +438,4 @@ const Settings = () => {
 };
 
 export default Settings;
+
