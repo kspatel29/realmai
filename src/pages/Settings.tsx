@@ -1,3 +1,4 @@
+
 import { useState } from "react";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -8,6 +9,7 @@ import { Separator } from "@/components/ui/separator";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Switch } from "@/components/ui/switch";
 import { useToast } from "@/hooks/use-toast";
+import { toast as sonnerToast } from "sonner";
 import { useAuth } from "@/hooks/useAuth";
 import { User, CreditCard, Bell, Lock, Languages, Monitor } from "lucide-react";
 import { useCredits } from "@/hooks/useCredits";
@@ -52,13 +54,13 @@ const Settings = () => {
   };
 
   const handleChangePlan = () => {
-    toast.success("Your plan will be updated at the start of the next billing cycle");
+    sonnerToast.success("Your plan will be updated at the start of the next billing cycle");
   };
 
   const handleCheckout = () => {
-    toast.success("Redirecting to checkout...");
+    sonnerToast.success("Redirecting to checkout...");
     setTimeout(() => {
-      toast.success("Payment successful! Credits added to your account.");
+      sonnerToast.success("Payment successful! Credits added to your account.");
     }, 2000);
   };
 
@@ -438,4 +440,3 @@ const Settings = () => {
 };
 
 export default Settings;
-
