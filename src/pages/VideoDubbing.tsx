@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -7,13 +6,13 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Slider } from "@/components/ui/slider";
-import { Upload, Play, Pause, Globe, Mic, Wand2, Coins, Trash2 } from "lucide-react";
+import { Upload, Play, Pause, Globe, Mic, Wand2, Coins, Trash2, Video } from "lucide-react";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { toast } from "sonner";
 import ServiceCostDisplay from "@/components/ServiceCostDisplay";
 import CreditConfirmDialog from "@/components/CreditConfirmDialog";
 import { useCredits } from "@/hooks/useCredits";
-import { useVideos, Video } from "@/hooks/useVideos";
+import { useVideos, type Video as VideoType } from "@/hooks/useVideos";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
@@ -45,7 +44,7 @@ const CREDIT_COSTS = {
 
 const VideoDubbing = () => {
   const { user } = useAuth();
-  const [selectedVideo, setSelectedVideo] = useState<Video | null>(null);
+  const [selectedVideo, setSelectedVideo] = useState<VideoType | null>(null);
   const [videoURL, setVideoURL] = useState<string | null>(null);
   const [isUploading, setIsUploading] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
@@ -63,7 +62,6 @@ const VideoDubbing = () => {
   const { videos, isLoading: isLoadingVideos, uploadVideo, deleteVideo } = useVideos();
 
   useEffect(() => {
-    // Clear video URL when selected video changes
     if (selectedVideo) {
       loadVideoURL(selectedVideo);
     } else {
@@ -71,14 +69,14 @@ const VideoDubbing = () => {
     }
   }, [selectedVideo]);
 
-  const loadVideoURL = async (video: Video) => {
+  const loadVideoURL = async (video: VideoType) => {
     try {
       if (!user || !video.filename) return;
       
       const filePath = `${user.id}/${video.id}/${video.filename}`;
       const { data, error } = await supabase.storage
         .from('videos')
-        .createSignedUrl(filePath, 3600); // 1 hour expiry
+        .createSignedUrl(filePath, 3600);
       
       if (error) {
         console.error('Error creating signed URL:', error);
@@ -97,7 +95,6 @@ const VideoDubbing = () => {
     if (e.target.files && e.target.files[0]) {
       const file = e.target.files[0];
       
-      // Set up the upload process
       setIsUploading(true);
       
       let uploadProgress = 0;
@@ -110,10 +107,8 @@ const VideoDubbing = () => {
         }
       }, 300);
       
-      // Extract filename without extension for title
       const fileNameWithoutExt = file.name.split('.').slice(0, -1).join('.');
       
-      // Upload the video
       uploadVideo.mutate({
         file,
         title: fileNameWithoutExt
@@ -197,7 +192,7 @@ const VideoDubbing = () => {
     }
   };
 
-  const handleDeleteVideo = (video: Video) => {
+  const handleDeleteVideo = (video: VideoType) => {
     if (window.confirm(`Are you sure you want to delete "${video.title}"?`)) {
       deleteVideo.mutate(video.id, {
         onSuccess: () => {
