@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useYouTubeAnalytics, YouTubeChannel } from "@/hooks/useYouTubeAnalytics";
-import { YouTube } from "lucide-react";
+import { Youtube } from "lucide-react";
 
 interface YouTubeChannelSetupProps {
   channelInfo: YouTubeChannel | null;
@@ -36,7 +36,7 @@ const YouTubeChannelSetup = ({ channelInfo, onSetupComplete }: YouTubeChannelSet
     <Card className="w-full">
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
-          <YouTube className="h-5 w-5 text-youtube-red" />
+          <Youtube className="h-5 w-5 text-youtube-red" />
           {channelInfo ? "Update YouTube Channel" : "Connect YouTube Channel"}
         </CardTitle>
         <CardDescription>
