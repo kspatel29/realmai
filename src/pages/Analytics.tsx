@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -7,19 +6,24 @@ import { useAuth } from "@/hooks/useAuth";
 import { useYouTubeAnalytics } from "@/hooks/useYouTubeAnalytics";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
 import { ArrowUpRight, RefreshCw, Globe, ThumbsUp, MessageSquare, Clock } from "lucide-react";
-import YouTubeChannelSetup from "@/components/YouTubeChannelSetup";
+import YouTubeChannelSearch from "@/components/YouTubeChannelSearch";
+
+interface Channel {
+  id: string;
+  title: string;
+  thumbnail: string;
+  subscribers: string;
+}
 
 const Analytics = () => {
   const { user } = useAuth();
   const [isLoaded, setIsLoaded] = useState(false);
-  const [showChannelSetup, setShowChannelSetup] = useState(false);
+  const [selectedChannel, setSelectedChannel] = useState<Channel | null>(null);
   const { 
     videos, 
     totalStats, 
     isLoading, 
-    syncYouTubeAnalytics, 
-    channelInfo, 
-    isLoadingChannel 
+    syncYouTubeAnalytics
   } = useYouTubeAnalytics();
   
   useEffect(() => {
@@ -55,20 +59,20 @@ const Analytics = () => {
     syncYouTubeAnalytics.mutate();
   };
 
-  // Channel is not set up yet, show setup form
-  if (!isLoadingChannel && !channelInfo) {
+  // Show channel search if no channel is selected
+  if (!selectedChannel) {
     return (
       <div className={`space-y-8 transition-opacity duration-500 ${isLoaded ? "opacity-100" : "opacity-0"}`}>
         <div>
           <h1 className="text-2xl font-bold tracking-tight mb-2">Analytics</h1>
           <p className="text-muted-foreground">
-            Track your content performance and audience growth.
+            Search for a YouTube channel to view performance metrics.
           </p>
         </div>
         
-        <div className="flex items-center justify-center py-12">
+        <div className="flex items-center justify-center py-6">
           <div className="max-w-md w-full">
-            <YouTubeChannelSetup channelInfo={channelInfo} />
+            <YouTubeChannelSearch onChannelSelect={setSelectedChannel} />
           </div>
         </div>
       </div>
@@ -81,19 +85,17 @@ const Analytics = () => {
         <div>
           <h1 className="text-2xl font-bold tracking-tight">Analytics</h1>
           <p className="text-muted-foreground">
-            Track your content performance and audience growth.
+            Track channel performance and audience growth.
           </p>
         </div>
         <div className="flex flex-col sm:flex-row gap-2">
-          {channelInfo && (
-            <Button 
-              variant="outline" 
-              onClick={() => setShowChannelSetup(true)}
-              className="gap-2"
-            >
-              Update Channel
-            </Button>
-          )}
+          <Button 
+            variant="outline" 
+            onClick={() => setSelectedChannel(null)}
+            className="gap-2"
+          >
+            Change Channel
+          </Button>
           <Button 
             onClick={handleRefreshAnalytics} 
             disabled={syncYouTubeAnalytics.isPending}
@@ -105,32 +107,28 @@ const Analytics = () => {
         </div>
       </div>
 
-      {showChannelSetup && channelInfo && (
-        <div className="max-w-md mx-auto">
-          <YouTubeChannelSetup 
-            channelInfo={channelInfo} 
-            onSetupComplete={() => setShowChannelSetup(false)} 
+      <div className="bg-muted/50 border rounded-lg p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div className="flex items-center gap-3">
+          <img 
+            src={selectedChannel.thumbnail} 
+            alt={selectedChannel.title}
+            className="h-12 w-12 rounded-full object-cover"
           />
-        </div>
-      )}
-
-      {!showChannelSetup && channelInfo && (
-        <div className="bg-muted/50 border rounded-lg p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div>
-            <h3 className="font-medium">Connected YouTube Channel</h3>
-            <p className="text-sm text-muted-foreground">{channelInfo.channel_name}</p>
+            <h3 className="font-medium">{selectedChannel.title}</h3>
+            <p className="text-sm text-muted-foreground">{selectedChannel.subscribers} subscribers</p>
           </div>
-          <Button 
-            variant="outline" 
-            size="sm" 
-            className="gap-1"
-            onClick={() => window.open(`https://www.youtube.com/channel/${channelInfo.channel_id || ''}`, '_blank')}
-          >
-            Visit Channel
-            <ArrowUpRight className="h-3 w-3" />
-          </Button>
         </div>
-      )}
+        <Button 
+          variant="outline" 
+          size="sm" 
+          className="gap-1"
+          onClick={() => window.open(`https://www.youtube.com/channel/${selectedChannel.id}`, '_blank')}
+        >
+          Visit Channel
+          <ArrowUpRight className="h-3 w-3" />
+        </Button>
+      </div>
 
       {isLoading ? (
         <div className="h-64 flex items-center justify-center">
