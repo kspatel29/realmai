@@ -4,8 +4,8 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { YouTubeChannel } from "@/hooks/useYouTubeAnalytics";
-import { Youtube } from "lucide-react";
+import { YouTubeChannelResponse } from "@/services/youtubeApi";
+import { Youtube, Loader2 } from "lucide-react";
 
 interface YouTubeChannelSetupProps {
   onSearch: (query: string) => void;
@@ -58,7 +58,14 @@ const YouTubeChannelSetup = ({ onSearch, isLoading }: YouTubeChannelSetupProps) 
             disabled={!channelName.trim() || isLoading}
             className="bg-youtube-red hover:bg-youtube-darkred"
           >
-            {isLoading ? "Searching..." : "Search Channel"}
+            {isLoading ? (
+              <div className="flex items-center gap-2">
+                <Loader2 className="h-4 w-4 animate-spin" />
+                Searching...
+              </div>
+            ) : (
+              "Search Channel"
+            )}
           </Button>
         </CardFooter>
       </form>

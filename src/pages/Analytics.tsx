@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -7,22 +8,27 @@ import { useYouTubeAnalytics } from "@/hooks/useYouTubeAnalytics";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
 import { ArrowUpRight, RefreshCw, Globe, ThumbsUp, MessageSquare, Clock } from "lucide-react";
 import YouTubeChannelSearch from "@/components/YouTubeChannelSearch";
+import { getChannelDetails } from "@/services/youtubeApi";
+import { toast } from "sonner";
 
 interface Channel {
   id: string;
   title: string;
   thumbnail: string;
   subscribers: string;
+  views?: string;
+  videoCount?: string;
+  description?: string;
 }
 
 const Analytics = () => {
   const { user } = useAuth();
   const [isLoaded, setIsLoaded] = useState(false);
   const [selectedChannel, setSelectedChannel] = useState<Channel | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
   const { 
     videos, 
     totalStats, 
-    isLoading, 
     syncYouTubeAnalytics
   } = useYouTubeAnalytics();
   
@@ -57,6 +63,24 @@ const Analytics = () => {
 
   const handleRefreshAnalytics = () => {
     syncYouTubeAnalytics.mutate();
+  };
+
+  const fetchChannelAnalytics = async (channelId: string) => {
+    setIsLoading(true);
+    try {
+      const channelData = await getChannelDetails(channelId);
+      if (channelData && channelData.length > 0) {
+        // Updated data was already set by the onChannelSelect handler
+        toast.success("Channel data refreshed successfully");
+      } else {
+        toast.error("No data found for this channel");
+      }
+    } catch (error) {
+      console.error("Error fetching channel analytics:", error);
+      toast.error("Failed to refresh channel data");
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   // Show channel search if no channel is selected
@@ -97,11 +121,11 @@ const Analytics = () => {
             Change Channel
           </Button>
           <Button 
-            onClick={handleRefreshAnalytics} 
-            disabled={syncYouTubeAnalytics.isPending}
+            onClick={() => fetchChannelAnalytics(selectedChannel.id)} 
+            disabled={isLoading}
             className="gap-2 w-full sm:w-auto"
           >
-            <RefreshCw className={`h-4 w-4 ${syncYouTubeAnalytics.isPending ? 'animate-spin' : ''}`} />
+            <RefreshCw className={`h-4 w-4 ${isLoading ? 'animate-spin' : ''}`} />
             Refresh Analytics
           </Button>
         </div>
@@ -144,91 +168,101 @@ const Analytics = () => {
                 <Globe className="h-5 w-5 text-muted-foreground" />
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold">{formatNumber(totalStats?.views || 0)}</div>
+                <div className="text-2xl font-bold">{selectedChannel.views || "N/A"}</div>
                 <p className="text-xs text-muted-foreground mt-1">Across all videos</p>
               </CardContent>
             </Card>
             
             <Card className="animate-fade-in" style={{ animationDelay: "200ms" }}>
               <CardHeader className="flex flex-row items-center justify-between pb-2">
-                <CardTitle className="text-sm font-medium">Total Likes</CardTitle>
+                <CardTitle className="text-sm font-medium">Subscribers</CardTitle>
                 <ThumbsUp className="h-5 w-5 text-muted-foreground" />
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold">{formatNumber(totalStats?.likes || 0)}</div>
+                <div className="text-2xl font-bold">{selectedChannel.subscribers}</div>
                 <p className="text-xs text-muted-foreground mt-1">
-                  Engagement rate: {totalStats ? ((totalStats.likes / totalStats.views) * 100).toFixed(1) + '%' : '0%'}
+                  Community engagement
                 </p>
               </CardContent>
             </Card>
             
             <Card className="animate-fade-in" style={{ animationDelay: "300ms" }}>
               <CardHeader className="flex flex-row items-center justify-between pb-2">
-                <CardTitle className="text-sm font-medium">Comments</CardTitle>
+                <CardTitle className="text-sm font-medium">Videos</CardTitle>
                 <MessageSquare className="h-5 w-5 text-muted-foreground" />
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold">{formatNumber(totalStats?.comments || 0)}</div>
-                <p className="text-xs text-muted-foreground mt-1">Community engagement</p>
+                <div className="text-2xl font-bold">{selectedChannel.videoCount || "N/A"}</div>
+                <p className="text-xs text-muted-foreground mt-1">Total published videos</p>
               </CardContent>
             </Card>
             
             <Card className="animate-fade-in" style={{ animationDelay: "400ms" }}>
               <CardHeader className="flex flex-row items-center justify-between pb-2">
-                <CardTitle className="text-sm font-medium">Watch Time</CardTitle>
+                <CardTitle className="text-sm font-medium">Engagement</CardTitle>
                 <Clock className="h-5 w-5 text-muted-foreground" />
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold">{totalStats?.watchTimeHours || 0} hours</div>
-                <p className="text-xs text-muted-foreground mt-1">Avg: {totalStats && videos ? Math.round((totalStats.watchTimeHours / videos.length) / 3600) : 0} hours per video</p>
+                <div className="text-2xl font-bold">
+                  {selectedChannel.subscribers && selectedChannel.views 
+                    ? ((parseInt(selectedChannel.views.replace(/,/g, '')) / parseInt(selectedChannel.subscribers.replace(/,/g, ''))) * 100).toFixed(1) + '%'
+                    : "N/A"}
+                </div>
+                <p className="text-xs text-muted-foreground mt-1">View-to-subscriber ratio</p>
               </CardContent>
             </Card>
           </div>
 
           {/* Charts and Tables */}
           <div className="grid gap-6 md:grid-cols-2">
-            {/* Video Performance Chart */}
+            {/* Recent Videos */}
             <Card className="md:col-span-2 animate-fade-in" style={{ animationDelay: "500ms" }}>
               <CardHeader>
-                <CardTitle>Video Performance</CardTitle>
-                <CardDescription>Views and engagement metrics by video</CardDescription>
+                <CardTitle>YouTube Data</CardTitle>
+                <CardDescription>These metrics are from the YouTube API</CardDescription>
               </CardHeader>
               <CardContent>
-                <div className="h-80">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <BarChart
-                      data={videos?.map(video => ({
-                        name: video.title.length > 20 ? `${video.title.substring(0, 20)}...` : video.title,
-                        views: video.views,
-                        likes: video.likes,
-                        comments: video.comments
-                      }))}
-                      margin={{ top: 20, right: 30, left: 20, bottom: 60 }}
-                    >
-                      <CartesianGrid strokeDasharray="3 3" />
-                      <XAxis dataKey="name" angle={-45} textAnchor="end" height={80} />
-                      <YAxis />
-                      <Tooltip />
-                      <Bar dataKey="views" fill="#8884d8" name="Views" />
-                      <Bar dataKey="likes" fill="#82ca9d" name="Likes" />
-                      <Bar dataKey="comments" fill="#ffc658" name="Comments" />
-                    </BarChart>
-                  </ResponsiveContainer>
+                <div className="space-y-4">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="bg-muted/50 p-4 rounded-lg">
+                      <h3 className="font-medium mb-2">Channel Description</h3>
+                      <p className="text-sm text-muted-foreground">
+                        {selectedChannel.description || "No description available"}
+                      </p>
+                    </div>
+                    <div className="bg-muted/50 p-4 rounded-lg">
+                      <h3 className="font-medium mb-2">Performance Metrics</h3>
+                      <div className="space-y-2">
+                        <div className="flex justify-between">
+                          <span className="text-sm">Views to Subscribers Ratio:</span>
+                          <span className="text-sm font-medium">
+                            {selectedChannel.subscribers && selectedChannel.views 
+                              ? ((parseInt(selectedChannel.views.replace(/,/g, '')) / parseInt(selectedChannel.subscribers.replace(/,/g, ''))) * 100).toFixed(1) + '%'
+                              : "N/A"}
+                          </span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="text-sm">Average Views Per Video:</span>
+                          <span className="text-sm font-medium">
+                            {selectedChannel.views && selectedChannel.videoCount 
+                              ? formatNumber(parseInt(selectedChannel.views.replace(/,/g, '')) / parseInt(selectedChannel.videoCount.replace(/,/g, '')))
+                              : "N/A"}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
                 </div>
               </CardContent>
             </Card>
 
-            {/* Audience Geography */}
+            {/* Audience Geography (sample data) */}
             <Card className="animate-fade-in" style={{ animationDelay: "600ms" }}>
               <CardHeader className="flex flex-row items-center justify-between">
                 <div>
                   <CardTitle>Audience Geography</CardTitle>
-                  <CardDescription>Views by country</CardDescription>
+                  <CardDescription>Sample data (not from API)</CardDescription>
                 </div>
-                <Button variant="ghost" size="sm" className="gap-1">
-                  View All
-                  <ArrowUpRight className="h-3 w-3" />
-                </Button>
               </CardHeader>
               <CardContent>
                 <div className="h-64">
@@ -254,11 +288,11 @@ const Analytics = () => {
               </CardContent>
             </Card>
 
-            {/* Video Details Table */}
+            {/* Sample Video Details Table */}
             <Card className="animate-fade-in" style={{ animationDelay: "700ms" }}>
               <CardHeader>
-                <CardTitle>Video Details</CardTitle>
-                <CardDescription>Performance metrics by video</CardDescription>
+                <CardTitle>Sample Videos</CardTitle>
+                <CardDescription>Example data (not from API)</CardDescription>
               </CardHeader>
               <CardContent>
                 <Table>

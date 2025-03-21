@@ -3,14 +3,19 @@ import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Search, Youtube } from "lucide-react";
+import { Search, Youtube, Loader2 } from "lucide-react";
 import { useDebounce } from "@/hooks/useDebounce";
+import { searchYouTubeChannels, YouTubeChannelResponse } from "@/services/youtubeApi";
+import { toast } from "sonner";
 
 interface Channel {
   id: string;
   title: string;
   thumbnail: string;
   subscribers: string;
+  views?: string;
+  videoCount?: string;
+  description?: string;
 }
 
 interface YouTubeChannelSearchProps {
@@ -22,40 +27,36 @@ const YouTubeChannelSearch = ({ onChannelSelect }: YouTubeChannelSearchProps) =>
   const [isLoading, setIsLoading] = useState(false);
   const [suggestions, setSuggestions] = useState<Channel[]>([]);
   const [showSuggestions, setShowSuggestions] = useState(false);
-  const debouncedQuery = useDebounce(query, 400);
+  const debouncedQuery = useDebounce(query, 600);
   
-  // Mock fetch function to simulate API call
   const fetchChannelSuggestions = async (searchQuery: string) => {
+    if (!searchQuery.trim()) return;
+    
     setIsLoading(true);
     
-    // Simulate API delay
-    await new Promise(resolve => setTimeout(resolve, 500));
-    
-    // Mock data for suggestions - in a real app this would come from YouTube API
-    const mockChannels: Channel[] = [
-      {
-        id: "UC_x5XG1OV2P6uZZ5FSM9Ttw",
-        title: `${searchQuery} Official`,
-        thumbnail: "https://yt3.googleusercontent.com/ytc/APkrFKbpSojje_-tkBQecNtFuPdSCrg3ZT0FhaYjln9k0g=s176-c-k-c0x00ffffff-no-rj",
-        subscribers: "2.3M"
-      },
-      {
-        id: "UCsBjURrPoezykLs9EqgamOA",
-        title: `${searchQuery} Tech`,
-        thumbnail: "https://yt3.googleusercontent.com/ytc/APkrFKZWeMCsx4Q9e_Hm6nhOOUQ3fv96QGUXiMr1-pPP=s176-c-k-c0x00ffffff-no-rj",
-        subscribers: "1.8M"
-      },
-      {
-        id: "UCbRP3c757lWg9M-U7TyEkXA",
-        title: `${searchQuery} Academy`,
-        thumbnail: "https://yt3.googleusercontent.com/ytc/APkrFKaqTKiYIV8Ya8l6u9YUMj8r8Ely0ihLZGZkCbJq=s176-c-k-c0x00ffffff-no-rj",
-        subscribers: "975K"
-      }
-    ];
-    
-    setSuggestions(mockChannels);
-    setIsLoading(false);
-    setShowSuggestions(true);
+    try {
+      const channelItems = await searchYouTubeChannels(searchQuery);
+      
+      const mappedChannels: Channel[] = channelItems.map(channel => ({
+        id: channel.id,
+        title: channel.snippet.title,
+        thumbnail: channel.snippet.thumbnails.medium.url || channel.snippet.thumbnails.default.url,
+        subscribers: parseInt(channel.statistics.subscriberCount).toLocaleString(),
+        views: parseInt(channel.statistics.viewCount).toLocaleString(),
+        videoCount: parseInt(channel.statistics.videoCount).toLocaleString(),
+        description: channel.snippet.description
+      }));
+      
+      setSuggestions(mappedChannels);
+      setShowSuggestions(true);
+      
+    } catch (error) {
+      console.error("Failed to fetch channel suggestions:", error);
+      toast.error("Failed to load YouTube channels. Please try again.");
+      setSuggestions([]);
+    } finally {
+      setIsLoading(false);
+    }
   };
   
   useEffect(() => {
@@ -68,7 +69,7 @@ const YouTubeChannelSearch = ({ onChannelSelect }: YouTubeChannelSearchProps) =>
   }, [debouncedQuery]);
   
   const handleInputFocus = () => {
-    if (query.length > 2) {
+    if (query.length > 2 && suggestions.length > 0) {
       setShowSuggestions(true);
     }
   };
@@ -105,9 +106,19 @@ const YouTubeChannelSearch = ({ onChannelSelect }: YouTubeChannelSearchProps) =>
               className="absolute right-0 top-0"
               disabled={isLoading}
             >
-              <Search className="h-4 w-4" />
+              {isLoading ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <Search className="h-4 w-4" />
+              )}
             </Button>
           </div>
+          
+          {isLoading && (
+            <div className="flex justify-center py-4">
+              <Loader2 className="h-6 w-6 animate-spin text-youtube-red" />
+            </div>
+          )}
           
           {showSuggestions && suggestions.length > 0 && (
             <div className="absolute z-50 mt-1 w-full rounded-md border bg-popover shadow-md">
@@ -125,7 +136,7 @@ const YouTubeChannelSearch = ({ onChannelSelect }: YouTubeChannelSearchProps) =>
                     <img 
                       src={channel.thumbnail} 
                       alt={channel.title}
-                      className="h-8 w-8 rounded-full object-cover"
+                      className="h-10 w-10 rounded-full object-cover"
                     />
                     <div>
                       <p className="font-medium text-sm">{channel.title}</p>
