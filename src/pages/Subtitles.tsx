@@ -1,3 +1,4 @@
+
 import { useState } from "react";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -10,7 +11,7 @@ import { Upload, FileText, Clock, Download, DownloadCloud, Globe, Check, Coins }
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
-import { toast } from "sonner";
+import { toast as sonnerToast } from "sonner";
 import ServiceCostDisplay from "@/components/ServiceCostDisplay";
 import CreditConfirmDialog from "@/components/CreditConfirmDialog";
 import { useCredits } from "@/hooks/useCredits";
@@ -121,7 +122,7 @@ const Subtitles = () => {
 
   const handleProcessSubtitles = () => {
     if (selectedLanguages.length === 0) {
-      toast.error("Please select at least one language for subtitles.");
+      sonnerToast.error("Please select at least one language for subtitles.");
       return;
     }
     
@@ -141,11 +142,11 @@ const Subtitles = () => {
         
         setTimeout(() => {
           setIsProcessing(false);
-          toast.success(`Subtitles have been generated in ${selectedLanguages.length} languages.`);
+          sonnerToast.success(`Subtitles have been generated in ${selectedLanguages.length} languages.`);
         }, 3000);
       },
       onError: (error) => {
-        toast.error(`Failed to process: ${error.message}`);
+        sonnerToast.error(`Failed to process: ${error.message}`);
       }
     });
   };

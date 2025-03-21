@@ -1,3 +1,4 @@
+
 import { useState } from "react";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -9,7 +10,7 @@ import { Slider } from "@/components/ui/slider";
 import { Upload, Play, Pause, Globe, Mic, Wand2, Coins } from "lucide-react";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { useToast } from "@/hooks/use-toast";
-import { toast } from "sonner";
+import { toast as sonnerToast } from "sonner";
 import ServiceCostDisplay from "@/components/ServiceCostDisplay";
 import CreditConfirmDialog from "@/components/CreditConfirmDialog";
 import { useCredits } from "@/hooks/useCredits";
@@ -107,7 +108,7 @@ const VideoDubbing = () => {
 
   const handleProcessVideo = () => {
     if (selectedLanguages.length === 0) {
-      toast.error("Please select at least one language for dubbing.");
+      sonnerToast.error("Please select at least one language for dubbing.");
       return;
     }
     
@@ -127,11 +128,11 @@ const VideoDubbing = () => {
         
         setTimeout(() => {
           setIsProcessing(false);
-          toast.success(`Your video has been dubbed in ${selectedLanguages.length} languages.`);
+          sonnerToast.success(`Your video has been dubbed in ${selectedLanguages.length} languages.`);
         }, 3000);
       },
       onError: (error) => {
-        toast.error(`Failed to process: ${error.message}`);
+        sonnerToast.error(`Failed to process: ${error.message}`);
       }
     });
   };
