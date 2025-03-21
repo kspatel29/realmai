@@ -3,16 +3,19 @@ import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { useAuth } from "@/hooks/useAuth";
-import { ArrowRight } from "lucide-react";
-import { toast } from "sonner";
+import { ArrowRight, Info } from "lucide-react";
+import { toast as sonnerToast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 
 const SignIn = () => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState("");
+  const [demoNotice, setDemoNotice] = useState(false);
   
   const { login } = useAuth();
   const navigate = useNavigate();
@@ -27,6 +30,7 @@ const SignIn = () => {
       // No need to navigate here as the useAuth hook will handle the redirect
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to login");
+      sonnerToast.error("Login failed. Please check your credentials.");
       setIsLoading(false);
     }
   };
@@ -34,6 +38,10 @@ const SignIn = () => {
   const fillDemoCredentials = () => {
     setEmail("admin@admin.com");
     setPassword("admin123123");
+    setDemoNotice(true);
+    sonnerToast.info("Demo credentials filled. Click 'Sign In' to continue.", {
+      duration: 5000,
+    });
   };
 
   const handleGoogleSignIn = async () => {
@@ -52,7 +60,7 @@ const SignIn = () => {
       if (error) throw error;
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to sign in with Google");
-      toast.error("Google sign-in failed. Please try again.");
+      sonnerToast.error("Google sign-in failed. Please try again.");
     }
   };
 
@@ -75,6 +83,15 @@ const SignIn = () => {
             <div className="bg-red-50 text-red-600 p-3 rounded-md text-sm">
               {error}
             </div>
+          )}
+
+          {demoNotice && (
+            <Alert className="bg-blue-50 border-blue-200">
+              <Info className="h-4 w-4 text-blue-500" />
+              <AlertDescription className="text-blue-700">
+                Note: To use demo credentials, you must first create this user in your Supabase Auth dashboard.
+              </AlertDescription>
+            </Alert>
           )}
 
           <Button
@@ -106,9 +123,7 @@ const SignIn = () => {
           <form onSubmit={handleEmailSignIn} className="space-y-6">
             <div className="space-y-4">
               <div className="space-y-2">
-                <label htmlFor="email" className="text-sm font-medium">
-                  Email
-                </label>
+                <Label htmlFor="email">Email</Label>
                 <Input
                   id="email"
                   type="email"
@@ -121,9 +136,7 @@ const SignIn = () => {
               </div>
               <div className="space-y-2">
                 <div className="flex items-center justify-between">
-                  <label htmlFor="password" className="text-sm font-medium">
-                    Password
-                  </label>
+                  <Label htmlFor="password">Password</Label>
                   <Link to="/forgot-password" className="text-sm text-youtube-red hover:underline">
                     Forgot password?
                   </Link>
@@ -152,8 +165,8 @@ const SignIn = () => {
 
           <div className="text-center">
             <Button
-              variant="ghost"
-              className="w-full text-muted-foreground hover:text-youtube-red"
+              variant="outline"
+              className="w-full border-dashed border-blue-200 text-blue-600 hover:bg-blue-50"
               onClick={fillDemoCredentials}
               type="button"
             >
