@@ -5,17 +5,15 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useAuth } from "@/hooks/useAuth";
-import { ArrowRight, Info } from "lucide-react";
+import { ArrowRight } from "lucide-react";
 import { toast as sonnerToast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
-import { Alert, AlertDescription } from "@/components/ui/alert";
 
 const SignIn = () => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState("");
-  const [demoNotice, setDemoNotice] = useState(false);
   
   const { login } = useAuth();
   const navigate = useNavigate();
@@ -33,15 +31,6 @@ const SignIn = () => {
       sonnerToast.error("Login failed. Please check your credentials.");
       setIsLoading(false);
     }
-  };
-
-  const fillDemoCredentials = () => {
-    setEmail("admin@admin.com");
-    setPassword("admin123123");
-    setDemoNotice(true);
-    sonnerToast.info("Demo credentials filled. Click 'Sign In' to continue.", {
-      duration: 5000,
-    });
   };
 
   const handleGoogleSignIn = async () => {
@@ -83,15 +72,6 @@ const SignIn = () => {
             <div className="bg-red-50 text-red-600 p-3 rounded-md text-sm">
               {error}
             </div>
-          )}
-
-          {demoNotice && (
-            <Alert className="bg-blue-50 border-blue-200">
-              <Info className="h-4 w-4 text-blue-500" />
-              <AlertDescription className="text-blue-700">
-                Note: To use demo credentials, you must first create this user in your Supabase Auth dashboard.
-              </AlertDescription>
-            </Alert>
           )}
 
           <Button
@@ -162,17 +142,6 @@ const SignIn = () => {
               <ArrowRight className="ml-2 h-4 w-4" />
             </Button>
           </form>
-
-          <div className="text-center">
-            <Button
-              variant="outline"
-              className="w-full border-dashed border-blue-200 text-blue-600 hover:bg-blue-50"
-              onClick={fillDemoCredentials}
-              type="button"
-            >
-              Use demo credentials (admin@admin.com)
-            </Button>
-          </div>
 
           <div className="text-center text-sm">
             <span className="text-muted-foreground">Don't have an account?</span>{" "}

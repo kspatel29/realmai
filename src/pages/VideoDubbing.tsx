@@ -1,5 +1,5 @@
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
@@ -7,13 +7,16 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Slider } from "@/components/ui/slider";
-import { Upload, Play, Pause, Globe, Mic, Wand2, Coins } from "lucide-react";
+import { Upload, Play, Pause, Globe, Mic, Wand2, Coins, Trash2 } from "lucide-react";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { useToast } from "@/hooks/use-toast";
-import { toast as sonnerToast } from "sonner";
+import { toast } from "sonner";
 import ServiceCostDisplay from "@/components/ServiceCostDisplay";
 import CreditConfirmDialog from "@/components/CreditConfirmDialog";
 import { useCredits } from "@/hooks/useCredits";
+import { useVideos, Video } from "@/hooks/useVideos";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/hooks/useAuth";
 
 const languages = [
   { code: "es", name: "Spanish" },
@@ -41,7 +44,9 @@ const CREDIT_COSTS = {
 };
 
 const VideoDubbing = () => {
-  const [file, setFile] = useState<File | null>(null);
+  const { user } = useAuth();
+  const [selectedVideo, setSelectedVideo] = useState<Video | null>(null);
+  const [videoURL, setVideoURL] = useState<string | null>(null);
   const [isUploading, setIsUploading] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
   const [selectedLanguages, setSelectedLanguages] = useState<string[]>([]);
@@ -51,46 +56,88 @@ const VideoDubbing = () => {
   const [isPlaying, setIsPlaying] = useState(false);
   const [showCreditConfirm, setShowCreditConfirm] = useState(false);
   const [qualityLevel, setQualityLevel] = useState<'standard' | 'premium'>('standard');
-  const { credits, useCredits: spendCredits, hasEnoughCredits } = useCredits();
+  const [uploadDialogOpen, setUploadDialogOpen] = useState(false);
+  const [videoSelectOpen, setVideoSelectOpen] = useState(false);
   
-  const { toast } = useToast();
+  const { credits, useCredits: spendCredits, hasEnoughCredits } = useCredits();
+  const { videos, isLoading: isLoadingVideos, uploadVideo, deleteVideo } = useVideos();
+
+  useEffect(() => {
+    // Clear video URL when selected video changes
+    if (selectedVideo) {
+      loadVideoURL(selectedVideo);
+    } else {
+      setVideoURL(null);
+    }
+  }, [selectedVideo]);
+
+  const loadVideoURL = async (video: Video) => {
+    try {
+      if (!user || !video.filename) return;
+      
+      const filePath = `${user.id}/${video.id}/${video.filename}`;
+      const { data, error } = await supabase.storage
+        .from('videos')
+        .createSignedUrl(filePath, 3600); // 1 hour expiry
+      
+      if (error) {
+        console.error('Error creating signed URL:', error);
+        toast.error('Could not load video');
+        return;
+      }
+      
+      setVideoURL(data.signedUrl);
+    } catch (error) {
+      console.error('Error loading video URL:', error);
+      toast.error('Failed to load video');
+    }
+  };
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
-      setFile(e.target.files[0]);
-    }
-  };
-
-  const handleUpload = () => {
-    if (!file) {
-      toast({
-        title: "No file selected",
-        description: "Please select a video file to upload.",
-        variant: "destructive"
-      });
-      return;
-    }
-    
-    setIsUploading(true);
-    
-    let progress = 0;
-    const interval = setInterval(() => {
-      progress += 5;
-      setProgress(progress);
+      const file = e.target.files[0];
       
-      if (progress >= 100) {
-        clearInterval(interval);
-        setIsUploading(false);
-        toast({
-          title: "Upload complete",
-          description: "Your video has been uploaded successfully."
-        });
-      }
-    }, 300);
+      // Set up the upload process
+      setIsUploading(true);
+      
+      let uploadProgress = 0;
+      const progressInterval = setInterval(() => {
+        uploadProgress += 5;
+        setProgress(uploadProgress);
+        
+        if (uploadProgress >= 95) {
+          clearInterval(progressInterval);
+        }
+      }, 300);
+      
+      // Extract filename without extension for title
+      const fileNameWithoutExt = file.name.split('.').slice(0, -1).join('.');
+      
+      // Upload the video
+      uploadVideo.mutate({
+        file,
+        title: fileNameWithoutExt
+      }, {
+        onSuccess: (newVideo) => {
+          setProgress(100);
+          setTimeout(() => {
+            setIsUploading(false);
+            setProgress(0);
+            setSelectedVideo(newVideo);
+            setUploadDialogOpen(false);
+          }, 500);
+        },
+        onError: () => {
+          clearInterval(progressInterval);
+          setIsUploading(false);
+          setProgress(0);
+        }
+      });
+    }
   };
 
   const calculateCost = (): number => {
-    if (!file || selectedLanguages.length === 0) return 0;
+    if (!selectedVideo || selectedLanguages.length === 0) return 0;
     
     let totalCost = CREDIT_COSTS.BASE_COST;
     totalCost += selectedLanguages.length * CREDIT_COSTS.PER_LANGUAGE;
@@ -107,8 +154,13 @@ const VideoDubbing = () => {
   const totalCost = calculateCost();
 
   const handleProcessVideo = () => {
+    if (!selectedVideo) {
+      toast.error("Please select a video first.");
+      return;
+    }
+    
     if (selectedLanguages.length === 0) {
-      sonnerToast.error("Please select at least one language for dubbing.");
+      toast.error("Please select at least one language for dubbing.");
       return;
     }
     
@@ -128,11 +180,11 @@ const VideoDubbing = () => {
         
         setTimeout(() => {
           setIsProcessing(false);
-          sonnerToast.success(`Your video has been dubbed in ${selectedLanguages.length} languages.`);
+          toast.success(`Your video has been dubbed in ${selectedLanguages.length} languages.`);
         }, 3000);
       },
       onError: (error) => {
-        sonnerToast.error(`Failed to process: ${error.message}`);
+        toast.error(`Failed to process: ${error.message}`);
       }
     });
   };
@@ -142,6 +194,18 @@ const VideoDubbing = () => {
       setSelectedLanguages(selectedLanguages.filter(code => code !== langCode));
     } else {
       setSelectedLanguages([...selectedLanguages, langCode]);
+    }
+  };
+
+  const handleDeleteVideo = (video: Video) => {
+    if (window.confirm(`Are you sure you want to delete "${video.title}"?`)) {
+      deleteVideo.mutate(video.id, {
+        onSuccess: () => {
+          if (selectedVideo?.id === video.id) {
+            setSelectedVideo(null);
+          }
+        }
+      });
     }
   };
 
@@ -165,7 +229,7 @@ const VideoDubbing = () => {
 
       <Tabs defaultValue="upload" className="w-full">
         <TabsList className="grid grid-cols-3 w-full max-w-md">
-          <TabsTrigger value="upload">Upload</TabsTrigger>
+          <TabsTrigger value="upload">Select Video</TabsTrigger>
           <TabsTrigger value="dub">Dub</TabsTrigger>
           <TabsTrigger value="preview">Preview</TabsTrigger>
         </TabsList>
@@ -173,75 +237,215 @@ const VideoDubbing = () => {
         <TabsContent value="upload" className="mt-6">
           <Card>
             <CardHeader>
-              <CardTitle>Upload Video</CardTitle>
+              <CardTitle>Select Video</CardTitle>
               <CardDescription>
-                Upload the video you want to dub into other languages.
+                Select a video to dub or upload a new one.
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">
-              <div className="border-2 border-dashed border-gray-200 dark:border-gray-800 rounded-lg p-8 text-center">
-                {file ? (
-                  <div className="space-y-2">
-                    <div className="bg-muted rounded h-48 flex items-center justify-center">
-                      <Play className="h-12 w-12 text-muted-foreground" />
-                    </div>
-                    <p className="font-medium">{file.name}</p>
+              {selectedVideo ? (
+                <div className="space-y-4">
+                  <div className="relative aspect-video bg-black rounded-lg overflow-hidden">
+                    {videoURL ? (
+                      <video 
+                        src={videoURL} 
+                        className="w-full h-full object-contain"
+                        controls
+                      />
+                    ) : (
+                      <div className="flex items-center justify-center h-full">
+                        <Play className="h-12 w-12 text-muted-foreground" />
+                      </div>
+                    )}
+                  </div>
+                  <div>
+                    <h3 className="font-medium text-lg">{selectedVideo.title}</h3>
                     <p className="text-sm text-muted-foreground">
-                      {(file.size / (1024 * 1024)).toFixed(2)} MB
+                      Size: {selectedVideo.file_size ? `${(selectedVideo.file_size / (1024 * 1024)).toFixed(2)} MB` : 'Unknown'}
+                    </p>
+                    <p className="text-sm text-muted-foreground">
+                      Uploaded: {new Date(selectedVideo.created_at).toLocaleDateString()}
                     </p>
                   </div>
-                ) : (
-                  <div className="space-y-4">
-                    <div className="mx-auto w-12 h-12 rounded-full bg-muted flex items-center justify-center">
-                      <Upload className="h-6 w-6 text-muted-foreground" />
-                    </div>
-                    <div>
-                      <p className="font-medium">Drag and drop or click to upload</p>
-                      <p className="text-sm text-muted-foreground mt-1">
-                        Supports MP4, MOV, AVI up to 500MB
-                      </p>
-                    </div>
-                    <Input 
-                      id="video-upload" 
-                      type="file" 
-                      accept="video/*" 
-                      className="hidden" 
-                      onChange={handleFileChange}
-                    />
-                    <Button 
-                      variant="outline" 
-                      onClick={() => document.getElementById('video-upload')?.click()}
-                    >
-                      Select Video
-                    </Button>
-                  </div>
-                )}
-              </div>
-
-              {file && (
-                <div className="space-y-4">
-                  <div>
-                    <Label htmlFor="title">Video Title</Label>
-                    <Input id="title" className="mt-1" defaultValue={file.name.split('.')[0]} />
+                </div>
+              ) : (
+                <div className="space-y-4 text-center py-8">
+                  <div className="mx-auto w-16 h-16 rounded-full bg-muted flex items-center justify-center">
+                    <Video className="h-8 w-8 text-muted-foreground" />
                   </div>
                   <div>
-                    <Label htmlFor="description">Description (Optional)</Label>
-                    <Input id="description" className="mt-1" placeholder="Enter video description" />
+                    <h3 className="font-medium">No video selected</h3>
+                    <p className="text-sm text-muted-foreground mt-1">
+                      Please select a video from your library or upload a new one
+                    </p>
+                  </div>
+                  <div className="flex flex-col sm:flex-row gap-2 justify-center">
+                    <Dialog open={videoSelectOpen} onOpenChange={setVideoSelectOpen}>
+                      <DialogTrigger asChild>
+                        <Button variant="outline">
+                          Select from Library
+                        </Button>
+                      </DialogTrigger>
+                      <DialogContent>
+                        <DialogHeader>
+                          <DialogTitle>Your Videos</DialogTitle>
+                          <DialogDescription>
+                            Select a video from your library to dub
+                          </DialogDescription>
+                        </DialogHeader>
+                        
+                        <div className="py-4">
+                          {isLoadingVideos ? (
+                            <div className="text-center py-8">
+                              <p className="text-muted-foreground">Loading your videos...</p>
+                            </div>
+                          ) : videos && videos.length > 0 ? (
+                            <div className="space-y-4">
+                              {videos.map((video) => (
+                                <div 
+                                  key={video.id} 
+                                  className="flex items-center justify-between p-3 border rounded-lg hover:bg-muted/50 cursor-pointer"
+                                  onClick={() => {
+                                    setSelectedVideo(video);
+                                    setVideoSelectOpen(false);
+                                  }}
+                                >
+                                  <div className="flex items-center gap-3">
+                                    <div className="w-10 h-10 rounded bg-gray-100 flex items-center justify-center shrink-0">
+                                      <Video className="h-5 w-5 text-gray-500" />
+                                    </div>
+                                    <div>
+                                      <p className="font-medium">{video.title}</p>
+                                      <p className="text-xs text-muted-foreground">
+                                        {new Date(video.created_at).toLocaleDateString()}
+                                      </p>
+                                    </div>
+                                  </div>
+                                  <Button 
+                                    variant="ghost" 
+                                    size="icon"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      handleDeleteVideo(video);
+                                    }}
+                                  >
+                                    <Trash2 className="h-4 w-4 text-muted-foreground hover:text-red-500" />
+                                  </Button>
+                                </div>
+                              ))}
+                            </div>
+                          ) : (
+                            <div className="text-center py-8">
+                              <p className="text-muted-foreground">No videos found in your library</p>
+                            </div>
+                          )}
+                        </div>
+                        
+                        <DialogFooter>
+                          <Button variant="outline" onClick={() => setVideoSelectOpen(false)}>
+                            Cancel
+                          </Button>
+                          <Button 
+                            onClick={() => {
+                              setVideoSelectOpen(false);
+                              setUploadDialogOpen(true);
+                            }}
+                          >
+                            Upload New
+                          </Button>
+                        </DialogFooter>
+                      </DialogContent>
+                    </Dialog>
+                    
+                    <Dialog open={uploadDialogOpen} onOpenChange={setUploadDialogOpen}>
+                      <DialogTrigger asChild>
+                        <Button className="bg-youtube-red hover:bg-youtube-darkred">
+                          Upload New Video
+                        </Button>
+                      </DialogTrigger>
+                      <DialogContent>
+                        <DialogHeader>
+                          <DialogTitle>Upload New Video</DialogTitle>
+                          <DialogDescription>
+                            Upload a video to get started with dubbing
+                          </DialogDescription>
+                        </DialogHeader>
+                        
+                        <div className="py-4">
+                          <div className="border-2 border-dashed border-gray-200 dark:border-gray-800 rounded-lg p-8 text-center">
+                            {isUploading ? (
+                              <div className="space-y-4">
+                                <div className="mx-auto w-12 h-12 rounded-full bg-muted flex items-center justify-center">
+                                  <span className="animate-spin">⟳</span>
+                                </div>
+                                <div>
+                                  <p className="font-medium">Uploading video...</p>
+                                  <p className="text-sm text-muted-foreground mt-1">
+                                    {progress}% complete
+                                  </p>
+                                </div>
+                                <div className="w-full bg-gray-200 rounded-full h-2.5">
+                                  <div className="bg-youtube-red h-2.5 rounded-full" style={{ width: `${progress}%` }}></div>
+                                </div>
+                              </div>
+                            ) : (
+                              <div className="space-y-4">
+                                <div className="mx-auto w-12 h-12 rounded-full bg-muted flex items-center justify-center">
+                                  <Upload className="h-6 w-6 text-muted-foreground" />
+                                </div>
+                                <div>
+                                  <p className="font-medium">Drag and drop or click to upload</p>
+                                  <p className="text-sm text-muted-foreground mt-1">
+                                    Supports MP4, MOV, AVI up to 500MB
+                                  </p>
+                                </div>
+                                <Input 
+                                  id="video-upload" 
+                                  type="file" 
+                                  accept="video/*" 
+                                  className="hidden" 
+                                  onChange={handleFileChange}
+                                />
+                                <Button 
+                                  variant="outline" 
+                                  onClick={() => document.getElementById('video-upload')?.click()}
+                                >
+                                  Select Video
+                                </Button>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                        
+                        <DialogFooter>
+                          <Button 
+                            variant="outline" 
+                            onClick={() => setUploadDialogOpen(false)}
+                            disabled={isUploading}
+                          >
+                            Cancel
+                          </Button>
+                        </DialogFooter>
+                      </DialogContent>
+                    </Dialog>
                   </div>
                 </div>
               )}
             </CardContent>
             <CardFooter className="flex justify-between">
-              <Button variant="outline" onClick={() => setFile(null)} disabled={!file || isUploading}>
-                Cancel
+              <Button 
+                variant="outline" 
+                onClick={() => setSelectedVideo(null)} 
+                disabled={!selectedVideo}
+              >
+                Deselect
               </Button>
               <Button 
-                onClick={handleUpload} 
-                disabled={!file || isUploading}
-                className={isUploading ? "" : "bg-youtube-red hover:bg-youtube-darkred"}
+                variant="default"
+                disabled={!selectedVideo}
+                className="bg-youtube-red hover:bg-youtube-darkred"
               >
-                {isUploading ? `Uploading ${progress}%` : "Upload Video"}
-                <Upload className="ml-2 h-4 w-4" />
+                Use This Video
               </Button>
             </CardFooter>
           </Card>
@@ -401,7 +605,7 @@ const VideoDubbing = () => {
                 </div>
                 <Button 
                   onClick={handleProcessVideo} 
-                  disabled={!file || isProcessing || selectedLanguages.length === 0 || !hasEnoughCredits(totalCost)}
+                  disabled={!selectedVideo || isProcessing || selectedLanguages.length === 0 || !hasEnoughCredits(totalCost)}
                   className={isProcessing ? "" : "bg-youtube-red hover:bg-youtube-darkred"}
                 >
                   {isProcessing ? "Processing..." : hasEnoughCredits(totalCost) ? "Generate Dubbed Videos" : "Not Enough Credits"}
@@ -420,30 +624,28 @@ const VideoDubbing = () => {
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">
-              {!file ? (
+              {!selectedVideo ? (
                 <div className="text-center py-12">
                   <div className="mx-auto w-12 h-12 rounded-full bg-muted flex items-center justify-center mb-4">
                     <Globe className="h-6 w-6 text-muted-foreground" />
                   </div>
                   <h3 className="font-medium">No dubbed videos yet</h3>
                   <p className="text-sm text-muted-foreground mt-1">
-                    Upload a video and generate dubs to see them here
+                    Select a video and generate dubs to see them here
                   </p>
                 </div>
               ) : (
                 <div className="space-y-6">
                   <div className="relative aspect-video bg-black rounded-lg overflow-hidden flex items-center justify-center">
-                    <div className="absolute inset-0 bg-gradient-to-b from-transparent to-black/20"></div>
-                    <button
-                      className="z-10 h-16 w-16 rounded-full bg-white/20 backdrop-blur-sm flex items-center justify-center hover:bg-white/30 transition-colors"
-                      onClick={() => setIsPlaying(!isPlaying)}
-                    >
-                      {isPlaying ? (
-                        <Pause className="h-8 w-8 text-white" />
-                      ) : (
-                        <Play className="h-8 w-8 text-white" />
-                      )}
-                    </button>
+                    {videoURL ? (
+                      <video 
+                        src={videoURL} 
+                        className="w-full h-full object-contain"
+                        controls
+                      />
+                    ) : (
+                      <div className="absolute inset-0 bg-gradient-to-b from-transparent to-black/20"></div>
+                    )}
                   </div>
 
                   <div className="space-y-2">
@@ -465,7 +667,7 @@ const VideoDubbing = () => {
               )}
             </CardContent>
             <CardFooter className="flex justify-end">
-              <Button disabled={!file || selectedLanguages.length === 0} variant="outline">
+              <Button disabled={!selectedVideo || selectedLanguages.length === 0} variant="outline">
                 Download All
               </Button>
             </CardFooter>

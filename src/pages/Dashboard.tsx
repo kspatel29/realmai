@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import ServiceCard from "@/components/ServiceCard";
@@ -7,10 +8,10 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
-import { Globe, Video, MessageSquare, Scissors, Upload, BarChart3, ArrowUpRight, TrendingUp, Users, DollarSign, RefreshCw } from "lucide-react";
+import { Globe, Video, MessageSquare, Scissors, Upload, BarChart3, ArrowUpRight, Users, DollarSign, RefreshCw } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { useCredits } from "@/hooks/useCredits";
-import { useYouTubeAnalytics } from "@/hooks/useYouTubeAnalytics";
+import { useVideos } from "@/hooks/useVideos";
 
 const Dashboard = () => {
   const { user } = useAuth();
@@ -20,15 +21,12 @@ const Dashboard = () => {
   const [uploadProgress, setUploadProgress] = useState(0);
   const [videoFile, setVideoFile] = useState<File | null>(null);
   const [videoTitle, setVideoTitle] = useState("");
+  const [videoDescription, setVideoDescription] = useState("");
+  const [uploadDialogOpen, setUploadDialogOpen] = useState(false);
   
   const { credits, isLoading: isLoadingCredits } = useCredits();
-  const { 
-    videos, 
-    totalStats, 
-    isLoading: isLoadingAnalytics,
-    syncYouTubeAnalytics
-  } = useYouTubeAnalytics();
-
+  const { videos, isLoading: isLoadingVideos, uploadVideo } = useVideos();
+  
   useEffect(() => {
     const timer = setTimeout(() => {
       setIsLoaded(true);
@@ -36,13 +34,6 @@ const Dashboard = () => {
     
     return () => clearTimeout(timer);
   }, []);
-
-  // Automatically sync YouTube analytics when dashboard loads
-  useEffect(() => {
-    if (user && !isLoadingAnalytics && videos?.length === 0) {
-      syncYouTubeAnalytics.mutate();
-    }
-  }, [user, isLoadingAnalytics]);
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
@@ -68,21 +59,40 @@ const Dashboard = () => {
 
     setIsUploading(true);
     
-    // Simulate upload progress
-    let progress = 0;
-    const interval = setInterval(() => {
-      progress += 5;
-      setUploadProgress(progress);
+    // Set up a simulated progress indicator
+    const progressInterval = setInterval(() => {
+      setUploadProgress(prev => {
+        const newProgress = prev + 5;
+        if (newProgress >= 95) {
+          clearInterval(progressInterval);
+          return 95; // Hold at 95% until the actual upload completes
+        }
+        return newProgress;
+      });
+    }, 300);
+    
+    try {
+      await uploadVideo.mutateAsync({
+        file: videoFile,
+        title: videoTitle,
+        description: videoDescription
+      });
       
-      if (progress >= 100) {
-        clearInterval(interval);
+      // Complete the progress bar
+      setUploadProgress(100);
+      setTimeout(() => {
         setIsUploading(false);
-        toast.success("Video uploaded successfully!");
         setVideoFile(null);
         setVideoTitle("");
+        setVideoDescription("");
+        setUploadDialogOpen(false);
         navigate("/dashboard/video-dubbing");
-      }
-    }, 200);
+      }, 500);
+    } catch (error) {
+      clearInterval(progressInterval);
+      setIsUploading(false);
+      console.error("Upload error:", error);
+    }
   };
 
   // Define service costs
@@ -116,35 +126,30 @@ const Dashboard = () => {
     }
   ];
 
-  // Use real stats from our YouTube analytics hook if available
+  // Basic stats based on real data
   const stats = [
     {
       title: "Available Credits",
       value: isLoadingCredits ? "Loading..." : credits.toString(),
-      change: "+50",
-      positive: true,
       icon: <DollarSign className="h-5 w-5 text-emerald-500" />
     },
     {
-      title: "Global Views",
-      value: isLoadingAnalytics || !totalStats ? "Loading..." : `${(totalStats.views / 1000000).toFixed(1)}M`,
-      change: "+32.1%",
-      positive: true,
-      icon: <Globe className="h-5 w-5 text-blue-500" />
+      title: "Videos",
+      value: isLoadingVideos ? "Loading..." : (videos?.length || 0).toString(),
+      icon: <Video className="h-5 w-5 text-blue-500" />
     },
     {
-      title: "Languages",
-      value: "12",
-      change: "+3",
-      positive: true,
-      icon: <MessageSquare className="h-5 w-5 text-violet-500" />
+      title: "Account Status",
+      value: "Active",
+      icon: <Users className="h-5 w-5 text-violet-500" />
     },
     {
-      title: "New Subscribers",
-      value: "142K",
-      change: "+54.2%",
-      positive: true,
-      icon: <Users className="h-5 w-5 text-orange-500" />
+      title: "Storage Used",
+      value: isLoadingVideos ? "Loading..." : 
+        videos?.reduce((total, video) => total + (video.file_size || 0), 0) 
+          ? `${(videos?.reduce((total, video) => total + (video.file_size || 0), 0) / (1024 * 1024)).toFixed(1)} MB`
+          : "0 MB",
+      icon: <BarChart3 className="h-5 w-5 text-orange-500" />
     }
   ];
 
@@ -154,20 +159,11 @@ const Dashboard = () => {
         <div>
           <h1 className="text-2xl font-bold tracking-tight">Dashboard</h1>
           <p className="text-muted-foreground">
-            Welcome back, {user?.name || "Creator"}! Here's an overview of your global reach.
+            Welcome back, {user?.name || "Creator"}! Here's an overview of your content.
           </p>
         </div>
         <div className="flex gap-2">
-          <Button 
-            variant="outline" 
-            onClick={() => syncYouTubeAnalytics.mutate()} 
-            disabled={syncYouTubeAnalytics.isPending}
-            className="gap-2"
-          >
-            <RefreshCw className={`h-4 w-4 ${syncYouTubeAnalytics.isPending ? 'animate-spin' : ''}`} />
-            Sync Analytics
-          </Button>
-          <Dialog>
+          <Dialog open={uploadDialogOpen} onOpenChange={setUploadDialogOpen}>
             <DialogTrigger asChild>
               <Button className="bg-youtube-red hover:bg-youtube-darkred text-white gap-2">
                 <Upload className="h-4 w-4" />
@@ -230,6 +226,14 @@ const Dashboard = () => {
                       onChange={(e) => setVideoTitle(e.target.value)} 
                       placeholder="Enter a title for your video"
                     />
+                    
+                    <Label htmlFor="description">Description (Optional)</Label>
+                    <Input
+                      id="description"
+                      value={videoDescription}
+                      onChange={(e) => setVideoDescription(e.target.value)}
+                      placeholder="Enter a description for your video"
+                    />
                   </div>
                 )}
 
@@ -255,6 +259,8 @@ const Dashboard = () => {
                   onClick={() => {
                     setVideoFile(null);
                     setVideoTitle("");
+                    setVideoDescription("");
+                    setUploadDialogOpen(false);
                   }}
                   disabled={isUploading}
                 >
@@ -284,11 +290,6 @@ const Dashboard = () => {
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold">{stat.value}</div>
-              <p className={`flex items-center text-xs ${stat.positive ? "text-emerald-500" : "text-red-500"}`}>
-                <span>{stat.change}</span>
-                <TrendingUp className="ml-1 h-3 w-3" />
-                <span className="text-muted-foreground ml-1">from last month</span>
-              </p>
             </CardContent>
           </Card>
         ))}
@@ -306,19 +307,19 @@ const Dashboard = () => {
         </div>
       </div>
 
-      {/* Recent Activity & Performance */}
+      {/* Recent Videos */}
       <div className="grid gap-6 md:grid-cols-2 animate-fade-in" style={{ animationDelay: "700ms" }}>
         <Card>
           <CardHeader>
-            <CardTitle className="text-lg">Recent Activity</CardTitle>
-            <CardDescription>Your latest content operations</CardDescription>
+            <CardTitle className="text-lg">Your Videos</CardTitle>
+            <CardDescription>Your uploaded videos</CardDescription>
           </CardHeader>
           <CardContent>
             <div className="space-y-4">
-              {isLoadingAnalytics ? (
+              {isLoadingVideos ? (
                 <div className="text-center py-4">
                   <RefreshCw className="h-5 w-5 mx-auto animate-spin text-muted-foreground" />
-                  <p className="text-muted-foreground mt-2">Loading video data...</p>
+                  <p className="text-muted-foreground mt-2">Loading videos...</p>
                 </div>
               ) : videos && videos.length > 0 ? (
                 videos.slice(0, 3).map((video, i) => (
@@ -328,10 +329,12 @@ const Dashboard = () => {
                     </div>
                     <div className="flex-1 min-w-0">
                       <p className="font-medium truncate">{video.title}</p>
-                      <p className="text-sm text-muted-foreground">Dubbed in Spanish, French, German</p>
+                      <p className="text-sm text-muted-foreground">
+                        Status: {video.status.charAt(0).toUpperCase() + video.status.slice(1)}
+                      </p>
                     </div>
                     <div className="text-sm text-muted-foreground shrink-0">
-                      {new Date(video.updated_at).toLocaleDateString()}
+                      {new Date(video.created_at).toLocaleDateString()}
                     </div>
                   </div>
                 ))
@@ -342,9 +345,9 @@ const Dashboard = () => {
                     variant="outline" 
                     size="sm" 
                     className="mt-2"
-                    onClick={() => syncYouTubeAnalytics.mutate()}
+                    onClick={() => setUploadDialogOpen(true)}
                   >
-                    Sync Videos
+                    Upload Video
                   </Button>
                 </div>
               )}
@@ -355,34 +358,44 @@ const Dashboard = () => {
         <Card>
           <CardHeader className="flex flex-row items-center justify-between pb-2">
             <div>
-              <CardTitle className="text-lg">Revenue Growth</CardTitle>
-              <CardDescription>Global revenue performance</CardDescription>
+              <CardTitle className="text-lg">Getting Started</CardTitle>
+              <CardDescription>Follow these steps to create content</CardDescription>
             </div>
-            <Button variant="ghost" size="sm" className="gap-1 text-youtube-red">
-              View Report
-              <ArrowUpRight className="h-3 w-3" />
-            </Button>
           </CardHeader>
           <CardContent className="pt-4">
-            {isLoadingAnalytics ? (
-              <div className="h-[200px] flex items-center justify-center">
-                <RefreshCw className="h-8 w-8 animate-spin text-muted-foreground" />
-              </div>
-            ) : (
-              <div className="h-[200px] flex items-center justify-center border border-dashed rounded-lg">
-                <div className="text-center">
-                  <BarChart3 className="h-8 w-8 text-muted-foreground mx-auto mb-2" />
-                  <p className="font-medium mb-1">
-                    {totalStats ? `${totalStats.views.toLocaleString()} Total Views` : "No data available"}
-                  </p>
-                  {totalStats && (
-                    <p className="text-sm text-muted-foreground">
-                      ~${(totalStats.views * 0.005).toFixed(2)} estimated revenue
-                    </p>
-                  )}
+            <div className="space-y-4">
+              <div className="flex items-start gap-3">
+                <div className="flex items-center justify-center w-8 h-8 rounded-full bg-blue-100 text-blue-700 font-semibold shrink-0">1</div>
+                <div>
+                  <h3 className="font-medium">Upload Your Video</h3>
+                  <p className="text-sm text-muted-foreground">Start by uploading your video using the upload button.</p>
                 </div>
               </div>
-            )}
+              
+              <div className="flex items-start gap-3">
+                <div className="flex items-center justify-center w-8 h-8 rounded-full bg-purple-100 text-purple-700 font-semibold shrink-0">2</div>
+                <div>
+                  <h3 className="font-medium">Select a Service</h3>
+                  <p className="text-sm text-muted-foreground">Choose from dubbing, subtitles, or clips generation.</p>
+                </div>
+              </div>
+              
+              <div className="flex items-start gap-3">
+                <div className="flex items-center justify-center w-8 h-8 rounded-full bg-amber-100 text-amber-700 font-semibold shrink-0">3</div>
+                <div>
+                  <h3 className="font-medium">Configure Options</h3>
+                  <p className="text-sm text-muted-foreground">Select languages, voices, and other options for your project.</p>
+                </div>
+              </div>
+              
+              <div className="flex items-start gap-3">
+                <div className="flex items-center justify-center w-8 h-8 rounded-full bg-green-100 text-green-700 font-semibold shrink-0">4</div>
+                <div>
+                  <h3 className="font-medium">Generate & Download</h3>
+                  <p className="text-sm text-muted-foreground">Process your content and download the results.</p>
+                </div>
+              </div>
+            </div>
           </CardContent>
         </Card>
       </div>
