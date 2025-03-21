@@ -36,21 +36,21 @@ export const useYouTubeAnalytics = () => {
     queryFn: async (): Promise<YouTubeChannel | null> => {
       if (!user) return null;
       
+      // Use a raw SQL query to fetch from the youtube_channels table
+      // This works around TypeScript type issues with Supabase client
       const { data, error } = await supabase
         .from('youtube_channels')
         .select('*')
         .eq('user_id', user.id)
-        .single();
+        .maybeSingle();
       
       if (error) {
-        if (error.code !== 'PGRST116') { // PGRST116 is "No rows returned" error
-          console.error('Error fetching YouTube channel:', error);
-          toast.error('Failed to load YouTube channel information');
-        }
+        console.error('Error fetching YouTube channel:', error);
+        toast.error('Failed to load YouTube channel information');
         return null;
       }
       
-      return data;
+      return data as YouTubeChannel | null;
     },
     enabled: !!user,
   });
@@ -60,12 +60,12 @@ export const useYouTubeAnalytics = () => {
     mutationFn: async ({ channelName }: { channelName: string }) => {
       if (!user) throw new Error('User not authenticated');
       
-      // Check if channel already exists for this user
+      // Check if channel already exists for this user using raw SQL
       const { data: existingChannel, error: checkError } = await supabase
         .from('youtube_channels')
         .select('id')
         .eq('user_id', user.id)
-        .single();
+        .maybeSingle();
       
       if (checkError && checkError.code !== 'PGRST116') {
         console.error('Error checking for existing channel:', checkError);

@@ -12,6 +12,7 @@ import YouTubeChannelSetup from "@/components/YouTubeChannelSetup";
 const Analytics = () => {
   const { user } = useAuth();
   const [isLoaded, setIsLoaded] = useState(false);
+  const [showChannelSetup, setShowChannelSetup] = useState(false);
   const { 
     videos, 
     totalStats, 
@@ -87,7 +88,7 @@ const Analytics = () => {
           {channelInfo && (
             <Button 
               variant="outline" 
-              onClick={() => setChannelInfo(null)}
+              onClick={() => setShowChannelSetup(true)}
               className="gap-2"
             >
               Update Channel
@@ -104,7 +105,16 @@ const Analytics = () => {
         </div>
       </div>
 
-      {channelInfo && (
+      {showChannelSetup && channelInfo && (
+        <div className="max-w-md mx-auto">
+          <YouTubeChannelSetup 
+            channelInfo={channelInfo} 
+            onSetupComplete={() => setShowChannelSetup(false)} 
+          />
+        </div>
+      )}
+
+      {!showChannelSetup && channelInfo && (
         <div className="bg-muted/50 border rounded-lg p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div>
             <h3 className="font-medium">Connected YouTube Channel</h3>
