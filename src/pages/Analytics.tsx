@@ -7,11 +7,19 @@ import { useAuth } from "@/hooks/useAuth";
 import { useYouTubeAnalytics } from "@/hooks/useYouTubeAnalytics";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
 import { ArrowUpRight, RefreshCw, Globe, ThumbsUp, MessageSquare, Clock } from "lucide-react";
+import YouTubeChannelSetup from "@/components/YouTubeChannelSetup";
 
 const Analytics = () => {
   const { user } = useAuth();
   const [isLoaded, setIsLoaded] = useState(false);
-  const { videos, totalStats, isLoading, syncYouTubeAnalytics } = useYouTubeAnalytics();
+  const { 
+    videos, 
+    totalStats, 
+    isLoading, 
+    syncYouTubeAnalytics, 
+    channelInfo, 
+    isLoadingChannel 
+  } = useYouTubeAnalytics();
   
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -46,6 +54,26 @@ const Analytics = () => {
     syncYouTubeAnalytics.mutate();
   };
 
+  // Channel is not set up yet, show setup form
+  if (!isLoadingChannel && !channelInfo) {
+    return (
+      <div className={`space-y-8 transition-opacity duration-500 ${isLoaded ? "opacity-100" : "opacity-0"}`}>
+        <div>
+          <h1 className="text-2xl font-bold tracking-tight mb-2">Analytics</h1>
+          <p className="text-muted-foreground">
+            Track your content performance and audience growth.
+          </p>
+        </div>
+        
+        <div className="flex items-center justify-center py-12">
+          <div className="max-w-md w-full">
+            <YouTubeChannelSetup channelInfo={channelInfo} />
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className={`space-y-8 transition-opacity duration-500 ${isLoaded ? "opacity-100" : "opacity-0"}`}>
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
@@ -55,15 +83,44 @@ const Analytics = () => {
             Track your content performance and audience growth.
           </p>
         </div>
-        <Button 
-          onClick={handleRefreshAnalytics} 
-          disabled={syncYouTubeAnalytics.isPending}
-          className="gap-2 w-full sm:w-auto"
-        >
-          <RefreshCw className={`h-4 w-4 ${syncYouTubeAnalytics.isPending ? 'animate-spin' : ''}`} />
-          Refresh Analytics
-        </Button>
+        <div className="flex flex-col sm:flex-row gap-2">
+          {channelInfo && (
+            <Button 
+              variant="outline" 
+              onClick={() => setChannelInfo(null)}
+              className="gap-2"
+            >
+              Update Channel
+            </Button>
+          )}
+          <Button 
+            onClick={handleRefreshAnalytics} 
+            disabled={syncYouTubeAnalytics.isPending}
+            className="gap-2 w-full sm:w-auto"
+          >
+            <RefreshCw className={`h-4 w-4 ${syncYouTubeAnalytics.isPending ? 'animate-spin' : ''}`} />
+            Refresh Analytics
+          </Button>
+        </div>
       </div>
+
+      {channelInfo && (
+        <div className="bg-muted/50 border rounded-lg p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div>
+            <h3 className="font-medium">Connected YouTube Channel</h3>
+            <p className="text-sm text-muted-foreground">{channelInfo.channel_name}</p>
+          </div>
+          <Button 
+            variant="outline" 
+            size="sm" 
+            className="gap-1"
+            onClick={() => window.open(`https://www.youtube.com/channel/${channelInfo.channel_id || ''}`, '_blank')}
+          >
+            Visit Channel
+            <ArrowUpRight className="h-3 w-3" />
+          </Button>
+        </div>
+      )}
 
       {isLoading ? (
         <div className="h-64 flex items-center justify-center">
