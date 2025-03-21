@@ -4,17 +4,16 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { useYouTubeAnalytics, YouTubeChannel } from "@/hooks/useYouTubeAnalytics";
+import { YouTubeChannel } from "@/hooks/useYouTubeAnalytics";
 import { Youtube } from "lucide-react";
 
 interface YouTubeChannelSetupProps {
-  channelInfo: YouTubeChannel | null;
-  onSetupComplete?: () => void;
+  onSearch: (query: string) => void;
+  isLoading?: boolean;
 }
 
-const YouTubeChannelSetup = ({ channelInfo, onSetupComplete }: YouTubeChannelSetupProps) => {
-  const { saveChannel } = useYouTubeAnalytics();
-  const [channelName, setChannelName] = useState(channelInfo?.channel_name || "");
+const YouTubeChannelSetup = ({ onSearch, isLoading }: YouTubeChannelSetupProps) => {
+  const [channelName, setChannelName] = useState("");
   
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -23,13 +22,7 @@ const YouTubeChannelSetup = ({ channelInfo, onSetupComplete }: YouTubeChannelSet
       return;
     }
     
-    saveChannel.mutate({ channelName }, {
-      onSuccess: () => {
-        if (onSetupComplete) {
-          onSetupComplete();
-        }
-      }
-    });
+    onSearch(channelName);
   };
   
   return (
@@ -37,12 +30,10 @@ const YouTubeChannelSetup = ({ channelInfo, onSetupComplete }: YouTubeChannelSet
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
           <Youtube className="h-5 w-5 text-youtube-red" />
-          {channelInfo ? "Update YouTube Channel" : "Connect YouTube Channel"}
+          Search YouTube Channel
         </CardTitle>
         <CardDescription>
-          {channelInfo 
-            ? "Update your YouTube channel information to sync your analytics" 
-            : "Connect your YouTube channel to see analytics and performance metrics"}
+          Search for a YouTube channel to view its analytics and performance metrics
         </CardDescription>
       </CardHeader>
       <form onSubmit={handleSubmit}>
@@ -51,27 +42,23 @@ const YouTubeChannelSetup = ({ channelInfo, onSetupComplete }: YouTubeChannelSet
             <Label htmlFor="channel-name">YouTube Channel Name</Label>
             <Input 
               id="channel-name" 
-              placeholder="Enter your YouTube channel name" 
+              placeholder="Enter a YouTube channel name" 
               value={channelName}
               onChange={(e) => setChannelName(e.target.value)}
               required
             />
             <p className="text-xs text-muted-foreground">
-              This helps us identify your channel and fetch analytics data
+              Search for any YouTube channel to view their analytics data
             </p>
           </div>
         </CardContent>
         <CardFooter>
           <Button 
             type="submit" 
-            disabled={!channelName.trim() || saveChannel.isPending}
+            disabled={!channelName.trim() || isLoading}
             className="bg-youtube-red hover:bg-youtube-darkred"
           >
-            {saveChannel.isPending 
-              ? "Saving..." 
-              : channelInfo 
-                ? "Update Channel" 
-                : "Connect Channel"}
+            {isLoading ? "Searching..." : "Search Channel"}
           </Button>
         </CardFooter>
       </form>

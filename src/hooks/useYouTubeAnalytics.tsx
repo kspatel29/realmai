@@ -17,6 +17,15 @@ export interface VideoAnalytics {
   updated_at: string;
 }
 
+// Add this interface for YouTube Channel
+export interface YouTubeChannel {
+  id: string;
+  channel_name: string;
+  channel_id: string;
+  subscriber_count?: number;
+  thumbnail?: string;
+}
+
 export const useYouTubeAnalytics = () => {
   const { user } = useAuth();
   const queryClient = useQueryClient();
