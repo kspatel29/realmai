@@ -31,16 +31,9 @@ const SignIn = () => {
     }
   };
 
-  const handleDemoLogin = async () => {
-    setIsLoading(true);
-    try {
-      await login("demo@example.com", "demo123456");
-      // The useAuth hook will handle the redirect
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to login as demo user");
-      toast.error("Demo login failed. Please try again.");
-      setIsLoading(false);
-    }
+  const fillDemoCredentials = () => {
+    setEmail("admin@admin.com");
+    setPassword("admin123123");
   };
 
   const handleGoogleSignIn = async () => {
@@ -161,10 +154,10 @@ const SignIn = () => {
             <Button
               variant="ghost"
               className="w-full text-muted-foreground hover:text-youtube-red"
-              onClick={handleDemoLogin}
-              disabled={isLoading}
+              onClick={fillDemoCredentials}
+              type="button"
             >
-              Sign in as demo user
+              Use demo credentials (admin@admin.com)
             </Button>
           </div>
 
