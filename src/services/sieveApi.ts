@@ -17,7 +17,11 @@ export interface SieveDubbingResponse {
   updated_at: string;
   function: string;
   inputs: Record<string, any>;
-  outputs?: any[]; // Changed to match the actual API response structure
+  outputs?: {
+    output_0?: {
+      url: string;
+    };
+  };
   error?: {
     message: string;
   };

@@ -22,7 +22,6 @@ export const useDubbingJobs = () => {
   const queryClient = useQueryClient();
   const [isUpdating, setIsUpdating] = useState(false);
 
-  // Fetch user's dubbing jobs
   const { data: jobs, isLoading, error, refetch } = useQuery({
     queryKey: ['dubbing-jobs', user?.id],
     queryFn: async (): Promise<DubbingJob[]> => {
@@ -45,7 +44,6 @@ export const useDubbingJobs = () => {
     enabled: !!user,
   });
 
-  // Create a new dubbing job
   const createJob = useMutation({
     mutationFn: async (jobData: {
       sieve_job_id: string;
@@ -81,7 +79,6 @@ export const useDubbingJobs = () => {
     },
   });
 
-  // Update a dubbing job
   const updateJob = useMutation({
     mutationFn: async (jobData: {
       id: string;
@@ -117,7 +114,6 @@ export const useDubbingJobs = () => {
       console.log(`Job update mutation succeeded:`, data);
       queryClient.invalidateQueries({ queryKey: ['dubbing-jobs', user?.id] });
       
-      // Show toast notifications for status changes
       if (data.status === "succeeded" && data.output_url) {
         toast.success("Your video has been successfully dubbed!");
       } else if (data.status === "failed") {
@@ -126,7 +122,6 @@ export const useDubbingJobs = () => {
     },
   });
 
-  // Force update a job with known output URL
   const forceUpdateWithUrl = async (jobId: string, outputUrl: string) => {
     try {
       const isValid = await verifyOutputUrl(outputUrl);
@@ -152,7 +147,6 @@ export const useDubbingJobs = () => {
     }
   };
 
-  // Refresh job statuses
   const refreshJobStatus = async () => {
     if (!user || !jobs || isUpdating) return;
     
@@ -160,7 +154,6 @@ export const useDubbingJobs = () => {
     console.log("Starting refresh of job statuses");
     
     try {
-      // First, check if there are any jobs that have a URL but aren't succeeded
       const jobsWithUrlNotSucceeded = jobs.filter(job => 
         job.output_url && job.status !== "succeeded"
       );
@@ -178,7 +171,6 @@ export const useDubbingJobs = () => {
         }
       }
       
-      // Then check active jobs without URLs
       const activeJobs = jobs.filter(job => 
         (job.status === "queued" || job.status === "running") && !job.output_url
       );
@@ -199,7 +191,6 @@ export const useDubbingJobs = () => {
             console.log(`Job ${job.sieve_job_id} API status:`, response.status, 
               "Output URL:", response.outputs?.output_0?.url);
             
-            // If the API returns an output URL, the job should be marked as succeeded
             if (response.outputs?.output_0?.url) {
               console.log(`Job ${job.sieve_job_id} has output URL, marking as succeeded`);
               return updateJob.mutateAsync({
@@ -210,7 +201,6 @@ export const useDubbingJobs = () => {
               });
             }
             
-            // Check if the job failed with an error response
             if (response.status === "failed" || response.error?.message) {
               console.log(`Job ${job.sieve_job_id} has failed:`, response.error?.message);
               return updateJob.mutateAsync({
@@ -220,7 +210,6 @@ export const useDubbingJobs = () => {
               });
             }
             
-            // Update status if it changed
             if (response.status !== job.status) {
               console.log(`Job ${job.sieve_job_id} status changed from ${job.status} to ${response.status}`);
               return updateJob.mutateAsync({
@@ -234,14 +223,11 @@ export const useDubbingJobs = () => {
           } catch (error) {
             console.error(`Error checking job status for ${job.sieve_job_id}:`, error);
             
-            // Don't automatically mark as failed, in case it's just a temporary API issue
-            // but the job might actually be processing fine
             return job;
           }
         })
       );
       
-      // Check if any jobs were updated
       if (updatedJobs.some(job => job !== jobs.find(j => j.id === job.id))) {
         console.log("Some jobs were updated, refreshing job list");
         refetch();
@@ -254,7 +240,6 @@ export const useDubbingJobs = () => {
     }
   };
 
-  // Manual fix for when we know the output URL
   const updateJobWithUrl = async (sieveJobId: string, outputUrl: string) => {
     if (!jobs) return false;
     
