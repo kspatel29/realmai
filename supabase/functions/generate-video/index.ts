@@ -111,62 +111,47 @@ serve(async (req) => {
     console.log("Cleaned input for Replicate:", JSON.stringify(input));
     
     try {
-      // Define the model ID and version for kling-v1.6-pro
-      const MODEL = "kwaivgi/kling-v1.6-pro";
-      const MODEL_VERSION = "3a139358cc4ae29264fbcafd6ee8fbd92726dfa35c8b1e1ba03a7e04d8697bbb";
+      // Use the predictions API approach which is more reliable
+      console.log("Using predictions API approach");
       
-      console.log(`Creating video with model: ${MODEL}, version: ${MODEL_VERSION}`);
+      // Updated model and version ID from Replicate
+      // Using the latest available version of kling-v1.6-pro 
+      const prediction = await replicate.predictions.create({
+        version: "81d378f76c7e517f19d060fac4605a2d4d24b580535a39804d6ad90f2fe5bbb4",
+        input,
+      });
       
-      // Try the direct approach with replicate.run
-      console.log("Using direct run approach");
-      const output = await replicate.run(
-        `${MODEL}:${MODEL_VERSION}`,
-        { input }
-      );
+      console.log("Prediction created:", JSON.stringify(prediction));
       
-      console.log("Video generation successful, output:", JSON.stringify(output));
-      
-      // Return the output directly
+      // Return the prediction ID for client polling
       return new Response(JSON.stringify({ 
-        status: "succeeded",
-        output
+        id: prediction.id,
+        status: prediction.status
       }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        status: 200,
+        status: 202,
       });
-    } catch (replicateError) {
-      console.error("Replicate API error:", replicateError.message, replicateError.stack);
+    } catch (predictionsError) {
+      console.error("Predictions API error:", predictionsError);
       
-      // Try the alternative predictions API approach if direct run fails
-      try {
-        console.log("Direct approach failed, trying predictions API");
-        const prediction = await replicate.predictions.create({
-          version: "3a139358cc4ae29264fbcafd6ee8fbd92726dfa35c8b1e1ba03a7e04d8697bbb",
-          input,
-        });
-        
-        console.log("Prediction created:", JSON.stringify(prediction));
-        
-        // Return the prediction ID for client polling
-        return new Response(JSON.stringify({ 
-          id: prediction.id,
-          status: prediction.status
-        }), {
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-          status: 202,
-        });
-      } catch (fallbackError) {
-        console.error("Both approaches failed:", fallbackError.message, fallbackError.stack);
-        return new Response(JSON.stringify({ 
-          error: "Video generation failed with both approaches",
-          directRunError: replicateError.message,
-          predictionsError: fallbackError.message,
-          stack: fallbackError.stack
-        }), {
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-          status: 500,
-        });
+      // Log detailed error information
+      if (predictionsError.response) {
+        try {
+          console.error("Response status:", predictionsError.response.status);
+          console.error("Response body:", await predictionsError.response.text());
+        } catch (e) {
+          console.error("Could not parse response body:", e);
+        }
       }
+      
+      return new Response(JSON.stringify({ 
+        error: "Video generation failed",
+        message: predictionsError.message,
+        stack: predictionsError.stack,
+      }), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        status: 500,
+      });
     }
   } catch (error) {
     console.error("Unhandled error in video generation function:", error.message, error.stack);
