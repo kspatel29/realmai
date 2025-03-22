@@ -1,3 +1,6 @@
+
+import { supabase } from "@/integrations/supabase/client";
+
 export interface YouTubeChannelResponse {
   items: {
     id: string;
@@ -38,8 +41,6 @@ export interface YouTubeSearchResponse {
     };
   }[];
 }
-
-const API_KEY = "AIzaSyCBikVDB-RISthrhUmgyHy7QYe_s5LNRfU";
 
 // Mock data for when the API fails or for testing
 const MOCK_CHANNELS = [
@@ -139,33 +140,30 @@ export const searchYouTubeChannels = async (query: string): Promise<YouTubeChann
   try {
     console.log(`Searching for YouTube channels with query: ${query}`);
     
-    // First, search for channels
-    const searchResponse = await fetch(
-      `https://www.googleapis.com/youtube/v3/search?part=snippet&q=${encodeURIComponent(query)}&type=channel&maxResults=5&key=${API_KEY}`
-    );
+    // Call the edge function instead of directly calling YouTube API
+    const { data, error } = await supabase.functions.invoke('youtube-api', {
+      body: {
+        operation: 'search_channels',
+        query: query
+      }
+    });
     
-    if (!searchResponse.ok) {
-      console.error(`YouTube API search error: ${searchResponse.status} ${searchResponse.statusText}`);
+    if (error) {
+      console.error('Error calling YouTube API edge function:', error);
       // Return filtered mock data based on the search query
       return MOCK_CHANNELS.filter(channel => 
         channel.snippet.title.toLowerCase().includes(query.toLowerCase())
       );
     }
     
-    const searchData = await searchResponse.json() as YouTubeSearchResponse;
-    
-    if (!searchData.items || searchData.items.length === 0) {
+    if (!data.items || data.items.length === 0) {
       console.log("No channels found, returning mock data");
       return MOCK_CHANNELS.filter(channel => 
         channel.snippet.title.toLowerCase().includes(query.toLowerCase())
       );
     }
     
-    // Get channel IDs from search results
-    const channelIds = searchData.items.map(item => item.id.channelId).join(',');
-    
-    // Fetch detailed channel info for all search results
-    return await getChannelDetails(channelIds);
+    return data.items;
     
   } catch (error) {
     console.error('Error searching YouTube channels:', error);
@@ -180,18 +178,20 @@ export const getChannelDetails = async (channelId: string): Promise<YouTubeChann
   try {
     console.log(`Fetching channel details for: ${channelId}`);
     
-    const response = await fetch(
-      `https://www.googleapis.com/youtube/v3/channels?part=snippet,statistics&id=${channelId}&key=${API_KEY}`
-    );
+    // Call the edge function instead of directly calling YouTube API
+    const { data, error } = await supabase.functions.invoke('youtube-api', {
+      body: {
+        operation: 'get_channel_details',
+        channelId: channelId
+      }
+    });
     
-    if (!response.ok) {
-      console.error(`YouTube API channel details error: ${response.status} ${response.statusText}`);
+    if (error) {
+      console.error('Error calling YouTube API edge function:', error);
       // Find the matching channel in mock data or return the first one
       const matchedChannel = MOCK_CHANNELS.find(channel => channel.id === channelId);
       return matchedChannel ? [matchedChannel] : [MOCK_CHANNELS[0]];
     }
-    
-    const data = await response.json() as YouTubeChannelResponse;
     
     if (!data.items || data.items.length === 0) {
       console.log("No channel details found, returning mock data");
