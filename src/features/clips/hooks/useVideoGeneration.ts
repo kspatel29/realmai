@@ -87,6 +87,7 @@ export const useVideoGeneration = () => {
               let videoOutput = null;
               
               if (result.output) {
+                // Handle both array and string outputs from different models
                 videoOutput = Array.isArray(result.output) ? result.output[0] : result.output;
               }
               

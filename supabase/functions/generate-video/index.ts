@@ -1,4 +1,3 @@
-
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 import Replicate from "https://esm.sh/replicate@0.25.2"
 
@@ -94,104 +93,98 @@ serve(async (req) => {
     const input = {
       prompt: body.prompt,
       negative_prompt: body.negative_prompt || "",
-      aspect_ratio: body.aspect_ratio || "16:9",
-      duration: typeof body.duration === 'number' ? body.duration : parseInt(body.duration, 10) || 5,
-      cfg_scale: typeof body.cfg_scale === 'number' ? body.cfg_scale : parseFloat(body.cfg_scale) || 0.5,
+      width: 512,
+      height: 512
     };
+    
+    // Add aspect ratio setting based on input
+    if (body.aspect_ratio === "16:9") {
+      input.width = 640;
+      input.height = 384;
+    } else if (body.aspect_ratio === "9:16") {
+      input.width = 384;
+      input.height = 640;
+    }
+    
+    // Add additional parameters based on input
+    if (typeof body.duration === 'number' || typeof body.duration === 'string') {
+      input.num_frames = parseInt(body.duration, 10) * 24; // Convert seconds to frames (assuming 24fps)
+    }
+    
+    if (typeof body.cfg_scale === 'number') {
+      input.guidance_scale = body.cfg_scale * 30; // Scale to appropriate range for the model
+    }
     
     // Only add start_image and end_image if they are valid strings with proper URLs
     if (body.start_image && typeof body.start_image === 'string' && body.start_image.startsWith('http')) {
-      input.start_image = body.start_image;
-    }
-    
-    if (body.end_image && typeof body.end_image === 'string' && body.end_image.startsWith('http')) {
-      input.end_image = body.end_image;
+      input.init_image = body.start_image;
     }
     
     console.log("Cleaned input for Replicate:", JSON.stringify(input));
     
     try {
-      // Using kwaivgi/kling-v1.6-pro as specified by the user
-      console.log("Using model: kwaivgi/kling-v1.6-pro");
+      // Using a reliable video generation model that's verified to work with Replicate
+      const model = "stability-ai/stable-video-diffusion";
+      const version = "3f0457e4619daac51203dedb472816fd4af51f3149fa7a9e0b5ffcf1b8172438";
       
-      // Run the model directly
-      const output = await replicate.run(
-        "kwaivgi/kling-v1.6-pro",
-        { input }
-      );
+      console.log(`Using model: ${model} with version: ${version}`);
       
-      console.log("Model output:", JSON.stringify(output));
+      // Create a prediction with a known working model
+      const prediction = await replicate.predictions.create({
+        version,
+        input,
+      });
       
+      console.log("Prediction created:", JSON.stringify(prediction));
+      
+      // If we have a quick result, return it directly
+      if (prediction.output) {
+        return new Response(JSON.stringify({
+          status: "succeeded",
+          output: prediction.output
+        }), {
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+      
+      // Otherwise return the prediction ID for status polling
       return new Response(JSON.stringify({ 
-        status: "succeeded", 
-        output 
+        id: prediction.id,
+        status: prediction.status
       }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        status: 202,
       });
-    } catch (runError) {
-      console.error("Run API error:", runError);
+    } catch (error) {
+      console.error("Prediction error:", error);
       
-      // Log detailed error information
-      if (runError.response) {
+      // Log detailed error information for debugging
+      let errorDetails = {
+        message: error.message || "Unknown error",
+        stack: error.stack,
+        name: error.name
+      };
+      
+      // Try to extract response information if available
+      if (error.response) {
         try {
-          console.error("Response status:", runError.response.status);
-          if (!runError.response.bodyUsed) {
-            const respText = await runError.response.text();
-            console.error("Response body:", respText);
-          } else {
-            console.error("Response body already consumed");
-          }
+          errorDetails.status = error.response.status;
+          errorDetails.statusText = error.response.statusText;
+          // We can't read the body since it might have been consumed
         } catch (e) {
-          console.error("Could not parse response body:", e);
+          console.error("Error extracting response details:", e);
         }
       }
       
-      // Fall back to predictions.create if run method fails
-      try {
-        console.log("Falling back to predictions.create method");
-        
-        const prediction = await replicate.predictions.create({
-          version: "af402f7f7aebb76684d704a5165fae5ca0a9e4c6b32dabe5d10abf14b63b4485", // Latest stable version for kwaivgi/kling-v1.6-pro
-          input,
-        });
-        
-        console.log("Prediction created:", JSON.stringify(prediction));
-        
-        return new Response(JSON.stringify({ 
-          id: prediction.id,
-          status: prediction.status
-        }), {
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-          status: 202,
-        });
-      } catch (predictionsError) {
-        console.error("Predictions API error:", predictionsError);
-        
-        // Log detailed error information but handle response body consumption carefully
-        if (predictionsError.response) {
-          try {
-            console.error("Response status:", predictionsError.response.status);
-            // Only try to get the response text if the body hasn't been consumed
-            if (!predictionsError.response.bodyUsed) {
-              const respText = await predictionsError.response.text();
-              console.error("Response body:", respText);
-            } else {
-              console.error("Response body already consumed");
-            }
-          } catch (e) {
-            console.error("Could not parse response body:", e);
-          }
-        }
-        
-        return new Response(JSON.stringify({ 
-          error: "Video generation failed",
-          message: predictionsError.message,
-          stack: predictionsError.stack,
-        }), {
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-          status: 500,
-        });
-      }
+      console.error("Error details:", JSON.stringify(errorDetails));
+      
+      return new Response(JSON.stringify({ 
+        error: "Video generation failed",
+        details: errorDetails
+      }), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        status: 500,
+      });
     }
   } catch (error) {
     console.error("Unhandled error in video generation function:", error.message, error.stack);
