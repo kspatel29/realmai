@@ -15,10 +15,17 @@ export const useSubtitlesProcess = () => {
   const [predictionId, setPredictionId] = useState<string | null>(null);
   const [uploadedFileName, setUploadedFileName] = useState<string | null>(null);
   const [editableText, setEditableText] = useState("");
+  const [estimatedWaitTime, setEstimatedWaitTime] = useState<number | null>(null);
   const { useCredits: spendCredits } = useCredits();
 
+  // Calculate estimated wait time based on model
+  const calculateEstimatedTime = (modelName: string) => {
+    // large-v2 takes longer than small
+    return modelName === "large-v2" ? 4 : 2; // minutes
+  };
+
   // Query for checking job status
-  const { data: predictionStatus } = useQuery({
+  const { data: predictionStatus, error: statusError } = useQuery({
     queryKey: ['subtitles-status', predictionId],
     queryFn: async () => {
       if (!predictionId) return null;
@@ -32,22 +39,36 @@ export const useSubtitlesProcess = () => {
   useEffect(() => {
     if (!predictionStatus) return;
     
+    console.log("Prediction status update:", predictionStatus);
+    
     if (predictionStatus.status === "succeeded") {
-      setIsProcessing(false);
-      setPredictionId(null);
-      
       if (predictionStatus.output) {
         setSrtFileUrl(predictionStatus.output.srt_file);
         setVttFileUrl(predictionStatus.output.vtt_file);
         setEditableText(predictionStatus.output.preview || "");
+        setIsProcessing(false);
+        setPredictionId(null);
+        setEstimatedWaitTime(null);
         sonnerToast.success("Subtitles have been generated successfully.");
       }
     } else if (predictionStatus.status === "failed") {
       setIsProcessing(false);
       setPredictionId(null);
+      setEstimatedWaitTime(null);
       sonnerToast.error("Failed to generate subtitles: " + (predictionStatus.error || "Unknown error"));
     }
   }, [predictionStatus]);
+
+  // Effect to handle status error
+  useEffect(() => {
+    if (statusError) {
+      console.error("Error checking status:", statusError);
+      setIsProcessing(false);
+      setPredictionId(null);
+      setEstimatedWaitTime(null);
+      sonnerToast.error(`Error checking status: ${statusError instanceof Error ? statusError.message : "Unknown error"}`);
+    }
+  }, [statusError]);
 
   const handleFileUploaded = (url: string, fromVideo: boolean, fileName?: string) => {
     setUploadedFileUrl(url);
@@ -63,6 +84,7 @@ export const useSubtitlesProcess = () => {
     }
 
     setIsProcessing(true);
+    setEstimatedWaitTime(calculateEstimatedTime(formValues.model_name));
     
     spendCredits.mutate({
       amount: creditCost,
@@ -71,42 +93,45 @@ export const useSubtitlesProcess = () => {
     }, {
       onSuccess: async () => {
         try {
-          const response = await generateSubtitles({
+          await generateSubtitles({
             audioPath: uploadedFileUrl,
             modelName: formValues.model_name,
             language: formValues.language,
             vadFilter: formValues.vad_filter
           });
           
-          if (response) {
-            setSrtFileUrl(response.srt_file);
-            setVttFileUrl(response.vtt_file);
-            setEditableText(response.preview || "");
-            setIsProcessing(false);
-            sonnerToast.success("Subtitles have been generated successfully.");
-          }
+          // This should not be reached as generateSubtitles should either return output or throw an error
+          sonnerToast.success("Subtitles have been generated successfully.");
+          setIsProcessing(false);
+          
         } catch (error) {
+          console.log("Generate subtitles error:", error);
+          
+          // Check if this is a "prediction in progress" error with an ID
           if (error instanceof Error && error.message.includes("id:")) {
             try {
               const idMatch = error.message.match(/id: ([a-zA-Z0-9]+)/);
               if (idMatch && idMatch[1]) {
                 setPredictionId(idMatch[1]);
-                sonnerToast.info("Subtitle generation has started. This may take a few minutes.");
+                sonnerToast.info(`Subtitle generation has started. This may take around ${estimatedWaitTime} minutes.`);
               } else {
                 throw new Error("Failed to extract prediction ID");
               }
             } catch (extractError) {
               setIsProcessing(false);
+              setEstimatedWaitTime(null);
               sonnerToast.error(`Failed to process: ${extractError instanceof Error ? extractError.message : "An error occurred"}`);
             }
           } else {
             setIsProcessing(false);
+            setEstimatedWaitTime(null);
             sonnerToast.error(`Failed to process: ${error instanceof Error ? error.message : "An error occurred"}`);
           }
         }
       },
       onError: (error) => {
         setIsProcessing(false);
+        setEstimatedWaitTime(null);
         sonnerToast.error(`Failed to process: ${error.message}`);
       }
     });
@@ -122,6 +147,7 @@ export const useSubtitlesProcess = () => {
     uploadedFileName,
     editableText,
     setEditableText,
+    estimatedWaitTime,
     handleFileUploaded,
     processSubtitles
   };

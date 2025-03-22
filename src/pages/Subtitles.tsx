@@ -7,7 +7,6 @@ import { SubtitlesFormValues } from "@/features/subtitles/subtitlesSchema";
 import CreditConfirmDialog from "@/components/CreditConfirmDialog";
 import UploadTab from "@/features/subtitles/UploadTab";
 import GenerateTab from "@/features/subtitles/GenerateTab";
-import EditTab from "@/features/subtitles/EditTab";
 import DownloadTab from "@/features/subtitles/DownloadTab";
 import { toast as sonnerToast } from "sonner";
 
@@ -25,6 +24,7 @@ const Subtitles = () => {
     uploadedFileName,
     editableText,
     setEditableText,
+    estimatedWaitTime,
     handleFileUploaded,
     processSubtitles
   } = useSubtitlesProcess();
@@ -69,10 +69,9 @@ const Subtitles = () => {
       />
 
       <Tabs defaultValue="upload" className="w-full">
-        <TabsList className="grid grid-cols-4 w-full max-w-md">
+        <TabsList className="grid grid-cols-3 w-full max-w-md">
           <TabsTrigger value="upload">Upload</TabsTrigger>
           <TabsTrigger value="generate">Generate</TabsTrigger>
-          <TabsTrigger value="edit">Edit</TabsTrigger>
           <TabsTrigger value="download">Download</TabsTrigger>
         </TabsList>
         
@@ -89,15 +88,9 @@ const Subtitles = () => {
             uploadedFileName={uploadedFileName}
             uploadedFileUrl={uploadedFileUrl}
             isProcessing={isProcessing}
+            estimatedWaitTime={estimatedWaitTime}
             totalCost={totalCost}
             onSubmit={handleGenerateSubtitles}
-          />
-        </TabsContent>
-        
-        <TabsContent value="edit" className="mt-6">
-          <EditTab
-            editableText={editableText}
-            onTextChange={setEditableText}
           />
         </TabsContent>
         
@@ -105,6 +98,7 @@ const Subtitles = () => {
           <DownloadTab
             srtFileUrl={srtFileUrl}
             vttFileUrl={vttFileUrl}
+            subtitlesText={editableText}
           />
         </TabsContent>
       </Tabs>

@@ -26,18 +26,29 @@ export const generateSubtitles = async (params: GenerateSubtitlesParams) => {
     throw new Error(error.message);
   }
 
-  if (!data?.output) {
-    console.error("Invalid response from generate-subtitles function:", data);
-    throw new Error("Invalid response from subtitles generation service");
+  console.log("Subtitles generation response:", data);
+  
+  // If we have a direct output, return it
+  if (data?.output) {
+    return data.output as SubtitlesResult;
+  }
+  
+  // If we have a prediction ID, throw a specific error that can be caught
+  if (data?.id) {
+    const err = new Error(`Processing in progress: id: ${data.id}`);
+    err.name = "PredictionInProgress";
+    throw err;
   }
 
-  return data.output as SubtitlesResult;
+  throw new Error("Invalid response from subtitles generation service");
 };
 
 export const checkSubtitlesStatus = async (predictionId: string) => {
   if (!predictionId) {
     throw new Error("Prediction ID is required");
   }
+  
+  console.log("Checking status for prediction:", predictionId);
   
   const { data, error } = await supabase.functions.invoke("generate-subtitles", {
     body: { predictionId },
@@ -48,6 +59,7 @@ export const checkSubtitlesStatus = async (predictionId: string) => {
     throw new Error(error.message);
   }
 
+  console.log("Status check response:", data);
   return data;
 };
 

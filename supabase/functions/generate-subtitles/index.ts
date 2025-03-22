@@ -24,11 +24,10 @@ serve(async (req) => {
       auth: REPLICATE_API_TOKEN,
     })
 
-    // Log the entire request body for debugging
+    // Parse the request body
     const requestBody = await req.text();
     console.log("Raw request body:", requestBody);
     
-    // Parse the body and handle potential JSON parsing errors
     let body;
     try {
       body = JSON.parse(requestBody);
@@ -47,6 +46,18 @@ serve(async (req) => {
       console.log("Checking status for prediction:", body.predictionId)
       const prediction = await replicate.predictions.get(body.predictionId)
       console.log("Status check response:", prediction)
+      
+      // If prediction has succeeded and has output, return it directly
+      if (prediction.status === "succeeded" && prediction.output) {
+        console.log("Prediction succeeded with output:", prediction.output);
+        return new Response(JSON.stringify({ 
+          status: "succeeded",
+          output: prediction.output 
+        }), {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        })
+      }
+      
       return new Response(JSON.stringify(prediction), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       })
@@ -67,33 +78,26 @@ serve(async (req) => {
     console.log("Generating subtitles for audio:", body.audioPath)
     
     try {
-      const output = await replicate.run(
-        "stayallive/whisper-subtitles:b97ba81004e7132181864c885a76cae0e56bc61caa4190a395f6d8ba45b7a969",
-        {
-          input: {
-            audio_path: body.audioPath,
-            model_name: body.modelName || "small",
-            language: body.language || "en",
-            vad_filter: body.vadFilter !== undefined ? body.vadFilter : true,
-          }
+      // Start the prediction but don't wait for it to complete
+      const prediction = await replicate.predictions.create({
+        version: "b97ba81004e7132181864c885a76cae0e56bc61caa4190a395f6d8ba45b7a969",
+        input: {
+          audio_path: body.audioPath,
+          model_name: body.modelName || "small",
+          language: body.language || "en",
+          vad_filter: body.vadFilter !== undefined ? body.vadFilter : true,
         }
-      )
-
-      console.log("Generation response:", output);
+      });
       
-      if (!output || !output.srt_file || !output.vtt_file) {
-        console.error("Invalid subtitles generation output:", output);
-        return new Response(JSON.stringify({ 
-          error: "Subtitles generation failed: Invalid response from model"
-        }), {
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-          status: 500,
-        });
-      }
+      console.log("Prediction created:", prediction);
       
-      return new Response(JSON.stringify({ output }), {
+      // Return the prediction ID so the client can poll for status
+      return new Response(JSON.stringify({ 
+        id: prediction.id,
+        status: prediction.status
+      }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        status: 200,
+        status: 202, // Accepted
       });
     } catch (error) {
       console.error("Subtitles generation failed:", error);

@@ -7,7 +7,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Toggle } from "@/components/ui/toggle";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Button } from "@/components/ui/button";
-import { Info, Check } from "lucide-react";
+import { Progress } from "@/components/ui/progress";
+import { Info, Check, Clock } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import ServiceCostDisplay from "@/components/ServiceCostDisplay";
 import { MODEL_OPTIONS, LANGUAGES } from "./subtitlesConstants";
@@ -18,6 +19,7 @@ interface GenerateTabProps {
   uploadedFileName: string | null;
   uploadedFileUrl: string | null;
   isProcessing: boolean;
+  estimatedWaitTime: number | null;
   totalCost: number;
   onSubmit: (values: SubtitlesFormValues) => void;
 }
@@ -26,6 +28,7 @@ const GenerateTab = ({
   uploadedFileName, 
   uploadedFileUrl, 
   isProcessing, 
+  estimatedWaitTime,
   totalCost, 
   onSubmit 
 }: GenerateTabProps) => {
@@ -58,6 +61,21 @@ const GenerateTab = ({
             </div>
           </CardHeader>
           <CardContent className="space-y-6">
+            {isProcessing && (
+              <div className="space-y-4 p-4 border rounded-md bg-muted/20">
+                <div className="flex items-center space-x-3">
+                  <Clock className="h-5 w-5 text-muted-foreground animate-pulse" />
+                  <div>
+                    <h3 className="font-medium">Processing your audio</h3>
+                    <p className="text-sm text-muted-foreground">
+                      Estimated wait time: {estimatedWaitTime ? `${estimatedWaitTime} minutes` : "Calculating..."}
+                    </p>
+                  </div>
+                </div>
+                <Progress value={isProcessing ? 50 : 0} className="h-2" />
+              </div>
+            )}
+
             <FormField
               control={form.control}
               name="model_name"
@@ -75,6 +93,7 @@ const GenerateTab = ({
                             ? "border-youtube-red bg-youtube-red/10 text-youtube-red"
                             : ""
                         }`}
+                        disabled={isProcessing}
                       >
                         <div className="flex flex-col items-start text-left">
                           <div className="flex items-center">
@@ -107,6 +126,7 @@ const GenerateTab = ({
                   <Select
                     onValueChange={field.onChange}
                     defaultValue={field.value}
+                    disabled={isProcessing}
                   >
                     <FormControl>
                       <SelectTrigger>
@@ -138,6 +158,7 @@ const GenerateTab = ({
                     <Checkbox
                       checked={field.value}
                       onCheckedChange={field.onChange}
+                      disabled={isProcessing}
                     />
                   </FormControl>
                   <div className="space-y-1 leading-none">

@@ -4,7 +4,7 @@ import AudioFileUploader from "@/components/AudioFileUploader";
 
 interface UploadTabProps {
   isUploading: boolean;
-  setIsUploading: (isUploading: boolean) => void;
+  setIsUploading: (value: boolean) => void;
   onFileUploaded: (url: string, fromVideo: boolean, fileName?: string) => void;
 }
 
@@ -14,7 +14,7 @@ const UploadTab = ({ isUploading, setIsUploading, onFileUploaded }: UploadTabPro
       <CardHeader>
         <CardTitle>Upload Audio</CardTitle>
         <CardDescription>
-          Upload the audio file you want to generate subtitles for.
+          Upload an audio file to generate subtitles from.
         </CardDescription>
       </CardHeader>
       <CardContent>
