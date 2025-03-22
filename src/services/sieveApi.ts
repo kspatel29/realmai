@@ -12,7 +12,7 @@ export interface SieveLanguage {
 
 export interface SieveDubbingResponse {
   id: string;
-  status: "queued" | "running" | "succeeded" | "failed";
+  status: "queued" | "running" | "succeeded" | "failed" | "finished";
   created_at: string;
   updated_at: string;
   function: string;
@@ -121,11 +121,13 @@ export const submitVideoDubbing = async (videoUrl: string, options: {
         translation_dictionary: options.translation_dictionary || "",
         start_time: options.start_time ?? 0,
         end_time: options.end_time ?? -1,
-        enable_lipsyncing: options.enable_lipsyncing ?? false, // Updated to false as default
+        enable_lipsyncing: options.enable_lipsyncing ?? false,
         lipsync_backend: "sievesync-1.1",
         lipsync_enhance: "default"
       }
     };
+
+    console.log("Submitting dubbing job with payload:", JSON.stringify(payload, null, 2));
 
     const response = await fetch(`${API_BASE_URL}/push`, {
       method: 'POST',
@@ -141,7 +143,9 @@ export const submitVideoDubbing = async (videoUrl: string, options: {
       throw new Error(errorData.message || 'Failed to submit dubbing job');
     }
 
-    return await response.json();
+    const data = await response.json();
+    console.log("Dubbing job submitted successfully:", data);
+    return data;
   } catch (error) {
     console.error('Error submitting dubbing job:', error);
     toast.error(`Failed to submit dubbing job: ${error instanceof Error ? error.message : 'Unknown error'}`);
@@ -153,7 +157,6 @@ export const checkDubbingJobStatus = async (jobId: string): Promise<SieveDubbing
   try {
     console.log(`Checking status for job ${jobId}`);
     
-    // Correct API endpoint to get job status
     const response = await fetch(`${API_BASE_URL}/jobs/${jobId}`, {
       method: 'GET',
       headers: {
@@ -181,10 +184,20 @@ export const checkDubbingJobStatus = async (jobId: string): Promise<SieveDubbing
     const data = await response.json();
     console.log(`Raw API response for job ${jobId}:`, JSON.stringify(data, null, 2));
     
-    // Check for successful completion (output URL exists)
-    if (data.outputs && data.outputs.output_0 && data.outputs.output_0.url) {
-      console.log(`Job ${jobId} has output URL: ${data.outputs.output_0.url}, marking as succeeded`);
+    // "finished" status from Sieve API means the job is completed successfully
+    if (data.status === "finished") {
       data.status = "succeeded";
+    }
+    
+    // Check for output URL presence - this is the most reliable indicator of success
+    if (data.outputs && data.outputs[0] && data.outputs[0].data && data.outputs[0].data.url) {
+      console.log(`Job ${jobId} has output URL in outputs[0]: ${data.outputs[0].data.url}`);
+      data.status = "succeeded";
+      
+      // Ensure the output is in the expected format for our application
+      if (!data.outputs.output_0) {
+        data.outputs.output_0 = { url: data.outputs[0].data.url };
+      }
     }
     
     // Check for errors
