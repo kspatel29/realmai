@@ -4,8 +4,9 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { YouTubeChannelResponse } from "@/services/youtubeApi";
 import { Youtube, Loader2 } from "lucide-react";
+import { searchYouTubeChannels } from "@/services/youtubeApi";
+import { toast } from "sonner";
 
 interface YouTubeChannelSetupProps {
   onSearch: (query: string) => void;
@@ -19,6 +20,7 @@ const YouTubeChannelSetup = ({ onSearch, isLoading }: YouTubeChannelSetupProps) 
     e.preventDefault();
     
     if (!channelName.trim()) {
+      toast.error("Please enter a YouTube channel name");
       return;
     }
     
@@ -46,6 +48,7 @@ const YouTubeChannelSetup = ({ onSearch, isLoading }: YouTubeChannelSetupProps) 
               value={channelName}
               onChange={(e) => setChannelName(e.target.value)}
               required
+              className="w-full"
             />
             <p className="text-xs text-muted-foreground">
               Search for any YouTube channel to view their analytics data
@@ -56,7 +59,7 @@ const YouTubeChannelSetup = ({ onSearch, isLoading }: YouTubeChannelSetupProps) 
           <Button 
             type="submit" 
             disabled={!channelName.trim() || isLoading}
-            className="bg-youtube-red hover:bg-youtube-darkred"
+            className="bg-youtube-red hover:bg-youtube-darkred w-full md:w-auto"
           >
             {isLoading ? (
               <div className="flex items-center gap-2">

@@ -48,7 +48,11 @@ const YouTubeChannelSearch = ({ onChannelSelect }: YouTubeChannelSearchProps) =>
       }));
       
       setSuggestions(mappedChannels);
-      setShowSuggestions(true);
+      setShowSuggestions(mappedChannels.length > 0);
+      
+      if (mappedChannels.length === 0) {
+        toast.info("No channels found matching your search.");
+      }
       
     } catch (error) {
       console.error("Failed to fetch channel suggestions:", error);
