@@ -13,6 +13,11 @@ async function extractAudioFromVideo(videoUrl) {
   try {
     console.log("Extracting audio from video:", videoUrl);
     
+    // Validate video URL
+    if (!videoUrl || typeof videoUrl !== 'string') {
+      throw new Error(`Invalid video URL: ${JSON.stringify(videoUrl)}`);
+    }
+    
     // Use Replicate to extract audio using the audio-extractor model
     const REPLICATE_API_TOKEN = Deno.env.get('REPLICATE_API_TOKEN');
     if (!REPLICATE_API_TOKEN) {
@@ -23,27 +28,38 @@ async function extractAudioFromVideo(videoUrl) {
       auth: REPLICATE_API_TOKEN,
     });
     
-    // Call the audio extractor model
+    // Log the model being used
+    console.log("Using audio extractor model: vaibhavs10/audio-extractor:3d86abe461f9d7d75da6a205bac8765063b9dbe44d94a511189c28dcdac3e68c");
+    
+    // Call the audio extractor model with more detailed logging
     console.log("Calling Replicate audio extractor model with URL:", videoUrl);
-    const extractionOutput = await replicate.run(
-      "vaibhavs10/audio-extractor:3d86abe461f9d7d75da6a205bac8765063b9dbe44d94a511189c28dcdac3e68c",
-      {
-        input: {
-          audio_source: videoUrl,
-          audio_format: "wav"
+    
+    try {
+      const extractionOutput = await replicate.run(
+        "vaibhavs10/audio-extractor:3d86abe461f9d7d75da6a205bac8765063b9dbe44d94a511189c28dcdac3e68c",
+        {
+          input: {
+            audio_source: videoUrl,
+            audio_format: "mp3" // Changed from wav to mp3 for better compatibility
+          }
         }
+      );
+      
+      console.log("Audio extraction result:", extractionOutput);
+      
+      // Validate extraction output - it should contain a URL
+      if (!extractionOutput || typeof extractionOutput !== 'string' || !extractionOutput.startsWith('http')) {
+        console.error("Invalid extraction output:", extractionOutput);
+        throw new Error("Audio extraction failed: Invalid response from extractor");
       }
-    );
-    
-    console.log("Audio extraction result:", extractionOutput);
-    
-    // Validate extraction output - it should contain a URL
-    if (!extractionOutput || typeof extractionOutput !== 'string' || !extractionOutput.startsWith('http')) {
-      console.error("Invalid extraction output:", extractionOutput);
-      throw new Error("Audio extraction failed: Invalid response from extractor");
+      
+      return extractionOutput;
+    } catch (replicateError) {
+      console.error("Replicate API error:", replicateError);
+      // Try to get more details from the error
+      const errorDetails = replicateError.message || JSON.stringify(replicateError);
+      throw new Error(`Replicate API error during audio extraction: ${errorDetails}`);
     }
-    
-    return extractionOutput;
   } catch (error) {
     console.error("Error extracting audio:", error);
     throw error;
@@ -66,8 +82,23 @@ serve(async (req) => {
       auth: REPLICATE_API_TOKEN,
     })
 
-    const body = await req.json()
-    console.log("Request body:", JSON.stringify(body));
+    // Log the entire request body for debugging
+    const requestBody = await req.text();
+    console.log("Raw request body:", requestBody);
+    
+    // Parse the body and handle potential JSON parsing errors
+    let body;
+    try {
+      body = JSON.parse(requestBody);
+    } catch (parseError) {
+      console.error("Error parsing request body:", parseError);
+      return new Response(JSON.stringify({ error: `Invalid JSON in request: ${parseError.message}` }), {
+        status: 400,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+    
+    console.log("Parsed request body:", JSON.stringify(body));
 
     // If it's a status check request
     if (body.predictionId) {

@@ -15,43 +15,79 @@ export interface SubtitlesResult {
 }
 
 export const generateSubtitles = async (params: GenerateSubtitlesParams) => {
+  console.log("Calling subtitles generation with params:", params);
+  
   const { data, error } = await supabase.functions.invoke("generate-subtitles", {
     body: params,
   });
 
   if (error) {
+    console.error("Subtitles generation error:", error);
     throw new Error(error.message);
+  }
+
+  if (!data?.output) {
+    console.error("Invalid response from generate-subtitles function:", data);
+    throw new Error("Invalid response from subtitles generation service");
   }
 
   return data.output as SubtitlesResult;
 };
 
 export const extractAudioFromVideo = async (videoPath: string): Promise<string> => {
+  if (!videoPath) {
+    throw new Error("Video path is required");
+  }
+  
   console.log("Extracting audio from video:", videoPath);
-  const { data, error } = await supabase.functions.invoke("generate-subtitles", {
-    body: { extractAudio: true, videoPath },
-  });
-
-  if (error) {
-    console.error("Error extracting audio:", error);
-    throw new Error(error.message);
+  
+  // Validate that the URL is from the correct storage bucket
+  if (!videoPath.includes('supabase.co/storage/v1/object/public/uploads/')) {
+    console.warn("Video URL doesn't seem to be from the uploads bucket:", videoPath);
   }
+  
+  try {
+    const { data, error } = await supabase.functions.invoke("generate-subtitles", {
+      body: { extractAudio: true, videoPath },
+    });
 
-  if (!data.audioUrl) {
-    console.error("Failed to extract audio, response:", data);
-    throw new Error(data.error || "Failed to extract audio from video");
+    if (error) {
+      console.error("Error invoking generate-subtitles function:", error);
+      throw new Error(`Error extracting audio: ${error.message}`);
+    }
+
+    if (!data?.audioUrl) {
+      console.error("Failed to extract audio, response:", data);
+      if (data?.error) {
+        throw new Error(data.error);
+      } else {
+        throw new Error("Failed to extract audio from video - no audio URL returned");
+      }
+    }
+
+    console.log("Extracted audio URL:", data.audioUrl);
+    return data.audioUrl;
+  } catch (error) {
+    console.error("Audio extraction error:", error);
+    if (error instanceof Error) {
+      throw error;
+    } else {
+      throw new Error(`Unknown error during audio extraction: ${String(error)}`);
+    }
   }
-
-  console.log("Extracted audio URL:", data.audioUrl);
-  return data.audioUrl;
 };
 
 export const checkSubtitlesStatus = async (predictionId: string) => {
+  if (!predictionId) {
+    throw new Error("Prediction ID is required");
+  }
+  
   const { data, error } = await supabase.functions.invoke("generate-subtitles", {
     body: { predictionId },
   });
 
   if (error) {
+    console.error("Error checking subtitles status:", error);
     throw new Error(error.message);
   }
 
@@ -59,6 +95,10 @@ export const checkSubtitlesStatus = async (predictionId: string) => {
 };
 
 export const uploadAudioFile = async (file: File): Promise<string> => {
+  if (!file) {
+    throw new Error("File is required");
+  }
+  
   const fileExt = file.name.split('.').pop();
   const fileName = `${crypto.randomUUID()}.${fileExt}`;
   const filePath = `${fileName}`;
