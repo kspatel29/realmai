@@ -56,11 +56,11 @@ export const useVideoGeneration = () => {
       };
       
       // Only add valid start and end frames
-      if (startFrame && typeof startFrame === 'string') {
+      if (values.use_existing_video && startFrame && typeof startFrame === 'string') {
         input.start_image = startFrame;
       }
       
-      if (endFrame && typeof endFrame === 'string') {
+      if (values.use_existing_video && endFrame && typeof endFrame === 'string') {
         input.end_image = endFrame;
       }
       

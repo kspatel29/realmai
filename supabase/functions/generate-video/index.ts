@@ -29,8 +29,21 @@ serve(async (req) => {
     });
 
     // Parse the request body
-    const body = await req.json();
-    console.log("Request body:", JSON.stringify(body));
+    const requestBody = await req.text();
+    console.log("Raw request body:", requestBody);
+    
+    let body;
+    try {
+      body = JSON.parse(requestBody);
+    } catch (parseError) {
+      console.error("Error parsing request body:", parseError);
+      return new Response(JSON.stringify({ error: `Invalid JSON in request: ${parseError.message}` }), {
+        status: 400,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+    
+    console.log("Parsed request body:", JSON.stringify(body));
 
     // If it's a status check request
     if (body.predictionId) {
@@ -38,6 +51,17 @@ serve(async (req) => {
       try {
         const prediction = await replicate.predictions.get(body.predictionId);
         console.log("Status check response:", JSON.stringify(prediction));
+        
+        // If prediction has succeeded and has output, return it directly
+        if (prediction.status === "succeeded" && prediction.output) {
+          console.log("Prediction succeeded with output:", prediction.output);
+          return new Response(JSON.stringify({ 
+            status: "succeeded",
+            output: prediction.output 
+          }), {
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          });
+        }
         
         return new Response(JSON.stringify(prediction), {
           headers: { ...corsHeaders, 'Content-Type': 'application/json' },
@@ -59,26 +83,25 @@ serve(async (req) => {
     const input: Record<string, any> = {
       prompt: body.prompt,
       negative_prompt: body.negative_prompt || "",
+      duration: body.duration ? parseInt(String(body.duration), 10) : 5,
+      cfg_scale: typeof body.cfg_scale === 'number' ? body.cfg_scale : 0.5,
     };
     
     // Add aspect ratio if provided
     if (body.aspect_ratio) {
       input.aspect_ratio = body.aspect_ratio;
+    } else {
+      input.aspect_ratio = "16:9"; // Default aspect ratio
     }
     
-    // Add duration if provided
-    if (body.duration) {
-      input.duration = parseInt(String(body.duration), 10);
-    }
-    
-    // Add cfg_scale if provided
-    if (typeof body.cfg_scale === 'number') {
-      input.cfg_scale = body.cfg_scale;
-    }
-    
-    // Add start_image if provided
+    // IMPORTANT: The model requires a start_image
+    // If start_image is not provided, use a default image
     if (body.start_image && typeof body.start_image === 'string') {
       input.start_image = body.start_image;
+    } else {
+      // Default image that works with the model
+      input.start_image = "https://replicate.delivery/pbxt/MNRLOqN0ASEzIG3YPuv9R1JSVGsSOQQzE3rgtVD9Qk230Lgt/image_fx_%20%285%29.jpg";
+      console.log("Using default start_image as none was provided");
     }
     
     // Add end_image if provided
@@ -89,48 +112,27 @@ serve(async (req) => {
     console.log("Using Replicate model: kwaivgi/kling-v1.6-pro");
     console.log("With input:", JSON.stringify(input));
 
-    // Try the direct model run method first
+    // Create prediction
     try {
-      console.log("Attempting direct model run...");
-      const output = await replicate.run(
-        "kwaivgi/kling-v1.6-pro",
-        { input }
-      );
+      console.log("Creating prediction...");
+      const prediction = await replicate.predictions.create({
+        version: "33e7a37e190af7e87a32c84ce060872a3ea1675adcab41571a2694e73a4cbefb",
+        input
+      });
       
-      console.log("Direct run successful, output:", output);
+      console.log("Prediction created successfully:", JSON.stringify(prediction));
       
-      // If we have direct output, return it
-      return new Response(JSON.stringify({
-        status: "succeeded",
-        output
+      // Return the prediction ID for status polling
+      return new Response(JSON.stringify({ 
+        id: prediction.id,
+        status: prediction.status
       }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        status: 202,
       });
-    } catch (runError) {
-      console.warn("Direct run failed, falling back to predictions API:", runError.message);
-      
-      // Fall back to the predictions API
-      try {
-        console.log("Creating prediction via API...");
-        const prediction = await replicate.predictions.create({
-          version: "33e7a37e190af7e87a32c84ce060872a3ea1675adcab41571a2694e73a4cbefb",
-          input
-        });
-        
-        console.log("Prediction created successfully:", JSON.stringify(prediction));
-        
-        // Return the prediction ID for status polling
-        return new Response(JSON.stringify({ 
-          id: prediction.id,
-          status: prediction.status
-        }), {
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-          status: 202,
-        });
-      } catch (predictionError) {
-        console.error("Prediction API error:", predictionError);
-        throw predictionError;
-      }
+    } catch (predictionError) {
+      console.error("Prediction API error:", predictionError);
+      throw predictionError;
     }
   } catch (error) {
     console.error("Error details:", JSON.stringify({
