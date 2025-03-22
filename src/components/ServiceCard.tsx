@@ -13,10 +13,12 @@ interface ServiceCardProps {
   color: string;
   cost?: number;
   href?: string;
+  link?: string;
 }
 
-const ServiceCard = ({ title, description, icon, action, color, cost, href }: ServiceCardProps) => {
+const ServiceCard = ({ title, description, icon, action, color, cost, href, link }: ServiceCardProps) => {
   const [isHovered, setIsHovered] = useState(false);
+  const navigateTo = href || link || '#';
 
   return (
     <Card 
@@ -57,9 +59,19 @@ const ServiceCard = ({ title, description, icon, action, color, cost, href }: Se
             borderColor: color
           }}
           variant={isHovered ? "default" : "outline"}
+          asChild={!!navigateTo}
         >
-          {action}
-          <ArrowRight className="ml-2 h-4 w-4 transition-transform group-hover:translate-x-1" />
+          {navigateTo !== '#' ? (
+            <a href={navigateTo}>
+              {action}
+              <ArrowRight className="ml-2 h-4 w-4 transition-transform group-hover:translate-x-1" />
+            </a>
+          ) : (
+            <>
+              {action}
+              <ArrowRight className="ml-2 h-4 w-4 transition-transform group-hover:translate-x-1" />
+            </>
+          )}
         </Button>
       </CardFooter>
     </Card>

@@ -3,7 +3,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Separator } from "@/components/ui/separator";
 import { useAuth } from "@/hooks/useAuth";
 import ServiceCard from "@/components/ServiceCard";
-import { Coins, Movie, Subtitles, Video, Code, History, Settings, LineChart } from "lucide-react";
+import { Coins, Film, Subtitles, Video, Code, History, Settings, LineChart } from "lucide-react";
 import { useCredits } from "@/hooks/useCredits";
 import ServiceCostDisplay from "@/components/ServiceCostDisplay";
 
@@ -15,8 +15,9 @@ const Dashboard = () => {
     {
       title: "Video Dubbing",
       description: "Create multilingual versions of your videos with AI voice dubbing",
-      icon: <Movie className="h-6 w-6" />,
+      icon: <Film className="h-6 w-6" />,
       link: "/dashboard/video-dubbing",
+      action: "Start Dubbing",
       color: "bg-blue-100 text-blue-800"
     },
     {
@@ -24,6 +25,7 @@ const Dashboard = () => {
       description: "Generate and translate subtitles for your videos",
       icon: <Subtitles className="h-6 w-6" />,
       link: "/dashboard/subtitles",
+      action: "Create Subtitles",
       color: "bg-purple-100 text-purple-800"
     },
     {
@@ -31,6 +33,7 @@ const Dashboard = () => {
       description: "Create engaging short-form video clips from your long content",
       icon: <Video className="h-6 w-6" />,
       link: "/dashboard/clips",
+      action: "Generate Clips",
       color: "bg-amber-100 text-amber-800"
     },
     {
@@ -38,6 +41,7 @@ const Dashboard = () => {
       description: "View and manage your previous jobs",
       icon: <History className="h-6 w-6" />,
       link: "/dashboard/history",
+      action: "View History",
       color: "bg-green-100 text-green-800"
     },
     {
@@ -45,6 +49,7 @@ const Dashboard = () => {
       description: "Track performance across translated content",
       icon: <LineChart className="h-6 w-6" />,
       link: "/dashboard/analytics",
+      action: "View Analytics",
       color: "bg-pink-100 text-pink-800"
     },
     {
@@ -52,6 +57,7 @@ const Dashboard = () => {
       description: "Manage your account and preferences",
       icon: <Settings className="h-6 w-6" />,
       link: "/dashboard/settings",
+      action: "Manage Settings",
       color: "bg-gray-100 text-gray-800"
     }
   ];

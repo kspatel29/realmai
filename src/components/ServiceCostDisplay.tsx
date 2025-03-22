@@ -5,9 +5,21 @@ import { SERVICE_CREDIT_COSTS } from '@/constants/pricing';
 
 type ServiceCostDisplayProps = {
   showSummary?: boolean;
+  cost?: number;
+  label?: string;
 }
 
-const ServiceCostDisplay = ({ showSummary = true }: ServiceCostDisplayProps) => {
+const ServiceCostDisplay = ({ showSummary = true, cost, label }: ServiceCostDisplayProps) => {
+  // If we have a specific cost to display, show that instead of the full pricing table
+  if (cost !== undefined) {
+    return (
+      <div className="flex items-center gap-1 text-yellow-600 bg-yellow-50 px-2 py-1 rounded-md text-sm">
+        <Coins className="h-3.5 w-3.5" />
+        <span>{cost} {label || 'credits'}</span>
+      </div>
+    );
+  }
+
   return (
     <Card>
       <CardHeader className="pb-3">
