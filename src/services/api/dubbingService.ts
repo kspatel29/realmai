@@ -1,7 +1,8 @@
 
 import { toast } from "sonner";
-import { API_KEY, API_BASE_URL } from './config';
+import { API_BASE_URL } from './config';
 import { SieveDubbingResponse, DubbingOptions } from './types';
+import { supabase } from "@/integrations/supabase/client";
 
 export const submitVideoDubbing = async (videoUrl: string, options: DubbingOptions) => {
   try {
@@ -30,21 +31,20 @@ export const submitVideoDubbing = async (videoUrl: string, options: DubbingOptio
 
     console.log("Submitting dubbing job with payload:", JSON.stringify(payload, null, 2));
 
-    const response = await fetch(`${API_BASE_URL}/push`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'X-API-Key': API_KEY
-      },
-      body: JSON.stringify(payload)
+    // Call the Supabase Edge Function to submit the dubbing job
+    const { data, error } = await supabase.functions.invoke('video-dubbing', {
+      body: {
+        action: "submit_job",
+        apiBaseUrl: API_BASE_URL,
+        payload
+      }
     });
 
-    if (!response.ok) {
-      const errorData = await response.json();
-      throw new Error(errorData.message || 'Failed to submit dubbing job');
+    if (error) {
+      console.error('Error from edge function:', error);
+      throw new Error(error.message || 'Failed to submit dubbing job');
     }
 
-    const data = await response.json();
     console.log("Dubbing job submitted successfully:", data);
     return data;
   } catch (error) {
@@ -57,22 +57,18 @@ export const submitVideoDubbing = async (videoUrl: string, options: DubbingOptio
 export const checkDubbingJobStatus = async (jobId: string): Promise<SieveDubbingResponse> => {
   try {
     console.log(`Making API request to check status for job ${jobId}`);
-    const url = `${API_BASE_URL}/jobs/${jobId}`;
-    console.log(`Request URL: ${url}`);
     
-    const response = await fetch(url, {
-      method: 'GET',
-      headers: {
-        'X-API-Key': API_KEY,
-        'Content-Type': 'application/json'
+    // Call the Supabase Edge Function to check the job status
+    const { data, error } = await supabase.functions.invoke('video-dubbing', {
+      body: {
+        action: "check_status",
+        apiBaseUrl: API_BASE_URL,
+        jobId
       }
     });
-
-    console.log(`API response status: ${response.status}`);
     
-    if (!response.ok) {
-      const errorData = await response.json();
-      console.error(`Error response from API for job ${jobId}:`, errorData);
+    if (error) {
+      console.error(`Error from edge function for job ${jobId}:`, error);
       
       return {
         id: jobId,
@@ -82,12 +78,11 @@ export const checkDubbingJobStatus = async (jobId: string): Promise<SieveDubbing
         function: "sieve/dubbing",
         inputs: {},
         error: {
-          message: errorData.message || `Failed with HTTP status ${response.status}`
+          message: error.message || `Failed to check job status`
         }
       };
     }
 
-    const data = await response.json();
     console.log(`Raw API response for job ${jobId}:`, JSON.stringify(data, null, 2));
     
     // Create a response object that matches our expected format
@@ -155,5 +150,16 @@ export const checkDubbingJobStatus = async (jobId: string): Promise<SieveDubbing
         message: error instanceof Error ? error.message : "Unknown error occurred"
       }
     };
+  }
+};
+
+export const verifyOutputUrl = async (url: string): Promise<boolean> => {
+  try {
+    // Simple HEAD request to verify the URL exists
+    const response = await fetch(url, { method: 'HEAD' });
+    return response.ok;
+  } catch (error) {
+    console.error(`Error verifying URL ${url}:`, error);
+    return false;
   }
 };
