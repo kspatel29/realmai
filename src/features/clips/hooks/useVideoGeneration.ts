@@ -15,8 +15,9 @@ interface VideoGenerationRequestInput {
   aspect_ratio: string;
   duration: number;
   loop?: boolean;
-  start_image?: string;
-  end_image?: string;
+  start_image_url?: string;
+  end_image_url?: string;
+  cfg_scale?: number;
 }
 
 export const useVideoGeneration = () => {
@@ -53,13 +54,18 @@ export const useVideoGeneration = () => {
         loop: values.loop,
       };
       
+      // Add optional cfg_scale if present
+      if (values.cfg_scale !== undefined) {
+        input.cfg_scale = values.cfg_scale;
+      }
+      
       // Only add valid start and end frames
       if (startFrame && typeof startFrame === 'string') {
-        input.start_image = startFrame;
+        input.start_image_url = startFrame;
       }
       
       if (endFrame && typeof endFrame === 'string') {
-        input.end_image = endFrame;
+        input.end_image_url = endFrame;
       }
       
       console.log("Generating video with inputs:", input);

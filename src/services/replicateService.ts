@@ -3,12 +3,12 @@ import { supabase } from "@/integrations/supabase/client";
 
 interface VideoGenerationInput {
   prompt: string;
-  negative_prompt?: string;
   aspect_ratio: string;
   duration: number;
   loop?: boolean;
-  start_image?: string;
-  end_image?: string;
+  start_image_url?: string;
+  end_image_url?: string;
+  cfg_scale?: number;
 }
 
 export const createReplicateVideoClip = async (input: VideoGenerationInput): Promise<any> => {

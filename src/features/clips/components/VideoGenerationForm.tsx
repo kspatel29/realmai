@@ -15,6 +15,7 @@ const videoGenerationSchema = z.object({
   duration: z.enum(["5", "9"]).default("5"),
   loop: z.boolean().default(false),
   use_existing_video: z.boolean().default(false),
+  cfg_scale: z.number().optional().default(0.5),
 });
 
 export type VideoGenerationFormValues = z.infer<typeof videoGenerationSchema>;
