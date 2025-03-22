@@ -72,10 +72,11 @@ serve(async (req) => {
     
     console.log("Cleaned input for Replicate:", input)
     
-    // Start the prediction but don't wait for it to complete
+    // Start the prediction using the correct model
+    // Update to use the proper model for video generation
     const prediction = await replicate.predictions.create({
       version: "3a139358cc4ae29264fbcafd6ee8fbd92726dfa35c8b1e1ba03a7e04d8697bbb", // kling-v1.6-pro model version
-      input,
+      input: input,
     })
     
     console.log("Prediction created:", prediction)
@@ -90,7 +91,7 @@ serve(async (req) => {
     });
   } catch (error) {
     console.error("Error in video generation function:", error)
-    return new Response(JSON.stringify({ error: error.message }), {
+    return new Response(JSON.stringify({ error: error.message || "Unknown error occurred" }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       status: 500,
     })

@@ -15,27 +15,9 @@ export const createReplicateVideoClip = async (input: VideoGenerationInput): Pro
   try {
     console.log("Calling Replicate edge function with input:", input);
     
-    // Clean up input to ensure we don't send invalid data
-    const cleanInput: VideoGenerationInput = {
-      prompt: input.prompt,
-      negative_prompt: input.negative_prompt || "",
-      aspect_ratio: input.aspect_ratio,
-      duration: input.duration,
-      cfg_scale: input.cfg_scale,
-    };
-    
-    // Only add start_image and end_image if they are valid strings
-    if (input.start_image && typeof input.start_image === 'string') {
-      cleanInput.start_image = input.start_image;
-    }
-    
-    if (input.end_image && typeof input.end_image === 'string') {
-      cleanInput.end_image = input.end_image;
-    }
-    
     // Call the Supabase Edge Function to generate the video
     const { data, error } = await supabase.functions.invoke('generate-video', {
-      body: cleanInput
+      body: input
     });
     
     if (error) {
