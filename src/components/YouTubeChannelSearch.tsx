@@ -5,7 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Search, Youtube, Loader2 } from "lucide-react";
 import { useDebounce } from "@/hooks/useDebounce";
-import { searchYouTubeChannels, YouTubeChannelResponse } from "@/services/youtubeApi";
+import { searchYouTubeChannels } from "@/services/youtubeApi";
 import { toast } from "sonner";
 
 interface Channel {
@@ -16,6 +16,7 @@ interface Channel {
   views?: string;
   videoCount?: string;
   description?: string;
+  publishedAt?: string;
 }
 
 interface YouTubeChannelSearchProps {
@@ -44,7 +45,8 @@ const YouTubeChannelSearch = ({ onChannelSelect }: YouTubeChannelSearchProps) =>
         subscribers: parseInt(channel.statistics.subscriberCount).toLocaleString(),
         views: parseInt(channel.statistics.viewCount).toLocaleString(),
         videoCount: parseInt(channel.statistics.videoCount).toLocaleString(),
-        description: channel.snippet.description
+        description: channel.snippet.description,
+        publishedAt: new Date(channel.snippet.publishedAt).toLocaleDateString()
       }));
       
       setSuggestions(mappedChannels);
@@ -142,9 +144,12 @@ const YouTubeChannelSearch = ({ onChannelSelect }: YouTubeChannelSearchProps) =>
                       alt={channel.title}
                       className="h-10 w-10 rounded-full object-cover"
                     />
-                    <div>
-                      <p className="font-medium text-sm">{channel.title}</p>
-                      <p className="text-xs text-muted-foreground">{channel.subscribers} subscribers</p>
+                    <div className="flex-1 min-w-0">
+                      <p className="font-medium text-sm truncate">{channel.title}</p>
+                      <div className="flex gap-2 text-xs text-muted-foreground">
+                        <span>{channel.subscribers} subscribers</span>
+                        {channel.videoCount && <span>• {channel.videoCount} videos</span>}
+                      </div>
                     </div>
                   </li>
                 ))}

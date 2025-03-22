@@ -1,4 +1,3 @@
-
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
@@ -17,13 +16,17 @@ export interface VideoAnalytics {
   updated_at: string;
 }
 
-// Add this interface for YouTube Channel
+// YouTube Channel interface for channel data
 export interface YouTubeChannel {
   id: string;
   channel_name: string;
   channel_id: string;
   subscriber_count?: number;
   thumbnail?: string;
+  description?: string;
+  view_count?: number;
+  video_count?: number;
+  created_at?: string;
 }
 
 export const useYouTubeAnalytics = () => {

@@ -3,12 +3,11 @@ import { useState, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
-import { useAuth } from "@/hooks/useAuth";
 import { useYouTubeAnalytics } from "@/hooks/useYouTubeAnalytics";
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
-import { ArrowUpRight, RefreshCw, Globe, ThumbsUp, MessageSquare, Clock } from "lucide-react";
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, LineChart, Line } from 'recharts';
+import { ArrowUpRight, RefreshCw, Globe, ThumbsUp, MessageSquare, Clock, TrendingUp, Calendar } from "lucide-react";
 import YouTubeChannelSearch from "@/components/YouTubeChannelSearch";
-import { getChannelDetails } from "@/services/youtubeApi";
+import { getChannelDetails, getChannelGrowthStats } from "@/services/youtubeApi";
 import { toast } from "sonner";
 
 interface Channel {
@@ -19,13 +18,29 @@ interface Channel {
   views?: string;
   videoCount?: string;
   description?: string;
+  publishedAt?: string;
+}
+
+interface GrowthStats {
+  subscribers: {
+    monthly: number;
+    weekly: number;
+    daily: number;
+  };
+  views: {
+    monthly: number;
+    weekly: number;
+    daily: number;
+  };
+  engagement: string;
+  growthRate: string;
 }
 
 const Analytics = () => {
-  const { user } = useAuth();
   const [isLoaded, setIsLoaded] = useState(false);
   const [selectedChannel, setSelectedChannel] = useState<Channel | null>(null);
   const [isLoading, setIsLoading] = useState(false);
+  const [growthStats, setGrowthStats] = useState<GrowthStats | null>(null);
   const { 
     videos, 
     totalStats, 
@@ -39,6 +54,13 @@ const Analytics = () => {
     
     return () => clearTimeout(timer);
   }, []);
+
+  // When a channel is selected, fetch its growth stats
+  useEffect(() => {
+    if (selectedChannel) {
+      fetchChannelGrowthStats(selectedChannel.id);
+    }
+  }, [selectedChannel]);
 
   const countryData = [
     { name: "United States", views: 42 },
@@ -70,7 +92,21 @@ const Analytics = () => {
     try {
       const channelData = await getChannelDetails(channelId);
       if (channelData && channelData.length > 0) {
-        // Updated data was already set by the onChannelSelect handler
+        const channel = channelData[0];
+        setSelectedChannel({
+          id: channel.id,
+          title: channel.snippet.title,
+          thumbnail: channel.snippet.thumbnails.medium.url || channel.snippet.thumbnails.default.url,
+          subscribers: parseInt(channel.statistics.subscriberCount).toLocaleString(),
+          views: parseInt(channel.statistics.viewCount).toLocaleString(),
+          videoCount: parseInt(channel.statistics.videoCount).toLocaleString(),
+          description: channel.snippet.description,
+          publishedAt: new Date(channel.snippet.publishedAt).toLocaleDateString()
+        });
+        
+        // Also fetch growth stats
+        fetchChannelGrowthStats(channelId);
+        
         toast.success("Channel data refreshed successfully");
       } else {
         toast.error("No data found for this channel");
@@ -81,6 +117,34 @@ const Analytics = () => {
     } finally {
       setIsLoading(false);
     }
+  };
+
+  const fetchChannelGrowthStats = async (channelId: string) => {
+    try {
+      const stats = await getChannelGrowthStats(channelId);
+      if (stats) {
+        setGrowthStats(stats);
+      }
+    } catch (error) {
+      console.error("Error fetching growth stats:", error);
+    }
+  };
+
+  // Generate growth trend data for the chart
+  const generateGrowthTrendData = () => {
+    if (!selectedChannel) return [];
+    
+    const currentSubs = parseInt(selectedChannel.subscribers.replace(/,/g, ''));
+    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun'];
+    
+    // Generate mock historical data
+    return months.map((month, index) => {
+      const factor = 1 - (0.05 * (months.length - index - 1));
+      return {
+        name: month,
+        subscribers: Math.floor(currentSubs * factor),
+      };
+    });
   };
 
   // Show channel search if no channel is selected
@@ -140,7 +204,12 @@ const Analytics = () => {
           />
           <div>
             <h3 className="font-medium">{selectedChannel.title}</h3>
-            <p className="text-sm text-muted-foreground">{selectedChannel.subscribers} subscribers</p>
+            <div className="flex flex-wrap gap-2 text-sm text-muted-foreground">
+              <span>{selectedChannel.subscribers} subscribers</span>
+              {selectedChannel.publishedAt && (
+                <span>• Created {selectedChannel.publishedAt}</span>
+              )}
+            </div>
           </div>
         </div>
         <Button 
@@ -181,7 +250,7 @@ const Analytics = () => {
               <CardContent>
                 <div className="text-2xl font-bold">{selectedChannel.subscribers}</div>
                 <p className="text-xs text-muted-foreground mt-1">
-                  Community engagement
+                  {growthStats && `+${formatNumber(growthStats.subscribers.monthly)} monthly`}
                 </p>
               </CardContent>
             </Card>
@@ -199,27 +268,128 @@ const Analytics = () => {
             
             <Card className="animate-fade-in" style={{ animationDelay: "400ms" }}>
               <CardHeader className="flex flex-row items-center justify-between pb-2">
-                <CardTitle className="text-sm font-medium">Engagement</CardTitle>
-                <Clock className="h-5 w-5 text-muted-foreground" />
+                <CardTitle className="text-sm font-medium">Growth Rate</CardTitle>
+                <TrendingUp className="h-5 w-5 text-muted-foreground" />
               </CardHeader>
               <CardContent>
                 <div className="text-2xl font-bold">
-                  {selectedChannel.subscribers && selectedChannel.views 
-                    ? ((parseInt(selectedChannel.views.replace(/,/g, '')) / parseInt(selectedChannel.subscribers.replace(/,/g, ''))) * 100).toFixed(1) + '%'
-                    : "N/A"}
+                  {growthStats ? growthStats.growthRate : "N/A"}
                 </div>
-                <p className="text-xs text-muted-foreground mt-1">View-to-subscriber ratio</p>
+                <p className="text-xs text-muted-foreground mt-1">Monthly subscriber growth</p>
               </CardContent>
             </Card>
           </div>
 
-          {/* Charts and Tables */}
-          <div className="grid gap-6 md:grid-cols-2">
-            {/* Recent Videos */}
-            <Card className="md:col-span-2 animate-fade-in" style={{ animationDelay: "500ms" }}>
+          {/* Growth Stats */}
+          <div className="grid gap-4 md:grid-cols-2">
+            <Card className="animate-fade-in" style={{ animationDelay: "500ms" }}>
               <CardHeader>
-                <CardTitle>YouTube Data</CardTitle>
-                <CardDescription>These metrics are from the YouTube API</CardDescription>
+                <CardTitle>Subscriber Growth</CardTitle>
+                <CardDescription>Last 6 months trend</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="h-64">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <LineChart data={generateGrowthTrendData()}>
+                      <CartesianGrid strokeDasharray="3 3" />
+                      <XAxis dataKey="name" />
+                      <YAxis tickFormatter={(value) => formatNumber(value)} />
+                      <Tooltip formatter={(value) => [formatNumber(Number(value)), 'Subscribers']} />
+                      <Line 
+                        type="monotone" 
+                        dataKey="subscribers" 
+                        stroke="#FF0000" 
+                        strokeWidth={2}
+                        dot={{ strokeWidth: 2 }}
+                      />
+                    </LineChart>
+                  </ResponsiveContainer>
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card className="animate-fade-in" style={{ animationDelay: "600ms" }}>
+              <CardHeader>
+                <CardTitle>Performance Metrics</CardTitle>
+                <CardDescription>Key growth indicators</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-4">
+                  {growthStats ? (
+                    <>
+                      <div className="grid grid-cols-2 gap-4">
+                        <div className="space-y-2">
+                          <h3 className="text-sm font-medium">Subscriber Growth</h3>
+                          <div className="bg-muted/50 p-3 rounded-lg">
+                            <div className="flex justify-between mb-1">
+                              <span className="text-xs">Daily</span>
+                              <span className="text-xs font-medium">+{formatNumber(growthStats.subscribers.daily)}</span>
+                            </div>
+                            <div className="flex justify-between mb-1">
+                              <span className="text-xs">Weekly</span>
+                              <span className="text-xs font-medium">+{formatNumber(growthStats.subscribers.weekly)}</span>
+                            </div>
+                            <div className="flex justify-between">
+                              <span className="text-xs">Monthly</span>
+                              <span className="text-xs font-medium">+{formatNumber(growthStats.subscribers.monthly)}</span>
+                            </div>
+                          </div>
+                        </div>
+                        
+                        <div className="space-y-2">
+                          <h3 className="text-sm font-medium">View Growth</h3>
+                          <div className="bg-muted/50 p-3 rounded-lg">
+                            <div className="flex justify-between mb-1">
+                              <span className="text-xs">Daily</span>
+                              <span className="text-xs font-medium">+{formatNumber(growthStats.views.daily)}</span>
+                            </div>
+                            <div className="flex justify-between mb-1">
+                              <span className="text-xs">Weekly</span>
+                              <span className="text-xs font-medium">+{formatNumber(growthStats.views.weekly)}</span>
+                            </div>
+                            <div className="flex justify-between">
+                              <span className="text-xs">Monthly</span>
+                              <span className="text-xs font-medium">+{formatNumber(growthStats.views.monthly)}</span>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                      
+                      <div className="grid grid-cols-2 gap-4">
+                        <div className="bg-muted/50 p-3 rounded-lg">
+                          <h3 className="text-sm font-medium mb-2">Engagement Rate</h3>
+                          <div className="text-2xl font-bold">{growthStats.engagement}</div>
+                          <p className="text-xs text-muted-foreground mt-1">Avg. interaction per view</p>
+                        </div>
+                        
+                        <div className="bg-muted/50 p-3 rounded-lg">
+                          <h3 className="text-sm font-medium mb-2">Views per Video</h3>
+                          <div className="text-2xl font-bold">
+                            {selectedChannel.views && selectedChannel.videoCount 
+                              ? formatNumber(parseInt(selectedChannel.views.replace(/,/g, '')) / parseInt(selectedChannel.videoCount.replace(/,/g, '')))
+                              : "N/A"}
+                          </div>
+                          <p className="text-xs text-muted-foreground mt-1">Avg. performance</p>
+                        </div>
+                      </div>
+                    </>
+                  ) : (
+                    <div className="flex items-center justify-center h-64">
+                      <p className="text-muted-foreground">Loading performance metrics...</p>
+                    </div>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* Additional Information */}
+          <div className="grid gap-6 md:grid-cols-2">
+            {/* Channel Info */}
+            <Card className="md:col-span-2 animate-fade-in" style={{ animationDelay: "700ms" }}>
+              <CardHeader>
+                <CardTitle>Channel Information</CardTitle>
+                <CardDescription>Details from the YouTube API</CardDescription>
               </CardHeader>
               <CardContent>
                 <div className="space-y-4">
@@ -231,7 +401,7 @@ const Analytics = () => {
                       </p>
                     </div>
                     <div className="bg-muted/50 p-4 rounded-lg">
-                      <h3 className="font-medium mb-2">Performance Metrics</h3>
+                      <h3 className="font-medium mb-2">Channel Statistics</h3>
                       <div className="space-y-2">
                         <div className="flex justify-between">
                           <span className="text-sm">Views to Subscribers Ratio:</span>
@@ -242,7 +412,15 @@ const Analytics = () => {
                           </span>
                         </div>
                         <div className="flex justify-between">
-                          <span className="text-sm">Average Views Per Video:</span>
+                          <span className="text-sm">Videos per Subscriber:</span>
+                          <span className="text-sm font-medium">
+                            {selectedChannel.subscribers && selectedChannel.videoCount 
+                              ? (parseInt(selectedChannel.videoCount.replace(/,/g, '')) / (parseInt(selectedChannel.subscribers.replace(/,/g, '')) / 1000)).toFixed(2) + ' per 1K'
+                              : "N/A"}
+                          </span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="text-sm">View to Video Ratio:</span>
                           <span className="text-sm font-medium">
                             {selectedChannel.views && selectedChannel.videoCount 
                               ? formatNumber(parseInt(selectedChannel.views.replace(/,/g, '')) / parseInt(selectedChannel.videoCount.replace(/,/g, '')))
@@ -257,11 +435,11 @@ const Analytics = () => {
             </Card>
 
             {/* Audience Geography (sample data) */}
-            <Card className="animate-fade-in" style={{ animationDelay: "600ms" }}>
+            <Card className="animate-fade-in" style={{ animationDelay: "800ms" }}>
               <CardHeader className="flex flex-row items-center justify-between">
                 <div>
                   <CardTitle>Audience Geography</CardTitle>
-                  <CardDescription>Sample data (not from API)</CardDescription>
+                  <CardDescription>Sample distribution (not from API)</CardDescription>
                 </div>
               </CardHeader>
               <CardContent>
@@ -289,10 +467,10 @@ const Analytics = () => {
             </Card>
 
             {/* Sample Video Details Table */}
-            <Card className="animate-fade-in" style={{ animationDelay: "700ms" }}>
+            <Card className="animate-fade-in" style={{ animationDelay: "900ms" }}>
               <CardHeader>
                 <CardTitle>Sample Videos</CardTitle>
-                <CardDescription>Example data (not from API)</CardDescription>
+                <CardDescription>Example performance data (not from API)</CardDescription>
               </CardHeader>
               <CardContent>
                 <Table>

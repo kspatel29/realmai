@@ -1,14 +1,4 @@
 
-interface YouTubeApiOptions {
-  method: string;
-  url: string;
-  headers: {
-    'X-RapidAPI-Key': string;
-    'X-RapidAPI-Host': string;
-  };
-  params?: Record<string, string>;
-}
-
 export interface YouTubeChannelResponse {
   items: {
     id: string;
@@ -20,6 +10,7 @@ export interface YouTubeChannelResponse {
         medium: { url: string };
         high: { url: string };
       };
+      publishedAt: string;
     };
     statistics: {
       viewCount: string;
@@ -44,14 +35,14 @@ export interface YouTubeSearchResponse {
         high: { url: string };
       };
       channelTitle: string;
+      publishedAt: string;
     };
   }[];
 }
 
-const RAPID_API_KEY = "27449554c9mshaa154773226fe89p1f9cf9jsn064035a2f4e8";
-const RAPID_API_HOST = "youtube-v31.p.rapidapi.com";
+const API_KEY = "AIzaSyCBikVDB-RISthrhUmgyHy7QYe_s5LNRfU";
 
-// Mock data for when the API fails
+// Mock data for when the API fails or for testing
 const MOCK_CHANNELS = [
   {
     id: "UCX6OQ3DkcsbYNE6H8uQQuVA",
@@ -141,47 +132,35 @@ const MOCK_CHANNELS = [
 ];
 
 export const searchYouTubeChannels = async (query: string): Promise<YouTubeChannelResponse['items']> => {
-  const options: YouTubeApiOptions = {
-    method: 'GET',
-    url: 'https://youtube-v31.p.rapidapi.com/search',
-    headers: {
-      'X-RapidAPI-Key': RAPID_API_KEY,
-      'X-RapidAPI-Host': RAPID_API_HOST
-    },
-    params: {
-      q: query,
-      part: 'snippet',
-      maxResults: '5',
-      type: 'channel'
-    }
-  };
-
   try {
     console.log(`Searching for YouTube channels with query: ${query}`);
-    const response = await fetch(`${options.url}?${new URLSearchParams(options.params)}`, {
-      method: options.method,
-      headers: options.headers
-    });
     
-    if (!response.ok) {
-      console.error(`YouTube API error: ${response.status} ${response.statusText}`);
+    // First, search for channels
+    const searchResponse = await fetch(
+      `https://www.googleapis.com/youtube/v3/search?part=snippet&q=${encodeURIComponent(query)}&type=channel&maxResults=5&key=${API_KEY}`
+    );
+    
+    if (!searchResponse.ok) {
+      console.error(`YouTube API search error: ${searchResponse.status} ${searchResponse.statusText}`);
       // Return filtered mock data based on the search query
       return MOCK_CHANNELS.filter(channel => 
         channel.snippet.title.toLowerCase().includes(query.toLowerCase())
       );
     }
     
-    const data = await response.json() as YouTubeSearchResponse;
+    const searchData = await searchResponse.json() as YouTubeSearchResponse;
     
-    if (!data.items || data.items.length === 0) {
+    if (!searchData.items || searchData.items.length === 0) {
       console.log("No channels found, returning mock data");
       return MOCK_CHANNELS.filter(channel => 
         channel.snippet.title.toLowerCase().includes(query.toLowerCase())
       );
     }
     
+    // Get channel IDs from search results
+    const channelIds = searchData.items.map(item => item.id.channelId).join(',');
+    
     // Fetch detailed channel info for all search results
-    const channelIds = data.items.map(item => item.id.channelId).join(',');
     return await getChannelDetails(channelIds);
     
   } catch (error) {
@@ -194,34 +173,22 @@ export const searchYouTubeChannels = async (query: string): Promise<YouTubeChann
 };
 
 export const getChannelDetails = async (channelId: string): Promise<YouTubeChannelResponse['items']> => {
-  const options: YouTubeApiOptions = {
-    method: 'GET',
-    url: 'https://youtube-v31.p.rapidapi.com/channels',
-    headers: {
-      'X-RapidAPI-Key': RAPID_API_KEY,
-      'X-RapidAPI-Host': RAPID_API_HOST
-    },
-    params: {
-      part: 'snippet,statistics',
-      id: channelId
-    }
-  };
-
   try {
     console.log(`Fetching channel details for: ${channelId}`);
-    const response = await fetch(`${options.url}?${new URLSearchParams(options.params)}`, {
-      method: options.method,
-      headers: options.headers
-    });
+    
+    const response = await fetch(
+      `https://www.googleapis.com/youtube/v3/channels?part=snippet,statistics&id=${channelId}&key=${API_KEY}`
+    );
     
     if (!response.ok) {
-      console.error(`YouTube API error: ${response.status} ${response.statusText}`);
+      console.error(`YouTube API channel details error: ${response.status} ${response.statusText}`);
       // Find the matching channel in mock data or return the first one
       const matchedChannel = MOCK_CHANNELS.find(channel => channel.id === channelId);
       return matchedChannel ? [matchedChannel] : [MOCK_CHANNELS[0]];
     }
     
     const data = await response.json() as YouTubeChannelResponse;
+    
     if (!data.items || data.items.length === 0) {
       console.log("No channel details found, returning mock data");
       const matchedChannel = MOCK_CHANNELS.find(channel => channel.id === channelId);
@@ -235,5 +202,43 @@ export const getChannelDetails = async (channelId: string): Promise<YouTubeChann
     // Find the matching channel in mock data or return the first one
     const matchedChannel = MOCK_CHANNELS.find(channel => channel.id === channelId);
     return matchedChannel ? [matchedChannel] : [MOCK_CHANNELS[0]];
+  }
+};
+
+// Function to get channel statistics history (growth metrics)
+export const getChannelGrowthStats = async (channelId: string) => {
+  // In a real app, we'd fetch historical data from YouTube Analytics API
+  // For this example, we'll generate mock growth data based on current stats
+  try {
+    const channelData = await getChannelDetails(channelId);
+    
+    if (!channelData || channelData.length === 0) {
+      return null;
+    }
+    
+    const channel = channelData[0];
+    const currentSubs = parseInt(channel.statistics.subscriberCount);
+    const currentViews = parseInt(channel.statistics.viewCount);
+    
+    // Calculate mock growth data (in a real app, this would come from actual historical data)
+    const mockGrowthData = {
+      subscribers: {
+        monthly: Math.floor(currentSubs * 0.03), // 3% monthly growth
+        weekly: Math.floor(currentSubs * 0.007), // 0.7% weekly growth
+        daily: Math.floor(currentSubs * 0.001), // 0.1% daily growth
+      },
+      views: {
+        monthly: Math.floor(currentViews * 0.05), // 5% monthly growth
+        weekly: Math.floor(currentViews * 0.012), // 1.2% weekly growth
+        daily: Math.floor(currentViews * 0.002), // 0.2% daily growth
+      },
+      engagement: (Math.random() * 3 + 2).toFixed(2) + '%', // 2-5% engagement rate
+      growthRate: (Math.random() * 5 + 1).toFixed(2) + '%', // 1-6% growth rate
+    };
+    
+    return mockGrowthData;
+  } catch (error) {
+    console.error('Error generating growth stats:', error);
+    return null;
   }
 };
