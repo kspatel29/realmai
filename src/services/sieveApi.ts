@@ -3,7 +3,30 @@ import { toast } from "sonner";
 const API_KEY = 'j1VbRemG8Mymh9HXGlGEK0YDqTQCA5BNJa7thj4z_64';
 const API_BASE_URL = 'https://mango.sievedata.com/v2';
 
-export const SUPPORTED_LANGUAGES = [
+export interface SieveLanguage {
+  code: string;
+  name: string;
+  flag: string;
+}
+
+export interface SieveDubbingResponse {
+  id: string;
+  status: "queued" | "running" | "succeeded" | "failed";
+  created_at: string;
+  updated_at: string;
+  function: string;
+  inputs: Record<string, any>;
+  outputs?: {
+    output_0?: {
+      url: string;
+    };
+  };
+  error?: {
+    message: string;
+  };
+}
+
+export const SUPPORTED_LANGUAGES: SieveLanguage[] = [
   { code: "english", name: "English", flag: "🇺🇸" },
   { code: "hindi", name: "Hindi", flag: "🇮🇳" },
   { code: "portuguese", name: "Portuguese", flag: "🇵🇹" },

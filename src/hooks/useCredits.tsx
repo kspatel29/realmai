@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
@@ -133,60 +132,59 @@ export const useCredits = () => {
     },
   });
 
-  // For development: Add credits to a specific user
+  // Add credits to a specific user
   const addCreditsToUser = useMutation({
     mutationFn: async ({ userId, amount }: { userId: string; amount: number }) => {
-      // First check if the user has a credits record
-      const { data: existingCredits, error: fetchError } = await supabase
-        .from('user_credits')
-        .select('*')
-        .eq('user_id', userId)
-        .maybeSingle();
-      
-      if (fetchError) {
-        console.error('Error fetching user credits:', fetchError);
-        throw fetchError;
-      }
-      
-      if (existingCredits) {
-        // Update existing record
-        const newBalance = existingCredits.credits_balance + amount;
-        const { data, error } = await supabase
+      try {
+        // First check if the user has a credits record
+        const { data: existingCredits, error: fetchError } = await supabase
           .from('user_credits')
-          .update({ credits_balance: newBalance, updated_at: new Date().toISOString() })
+          .select('*')
           .eq('user_id', userId)
-          .select()
-          .single();
+          .maybeSingle();
         
-        if (error) {
-          console.error('Error updating user credits:', error);
-          throw error;
+        if (fetchError) {
+          console.error('Error fetching user credits:', fetchError);
+          throw fetchError;
         }
         
-        return data;
-      } else {
-        // Create new record
-        const { data, error } = await supabase
-          .from('user_credits')
-          .insert({
-            user_id: userId,
-            credits_balance: amount,
-            created_at: new Date().toISOString(),
-            updated_at: new Date().toISOString()
-          })
-          .select()
-          .single();
-        
-        if (error) {
-          console.error('Error creating user credits:', error);
-          throw error;
+        if (existingCredits) {
+          // Update existing record
+          const newBalance = existingCredits.credits_balance + amount;
+          const { data, error } = await supabase
+            .from('user_credits')
+            .update({ credits_balance: newBalance, updated_at: new Date().toISOString() })
+            .eq('user_id', userId)
+            .select()
+            .single();
+          
+          if (error) {
+            console.error('Error updating user credits:', error);
+            throw error;
+          }
+          
+          return data;
+        } else {
+          // Create new record with RLS bypass
+          const { data, error } = await supabase.rpc('create_user_credits', {
+            user_id_param: userId,
+            credits_balance_param: amount
+          });
+          
+          if (error) {
+            console.error('Error creating user credits:', error);
+            throw error;
+          }
+          
+          return data;
         }
-        
-        return data;
+      } catch (error) {
+        console.error('Error in addCreditsToUser:', error);
+        throw error;
       }
     },
     onSuccess: (result) => {
-      toast.success(`Added ${result.credits_balance} credits to user ${result.user_id}`);
+      toast.success(`Added credits to user ${result.user_id}`);
       // If this is the current user, update the cache
       if (user && result.user_id === user.id) {
         queryClient.setQueryData(['user-credits', user.id], result);
@@ -210,6 +208,6 @@ export const useCredits = () => {
     useCredits,
     addCredits,
     hasEnoughCredits,
-    addCreditsToUser, // New function for development
+    addCreditsToUser,
   };
 };
