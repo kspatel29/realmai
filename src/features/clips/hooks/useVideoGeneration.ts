@@ -1,30 +1,39 @@
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { VideoGenerationFormValues } from "../components/VideoGenerationForm";
 import { ClipData } from "../components/ClipPreview";
 import { useToast } from "@/hooks/use-toast";
 import { useCredits } from "@/hooks/credits";
 import { createReplicateVideoClip } from "@/services/replicateService";
-
-// Video generation cost in credits
-const VIDEO_GENERATION_COST = 10;
-
-// Define an interface for the video generation input
-interface VideoGenerationRequestInput {
-  prompt: string;
-  negative_prompt?: string;
-  aspect_ratio: string;
-  duration: number;
-  cfg_scale: number;
-  start_image?: string;
-  end_image?: string;
-}
+import { calculateVideoGenerationCost } from "@/services/api/pricingService";
+import { SERVICE_CREDIT_COSTS } from "@/constants/pricing";
 
 export const useVideoGeneration = () => {
   const [isProcessing, setIsProcessing] = useState(false);
   const [generatedClips, setGeneratedClips] = useState<ClipData[]>([]);
+  const [videoCost, setVideoCost] = useState<number | null>(null);
   const { toast } = useToast();
   const { hasEnoughCredits, useCredits: spendCredits } = useCredits();
+
+  const calculateCost = async (durationSeconds: number): Promise<number> => {
+    try {
+      // Try to get cost from the edge function
+      const cost = await calculateVideoGenerationCost(durationSeconds);
+      setVideoCost(cost);
+      return cost;
+    } catch (error) {
+      console.error("Error calculating video generation cost:", error);
+      // Fallback to client-side calculation
+      const fallbackCost = Math.ceil(SERVICE_CREDIT_COSTS.VIDEO_GENERATION.CREDITS_PER_SECOND * durationSeconds);
+      setVideoCost(fallbackCost);
+      return fallbackCost;
+    }
+  };
+
+  useEffect(() => {
+    // Set initial default cost
+    calculateCost(5); // Default for 5 seconds
+  }, []);
 
   const generateVideoClip = async (
     values: VideoGenerationFormValues,
@@ -33,11 +42,14 @@ export const useVideoGeneration = () => {
     videoUrl: string | null,
     onSuccess?: () => void
   ) => {
+    const durationSeconds = parseInt(values.duration);
+    const cost = await calculateCost(durationSeconds);
+    
     // Check if user has enough credits
-    if (!hasEnoughCredits(VIDEO_GENERATION_COST)) {
+    if (!hasEnoughCredits(cost)) {
       toast({
         title: "Insufficient credits",
-        description: `You need ${VIDEO_GENERATION_COST} credits to generate a video. Please add more credits.`,
+        description: `You need ${cost} credits to generate a ${durationSeconds} second video. Please add more credits.`,
         variant: "destructive"
       });
       return;
@@ -47,7 +59,7 @@ export const useVideoGeneration = () => {
     
     try {
       // Make sure values are properly structured before sending to the API
-      const input: VideoGenerationRequestInput = {
+      const input = {
         prompt: values.prompt,
         negative_prompt: values.negative_prompt || "",
         aspect_ratio: values.aspect_ratio,
@@ -69,7 +81,7 @@ export const useVideoGeneration = () => {
       // Use credits for the video generation
       spendCredits.mutate(
         {
-          amount: VIDEO_GENERATION_COST,
+          amount: cost,
           service: "Video Generation",
           description: `Generated video clip: ${values.prompt.substring(0, 30)}...`
         },
@@ -149,6 +161,8 @@ export const useVideoGeneration = () => {
   return {
     isProcessing,
     generatedClips,
-    generateVideoClip
+    generateVideoClip,
+    videoCost: videoCost || 0,
+    calculateCost
   };
 };

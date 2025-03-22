@@ -1,5 +1,5 @@
-
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { useLocation, useNavigate } from "react-router-dom";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
@@ -11,19 +11,44 @@ import { Switch } from "@/components/ui/switch";
 import { useToast } from "@/hooks/use-toast";
 import { toast as sonnerToast } from "sonner";
 import { useAuth } from "@/hooks/useAuth";
-import { User, CreditCard, Bell, Lock, Languages, Monitor } from "lucide-react";
+import { User, CreditCard, Bell, Lock, Languages, Monitor, Coins, Check } from "lucide-react";
 import { useCredits } from "@/hooks/useCredits";
+import { SUBSCRIPTION_PLANS, CREDIT_PACKAGES } from "@/constants/pricing";
+import ServiceCostDisplay from "@/components/ServiceCostDisplay";
 
 const Settings = () => {
+  const location = useLocation();
+  const navigate = useNavigate();
+  const queryParams = new URLSearchParams(location.search);
+  const tabFromUrl = queryParams.get('tab');
+  
   const { user } = useAuth();
   const { toast } = useToast();
-  const { credits, isLoading: isLoadingCredits } = useCredits();
+  const { credits, isLoading: isLoadingCredits, addCredits } = useCredits();
   const [nameInput, setNameInput] = useState(user?.name || "");
   const [emailInput, setEmailInput] = useState(user?.email || "");
   const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [selectedPlan, setSelectedPlan] = useState("pro");
+  const [isProcessingPurchase, setIsProcessingPurchase] = useState(false);
+
+  useEffect(() => {
+    if (tabFromUrl && ['profile', 'billing', 'notifications', 'appearance'].includes(tabFromUrl)) {
+      setActiveTab(tabFromUrl);
+    }
+  }, [tabFromUrl]);
+
+  const [activeTab, setActiveTab] = useState(
+    tabFromUrl && ['profile', 'billing', 'notifications', 'appearance'].includes(tabFromUrl) 
+      ? tabFromUrl 
+      : 'profile'
+  );
+
+  const handleTabChange = (value: string) => {
+    setActiveTab(value);
+    navigate(`/settings?tab=${value}`, { replace: true });
+  };
 
   const handleProfileUpdate = (e: React.FormEvent) => {
     e.preventDefault();
@@ -57,40 +82,31 @@ const Settings = () => {
     sonnerToast.success("Your plan will be updated at the start of the next billing cycle");
   };
 
-  const handleCheckout = () => {
-    sonnerToast.success("Redirecting to checkout...");
+  const handlePurchaseCredits = (packageId: string, credits: number) => {
+    setIsProcessingPurchase(true);
+    
     setTimeout(() => {
-      sonnerToast.success("Payment successful! Credits added to your account.");
-    }, 2000);
+      addCredits.mutate(
+        { amount: credits, description: `Purchased ${credits} credits package` },
+        {
+          onSuccess: () => {
+            sonnerToast.success(`Successfully added ${credits} credits to your account!`);
+            setIsProcessingPurchase(false);
+          },
+          onError: (error) => {
+            sonnerToast.error(`Failed to purchase credits: ${error.message}`);
+            setIsProcessingPurchase(false);
+          }
+        }
+      );
+    }, 1500);
   };
 
   const formatCredits = (num: number): string => {
     return num.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",");
   };
 
-  const plans = [
-    {
-      id: "basic",
-      name: "Basic",
-      price: 19.99,
-      credits: 3000,
-      isCurrent: selectedPlan === "basic"
-    },
-    {
-      id: "pro",
-      name: "Pro",
-      price: 49.99,
-      credits: 10000,
-      isCurrent: selectedPlan === "pro"
-    },
-    {
-      id: "enterprise",
-      name: "Enterprise",
-      price: 99.99,
-      credits: 25000,
-      isCurrent: selectedPlan === "enterprise"
-    }
-  ];
+  const currentPlan = SUBSCRIPTION_PLANS.find(plan => plan.id === selectedPlan) || SUBSCRIPTION_PLANS[0];
 
   return (
     <div className="space-y-8 animate-fade-in">
@@ -101,7 +117,7 @@ const Settings = () => {
         </p>
       </div>
 
-      <Tabs defaultValue="profile" className="w-full">
+      <Tabs value={activeTab} onValueChange={handleTabChange} className="w-full">
         <TabsList>
           <TabsTrigger value="profile" className="flex items-center gap-2">
             <User className="h-4 w-4" />
@@ -226,6 +242,61 @@ const Settings = () => {
         </TabsContent>
         
         <TabsContent value="billing" className="mt-6">
+          <Card className="mb-6">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Coins className="h-5 w-5 text-yellow-500" />
+                Your Credits
+              </CardTitle>
+              <CardDescription>
+                Purchase additional credits to use across all services
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="bg-muted/30 p-4 rounded-lg mb-6">
+                <div className="flex items-center justify-between mb-2">
+                  <h3 className="font-medium">Current Balance</h3>
+                  <div className="text-2xl font-bold flex items-center gap-2">
+                    <Coins className="h-5 w-5 text-yellow-500" />
+                    {isLoadingCredits ? "..." : formatCredits(credits)}
+                  </div>
+                </div>
+                <p className="text-sm text-muted-foreground">
+                  Credits can be used for all services: dubbing, subtitles, and video generation
+                </p>
+              </div>
+              
+              <h3 className="font-medium mb-3">Purchase Credit Packages</h3>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                {CREDIT_PACKAGES.map(pkg => (
+                  <Card key={pkg.id} className="overflow-hidden">
+                    <CardHeader className="bg-muted/20 pb-3">
+                      <CardTitle className="text-lg">{pkg.name}</CardTitle>
+                      <CardDescription>{pkg.description}</CardDescription>
+                    </CardHeader>
+                    <CardContent className="pt-4">
+                      <div className="flex items-end gap-1 mb-2">
+                        <span className="text-2xl font-bold">{formatCredits(pkg.credits)}</span>
+                        <span className="text-muted-foreground">credits</span>
+                      </div>
+                      <div className="flex items-center text-sm text-muted-foreground mb-4">
+                        <Coins className="h-4 w-4 text-yellow-500 mr-1" />
+                        <span>${pkg.price}</span>
+                      </div>
+                      <Button 
+                        className="w-full bg-youtube-red hover:bg-youtube-darkred"
+                        onClick={() => handlePurchaseCredits(pkg.id, pkg.credits)}
+                        disabled={isProcessingPurchase}
+                      >
+                        {isProcessingPurchase ? "Processing..." : "Purchase"}
+                      </Button>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+          
           <Card>
             <CardHeader>
               <CardTitle>Subscription Plan</CardTitle>
@@ -237,45 +308,61 @@ const Settings = () => {
               <div className="rounded-lg border p-4">
                 <div className="flex items-center justify-between">
                   <div>
-                    <h3 className="font-medium">Pro Plan</h3>
-                    <p className="text-sm text-muted-foreground">10,000 credits per month</p>
+                    <h3 className="font-medium">{currentPlan.name} Plan</h3>
+                    <p className="text-sm text-muted-foreground">
+                      {currentPlan.creditsPerMonth 
+                        ? `${formatCredits(currentPlan.creditsPerMonth)} credits per month` 
+                        : "Custom credit allocation"}
+                    </p>
                   </div>
                   <div className="text-right">
-                    <p className="text-lg font-bold">$49.99</p>
-                    <p className="text-xs text-muted-foreground">per month</p>
+                    <p className="text-lg font-bold">
+                      {currentPlan.price !== null ? `$${currentPlan.price}` : "Custom"}
+                    </p>
+                    <p className="text-xs text-muted-foreground">
+                      {currentPlan.price !== null ? "per month" : "Contact sales"}
+                    </p>
                   </div>
                 </div>
-                <Separator className="my-4" />
-                <div className="space-y-2">
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm">Credits used this month</span>
-                    <span className="text-sm font-medium">
-                      {isLoadingCredits 
-                        ? "Loading..." 
-                        : `${formatCredits(10000 - credits)} / 10,000`}
-                    </span>
-                  </div>
-                  <div className="h-2 rounded-full bg-muted overflow-hidden">
-                    <div 
-                      className="h-full bg-youtube-red" 
-                      style={{ width: `${isLoadingCredits ? 0 : (100 - (credits / 100))}%` }}
-                    ></div>
-                  </div>
-                </div>
+                {currentPlan.creditsPerMonth && (
+                  <>
+                    <Separator className="my-4" />
+                    <div className="space-y-2">
+                      <div className="flex items-center justify-between">
+                        <span className="text-sm">Credits used this month</span>
+                        <span className="text-sm font-medium">
+                          {isLoadingCredits 
+                            ? "Loading..." 
+                            : `${formatCredits(currentPlan.creditsPerMonth - credits)} / ${formatCredits(currentPlan.creditsPerMonth)}`}
+                        </span>
+                      </div>
+                      <div className="h-2 rounded-full bg-muted overflow-hidden">
+                        <div 
+                          className="h-full bg-youtube-red" 
+                          style={{ 
+                            width: `${isLoadingCredits || !currentPlan.creditsPerMonth 
+                              ? 0 
+                              : ((currentPlan.creditsPerMonth - credits) / currentPlan.creditsPerMonth * 100)}%` 
+                          }}
+                        ></div>
+                      </div>
+                    </div>
+                  </>
+                )}
               </div>
               
-              <div className="grid gap-4 sm:grid-cols-3">
-                {plans.map(plan => (
+              <div className="grid gap-4 sm:grid-cols-4">
+                {SUBSCRIPTION_PLANS.map(plan => (
                   <Card 
                     key={plan.id}
                     className={`hover:shadow-md transition-shadow cursor-pointer ${
-                      plan.isCurrent ? 'border-2 border-youtube-red' : ''
+                      plan.id === selectedPlan ? 'border-2 border-youtube-red' : ''
                     }`}
                     onClick={() => handlePlanSelection(plan.id)}
                   >
                     <CardHeader className="p-4">
                       <CardTitle className="text-base">{plan.name}</CardTitle>
-                      {plan.isCurrent && (
+                      {plan.id === selectedPlan && (
                         <div className="absolute top-0 right-0 bg-youtube-red text-white text-xs px-2 py-1 rounded-bl-md">
                           Current
                         </div>
@@ -283,11 +370,29 @@ const Settings = () => {
                     </CardHeader>
                     <CardContent className="p-4 pt-0">
                       <div className="text-2xl font-bold">
-                        ${plan.price}<span className="text-sm font-normal text-muted-foreground">/mo</span>
+                        {plan.price !== null 
+                          ? `$${plan.price}` 
+                          : <span className="text-sm">Contact Sales</span>}
+                        {plan.price !== null && <span className="text-sm font-normal text-muted-foreground">/mo</span>}
                       </div>
-                      <p className="text-sm text-muted-foreground mt-2">
-                        {formatCredits(plan.credits)} credits per month
-                      </p>
+                      {plan.creditsPerMonth ? (
+                        <p className="text-sm text-muted-foreground mt-2">
+                          {formatCredits(plan.creditsPerMonth)} credits per month
+                        </p>
+                      ) : (
+                        <p className="text-sm text-muted-foreground mt-2">
+                          Custom pricing
+                        </p>
+                      )}
+                      
+                      <div className="mt-4 space-y-2">
+                        {plan.features.map((feature, i) => (
+                          <div key={i} className="flex items-start gap-2">
+                            <Check className="h-4 w-4 text-green-600 mt-0.5" />
+                            <span className="text-sm">{feature}</span>
+                          </div>
+                        ))}
+                      </div>
                     </CardContent>
                   </Card>
                 ))}
@@ -302,13 +407,14 @@ const Settings = () => {
                   {selectedPlan === "pro" ? "Current Plan" : "Change Plan"}
                 </Button>
                 
-                <Button 
-                  variant="outline" 
-                  className="w-full sm:w-auto"
-                  onClick={handleCheckout}
-                >
-                  Buy Additional Credits
-                </Button>
+                {selectedPlan === "enterprise" && (
+                  <Button 
+                    variant="outline" 
+                    className="w-full sm:w-auto"
+                  >
+                    Contact Sales
+                  </Button>
+                )}
               </div>
             </CardContent>
           </Card>
