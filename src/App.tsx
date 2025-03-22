@@ -60,6 +60,13 @@ const App = () => (
               <Route path="logout" element={<Logout />} />
             </Route>
             
+            {/* Redirect /settings to /dashboard/settings */}
+            <Route path="/settings" element={
+              <RequireAuth>
+                <Navigate to="/dashboard/settings" replace />
+              </RequireAuth>
+            } />
+            
             {/* 404 page */}
             <Route path="*" element={<NotFound />} />
           </Routes>

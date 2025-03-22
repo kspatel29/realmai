@@ -22,7 +22,7 @@ const UserCredits = () => {
   }, [credits, isLoading]);
 
   const handleBuyMoreCredits = () => {
-    navigate('/settings?tab=billing');
+    navigate('/dashboard/settings?tab=billing');
   };
 
   return (

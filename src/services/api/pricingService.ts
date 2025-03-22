@@ -1,133 +1,97 @@
 
 import { supabase } from "@/integrations/supabase/client";
 
-// Interface for the dubbing cost calculation request
-interface DubbingCostRequest {
-  service: 'dubbing';
-  durationMinutes: number;
-  enableLipSync: boolean;
-  languages: string[];
-}
-
-// Interface for the subtitles cost calculation request
-interface SubtitlesCostRequest {
-  service: 'subtitles';
-  isPremiumModel: boolean;
-}
-
-// Interface for the video generation cost calculation request
-interface VideoGenerationCostRequest {
-  service: 'video_generation';
-  durationSeconds: number;
-}
-
-// Union type for all cost calculation requests
-type CostCalculationRequest = 
-  | DubbingCostRequest 
-  | SubtitlesCostRequest 
-  | VideoGenerationCostRequest;
-
-// Response from the cost calculation
-interface CostCalculationResponse {
-  creditCost: number;
-  usdEquivalent: number;
-}
-
 /**
- * Calculate the cost of a service in credits
+ * Calculate the cost for dubbing a video
+ * @param durationMinutes Duration of the video in minutes
+ * @param enableLipSync Whether lip sync is enabled
+ * @param languages Array of languages to dub into
+ * @returns Promise resolving to the credit cost
  */
-export const calculateServiceCost = async (
-  request: CostCalculationRequest
-): Promise<CostCalculationResponse> => {
+export const calculateDubbingCost = async (
+  durationMinutes: number, 
+  enableLipSync: boolean, 
+  languages: string[] = []
+): Promise<number> => {
   try {
-    const { data, error } = await supabase.functions.invoke('calculate-costs', {
-      body: JSON.stringify(request),
+    const { data, error } = await supabase.functions.invoke("calculate-costs", {
+      body: {
+        service: "dubbing",
+        durationMinutes,
+        enableLipSync,
+        languages
+      }
     });
 
     if (error) {
-      console.error('Error calculating service cost:', error);
-      throw new Error(error.message || 'Failed to calculate service cost');
+      console.error("Error calculating dubbing cost:", error);
+      throw error;
     }
 
-    return data as CostCalculationResponse;
+    return data.creditCost;
   } catch (error) {
-    console.error('Error in calculateServiceCost:', error);
-    throw error;
+    console.error("Failed to calculate dubbing cost:", error);
+    // Fallback calculation if the edge function fails
+    const basePrice = enableLipSync ? 1.035 : 0.535;
+    const languageCount = languages.length || 1;
+    const costUSD = basePrice * durationMinutes * languageCount;
+    return Math.ceil(costUSD * 2 * 15); // Apply profit margin and convert to credits
   }
 };
 
 /**
- * Calculate dubbing cost based on duration, lip sync option, and number of languages
+ * Calculate the cost for generating subtitles
+ * @param isPremiumModel Whether to use the premium model
+ * @returns Promise resolving to the credit cost
  */
-export const calculateDubbingCost = async (
-  durationMinutes: number,
-  enableLipSync: boolean,
-  languages: string[]
-): Promise<number> => {
+export const calculateSubtitlesCost = async (isPremiumModel: boolean = false): Promise<number> => {
   try {
-    const { creditCost } = await calculateServiceCost({
-      service: 'dubbing',
-      durationMinutes,
-      enableLipSync,
-      languages
+    const { data, error } = await supabase.functions.invoke("calculate-costs", {
+      body: {
+        service: "subtitles",
+        isPremiumModel
+      }
     });
-    
-    return creditCost;
+
+    if (error) {
+      console.error("Error calculating subtitles cost:", error);
+      throw error;
+    }
+
+    return data.creditCost;
   } catch (error) {
-    console.error('Error calculating dubbing cost:', error);
-    // Return a fallback cost estimation from the client-side constants
-    // This is not ideal but prevents the UI from breaking if the function fails
-    const { SERVICE_CREDIT_COSTS } = await import('@/constants/pricing');
-    const costPerMinute = enableLipSync 
-      ? SERVICE_CREDIT_COSTS.DUBBING.LIPSYNC_CREDITS_PER_MINUTE 
-      : SERVICE_CREDIT_COSTS.DUBBING.BASE_CREDITS_PER_MINUTE;
-    return Math.ceil(costPerMinute * durationMinutes * languages.length);
+    console.error("Failed to calculate subtitles cost:", error);
+    // Fallback calculation if the edge function fails
+    const basePrice = 0.052;
+    const costUSD = isPremiumModel ? basePrice * 1.5 : basePrice;
+    return Math.ceil(costUSD * 2 * 15); // Apply profit margin and convert to credits
   }
 };
 
 /**
- * Calculate subtitles cost based on model quality
+ * Calculate the cost for generating a video clip
+ * @param durationSeconds Duration of the video in seconds
+ * @returns Promise resolving to the credit cost
  */
-export const calculateSubtitlesCost = async (
-  isPremiumModel: boolean
-): Promise<number> => {
+export const calculateVideoGenerationCost = async (durationSeconds: number): Promise<number> => {
   try {
-    const { creditCost } = await calculateServiceCost({
-      service: 'subtitles',
-      isPremiumModel
+    const { data, error } = await supabase.functions.invoke("calculate-costs", {
+      body: {
+        service: "video_generation",
+        durationSeconds
+      }
     });
-    
-    return creditCost;
+
+    if (error) {
+      console.error("Error calculating video generation cost:", error);
+      throw error;
+    }
+
+    return data.creditCost;
   } catch (error) {
-    console.error('Error calculating subtitles cost:', error);
-    // Return a fallback cost from the client-side constants
-    const { SERVICE_CREDIT_COSTS } = await import('@/constants/pricing');
-    return isPremiumModel 
-      ? SERVICE_CREDIT_COSTS.SUBTITLES.PREMIUM_CREDITS 
-      : SERVICE_CREDIT_COSTS.SUBTITLES.BASE_CREDITS;
+    console.error("Failed to calculate video generation cost:", error);
+    // Fallback calculation if the edge function fails
+    const costUSD = 0.4 * durationSeconds;
+    return Math.ceil(costUSD * 2 * 15); // Apply profit margin and convert to credits
   }
 };
-
-/**
- * Calculate video generation cost based on duration in seconds
- */
-export const calculateVideoGenerationCost = async (
-  durationSeconds: number
-): Promise<number> => {
-  try {
-    const { creditCost } = await calculateServiceCost({
-      service: 'video_generation',
-      durationSeconds
-    });
-    
-    return creditCost;
-  } catch (error) {
-    console.error('Error calculating video generation cost:', error);
-    // Return a fallback cost from the client-side constants
-    const { SERVICE_CREDIT_COSTS } = await import('@/constants/pricing');
-    return Math.ceil(SERVICE_CREDIT_COSTS.VIDEO_GENERATION.CREDITS_PER_SECOND * durationSeconds);
-  }
-};
-
-// Export service pricing for reference
-export { SUBSCRIPTION_PLANS, CREDIT_PACKAGES } from '@/constants/pricing';
