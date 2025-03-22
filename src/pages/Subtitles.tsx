@@ -1,3 +1,4 @@
+
 import { useState } from "react";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -88,6 +89,7 @@ const Subtitles = () => {
   const [vttFileUrl, setVttFileUrl] = useState<string | null>(null);
   const [predictionId, setPredictionId] = useState<string | null>(null);
   const [isFromVideo, setIsFromVideo] = useState(false);
+  const [uploadedFileName, setUploadedFileName] = useState<string | null>(null);
   const { credits, useCredits: spendCredits, hasEnoughCredits } = useCredits();
   
   const { toast } = useToast();
@@ -110,31 +112,39 @@ const Subtitles = () => {
       return await checkSubtitlesStatus(predictionId);
     },
     enabled: !!predictionId && isProcessing,
-    refetchInterval: 3000,
-    onSuccess: (data) => {
-      if (!data) return;
-      
-      if (data.status === "succeeded") {
-        setIsProcessing(false);
-        setPredictionId(null);
-        
-        if (data.output) {
-          setSrtFileUrl(data.output.srt_file);
-          setVttFileUrl(data.output.vtt_file);
-          setEditableText(data.output.preview || "");
-          sonnerToast.success("Subtitles have been generated successfully.");
-        }
-      } else if (data.status === "failed") {
-        setIsProcessing(false);
-        setPredictionId(null);
-        sonnerToast.error("Failed to generate subtitles: " + (data.error || "Unknown error"));
-      }
-    }
+    refetchInterval: 3000
   });
 
-  const handleFileUploaded = (url: string, fromVideo: boolean) => {
+  // Add effect to handle prediction status changes
+  // This replaces the onSuccess from the previous implementation
+  // since onSuccess is not valid in useQuery options
+  // in the latest version of react-query
+  useState(() => {
+    if (!predictionStatus) return;
+    
+    if (predictionStatus.status === "succeeded") {
+      setIsProcessing(false);
+      setPredictionId(null);
+      
+      if (predictionStatus.output) {
+        setSrtFileUrl(predictionStatus.output.srt_file);
+        setVttFileUrl(predictionStatus.output.vtt_file);
+        setEditableText(predictionStatus.output.preview || "");
+        sonnerToast.success("Subtitles have been generated successfully.");
+      }
+    } else if (predictionStatus.status === "failed") {
+      setIsProcessing(false);
+      setPredictionId(null);
+      sonnerToast.error("Failed to generate subtitles: " + (predictionStatus.error || "Unknown error"));
+    }
+  }, [predictionStatus]);
+
+  const handleFileUploaded = (url: string, fromVideo: boolean, fileName?: string) => {
     setUploadedFileUrl(url);
     setIsFromVideo(fromVideo);
+    if (fileName) {
+      setUploadedFileName(fileName);
+    }
   };
 
   const calculateCost = (): number => {
@@ -405,7 +415,7 @@ const Subtitles = () => {
                 </CardContent>
                 <CardFooter className="flex justify-between border-t pt-6">
                   <div className="text-sm text-muted-foreground">
-                    {file ? file.name : "No file selected"}
+                    {uploadedFileName ? uploadedFileName : "No file selected"}
                   </div>
                   <Button 
                     type="submit"

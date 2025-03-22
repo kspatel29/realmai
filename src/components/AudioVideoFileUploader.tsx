@@ -9,7 +9,7 @@ import { useToast } from "@/hooks/use-toast";
 import { uploadAudioFile, isVideoFile, isAudioFile, extractAudioFromVideo } from "@/services/api/subtitlesService";
 
 interface AudioVideoFileUploaderProps {
-  onFileUploaded: (url: string, isFromVideo: boolean) => void;
+  onFileUploaded: (url: string, isFromVideo: boolean, fileName?: string) => void;
   isUploading: boolean;
   setIsUploading: (value: boolean) => void;
 }
@@ -87,7 +87,7 @@ const AudioVideoFileUploader = ({
           setProgress(100);
           setIsUploading(false);
           setIsExtracting(false);
-          onFileUploaded(audioUrl, true);
+          onFileUploaded(audioUrl, true, file.name);
           toast({
             title: "Upload complete",
             description: "Your video has been processed and audio extracted successfully."
@@ -105,7 +105,7 @@ const AudioVideoFileUploader = ({
         // For audio files, we can use the URL directly
         setProgress(100);
         setIsUploading(false);
-        onFileUploaded(fileUrl, false);
+        onFileUploaded(fileUrl, false, file.name);
         toast({
           title: "Upload complete",
           description: "Your audio file has been uploaded successfully."
