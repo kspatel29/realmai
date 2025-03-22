@@ -5,7 +5,7 @@ import AudioFileUploader from "@/components/AudioFileUploader";
 interface UploadTabProps {
   isUploading: boolean;
   setIsUploading: (value: boolean) => void;
-  onFileUploaded: (url: string, fromVideo: boolean, fileName?: string) => void;
+  onFileUploaded: (file: File) => Promise<void>;
 }
 
 const UploadTab = ({ isUploading, setIsUploading, onFileUploaded }: UploadTabProps) => {
@@ -19,7 +19,12 @@ const UploadTab = ({ isUploading, setIsUploading, onFileUploaded }: UploadTabPro
       </CardHeader>
       <CardContent>
         <AudioFileUploader 
-          onFileUploaded={onFileUploaded}
+          onFileUploaded={(url, fromVideo, fileName) => {
+            // This is just an adapter function to handle the type mismatch
+            if (typeof url === 'object' && url instanceof File) {
+              onFileUploaded(url);
+            }
+          }}
           isUploading={isUploading}
           setIsUploading={setIsUploading}
         />

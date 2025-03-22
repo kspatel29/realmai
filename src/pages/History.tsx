@@ -2,8 +2,11 @@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import DubbingJobsList from "@/components/DubbingJobsList";
 import SubtitleJobsList from "@/components/SubtitleJobsList";
+import { useDubbingJobs } from "@/hooks/dubbingJobs";
 
 const History = () => {
+  const { jobs, isLoading, refetch } = useDubbingJobs();
+
   return (
     <div className="space-y-8 animate-fade-in">
       <div>
@@ -20,7 +23,11 @@ const History = () => {
         </TabsList>
         
         <TabsContent value="dubbing" className="mt-6">
-          <DubbingJobsList />
+          <DubbingJobsList 
+            jobs={jobs} 
+            onRefresh={refetch} 
+            isLoading={isLoading} 
+          />
         </TabsContent>
         
         <TabsContent value="subtitles" className="mt-6">
