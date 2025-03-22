@@ -32,6 +32,8 @@ const Subtitles = () => {
   const { calculateCost } = useSubtitlesCost();
 
   const handleGenerateSubtitles = (values: SubtitlesFormValues) => {
+    console.log("Generate subtitles with file URL:", uploadedFileUrl);
+    
     if (!uploadedFileUrl) {
       sonnerToast.error("Please upload a file first.");
       return;

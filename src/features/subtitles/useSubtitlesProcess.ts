@@ -44,8 +44,14 @@ export function useSubtitlesProcess() {
         return;
       }
       
+      // Upload the file to get a public URL
       const fileUrl = await uploadAudioFile(file);
+      
+      // Store both the file name and URL
       setUploadedFileUrl(fileUrl);
+      setUploadedFileName(file.name);
+      
+      console.log("File uploaded, URL stored:", fileUrl);
       toast.success("File uploaded successfully!");
     } catch (error) {
       console.error("Error uploading file:", error);
@@ -66,6 +72,8 @@ export function useSubtitlesProcess() {
       return;
     }
 
+    console.log("Processing subtitles with file URL:", uploadedFileUrl);
+    
     try {
       setIsProcessing(true);
       const modelName = values.model_name;

@@ -19,10 +19,11 @@ const UploadTab = ({ isUploading, setIsUploading, onFileUploaded }: UploadTabPro
       </CardHeader>
       <CardContent>
         <AudioFileUploader 
-          onFileUploaded={(url, fromVideo, fileName) => {
-            // This is just an adapter function to handle the type mismatch
-            if (typeof url === 'object' && url !== null) {
-              onFileUploaded(url as File);
+          onFileUploaded={(input, fromVideo, fileName) => {
+            // This is an adapter function to handle the type mismatch
+            // Only process File objects, not URLs
+            if (typeof input === 'object' && input !== null && input instanceof File) {
+              onFileUploaded(input);
             }
           }}
           isUploading={isUploading}
