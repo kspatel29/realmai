@@ -1,0 +1,467 @@
+
+import { useState } from "react";
+import { useForm } from "react-hook-form";
+import { z } from "zod";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Switch } from "@/components/ui/switch";
+import { Slider } from "@/components/ui/slider";
+import {
+  Form,
+  FormControl,
+  FormDescription,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from "@/components/ui/form";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { toast } from "sonner";
+import { SUPPORTED_LANGUAGES, VOICE_ENGINES, TRANSLATION_ENGINES, LIPSYNC_BACKENDS } from "@/services/sieveApi";
+import { Badge } from "@/components/ui/badge";
+import { Check, Globe, Info } from "lucide-react";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+
+// Define the form schema using Zod
+const formSchema = z.object({
+  target_languages: z.array(z.string()).min(1, "Select at least one language"),
+  translation_engine: z.enum(["sieve-default-translator", "gpt4", "seamless"]),
+  voice_engine: z.string(),
+  transcription_engine: z.enum(["whisper-zero", "stable-ts-whisper-large-v3"]),
+  preserve_background_audio: z.boolean(),
+  enable_lipsyncing: z.boolean(),
+  lipsync_backend: z.string().optional(),
+  lipsync_enhance: z.enum(["default", "none"]).optional(),
+  return_transcript: z.boolean(),
+  safewords: z.string(),
+  translation_dictionary: z.string(),
+  start_time: z.number(),
+  end_time: z.number(),
+});
+
+type FormValues = z.infer<typeof formSchema>;
+
+interface VideoDubbingFormProps {
+  onSubmit: (values: FormValues) => void;
+  isProcessing: boolean;
+  isVoiceCloning: boolean;
+  setIsVoiceCloning: (value: boolean) => void;
+  cost: number;
+}
+
+export default function VideoDubbingForm({
+  onSubmit,
+  isProcessing,
+  isVoiceCloning,
+  setIsVoiceCloning,
+  cost,
+}: VideoDubbingFormProps) {
+  const [selectedLanguages, setSelectedLanguages] = useState<string[]>([]);
+  const [showAdvancedOptions, setShowAdvancedOptions] = useState(false);
+
+  const form = useForm<FormValues>({
+    resolver: zodResolver(formSchema),
+    defaultValues: {
+      target_languages: [],
+      translation_engine: "gpt4",
+      voice_engine: "elevenlabs (voice cloning)",
+      transcription_engine: "whisper-zero",
+      preserve_background_audio: true,
+      enable_lipsyncing: false,
+      lipsync_backend: "sievesync-1.1",
+      lipsync_enhance: "default",
+      return_transcript: false,
+      safewords: "",
+      translation_dictionary: "",
+      start_time: 0,
+      end_time: -1,
+    },
+  });
+
+  const toggleLanguage = (language: string) => {
+    setSelectedLanguages((prev) => {
+      if (prev.includes(language)) {
+        const updated = prev.filter((lang) => lang !== language);
+        form.setValue("target_languages", updated);
+        return updated;
+      } else {
+        const updated = [...prev, language];
+        form.setValue("target_languages", updated);
+        return updated;
+      }
+    });
+  };
+
+  const watchVoiceEngine = form.watch("voice_engine");
+  const watchEnableLipsyncing = form.watch("enable_lipsyncing");
+
+  // Update the isVoiceCloning state when voice engine changes
+  const handleVoiceEngineChange = (value: string) => {
+    form.setValue("voice_engine", value);
+    setIsVoiceCloning(value.includes("cloning"));
+  };
+
+  return (
+    <Form {...form}>
+      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+        <div className="space-y-4">
+          <FormField
+            control={form.control}
+            name="target_languages"
+            render={() => (
+              <FormItem>
+                <div className="flex justify-between items-center">
+                  <FormLabel>Target Languages</FormLabel>
+                  <Badge variant="outline" className="font-normal">
+                    {selectedLanguages.length} selected
+                  </Badge>
+                </div>
+                <FormDescription>
+                  Select the languages you want to dub your video into
+                </FormDescription>
+                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2 mt-2">
+                  {SUPPORTED_LANGUAGES.map((language) => (
+                    <Button
+                      key={language.code}
+                      type="button"
+                      variant="outline"
+                      className={`justify-start h-auto py-2 ${
+                        selectedLanguages.includes(language.code)
+                          ? "border-youtube-red bg-youtube-red/10 text-youtube-red"
+                          : ""
+                      }`}
+                      onClick={() => toggleLanguage(language.code)}
+                    >
+                      <div className="flex items-center gap-2">
+                        <span className="text-lg">{language.flag}</span>
+                        <span className="truncate">{language.name}</span>
+                      </div>
+                      {selectedLanguages.includes(language.code) && (
+                        <Check className="ml-auto h-4 w-4 flex-shrink-0" />
+                      )}
+                    </Button>
+                  ))}
+                </div>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+
+          <div className="grid md:grid-cols-2 gap-4">
+            <FormField
+              control={form.control}
+              name="translation_engine"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Translation Engine</FormLabel>
+                  <Select
+                    onValueChange={field.onChange}
+                    defaultValue={field.value}
+                    disabled={isProcessing}
+                  >
+                    <FormControl>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select translation engine" />
+                      </SelectTrigger>
+                    </FormControl>
+                    <SelectContent>
+                      {TRANSLATION_ENGINES.map((engine) => (
+                        <SelectItem key={engine.value} value={engine.value}>
+                          {engine.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <FormDescription>
+                    Select the AI engine to translate your content
+                  </FormDescription>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <FormField
+              control={form.control}
+              name="voice_engine"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Voice Engine</FormLabel>
+                  <Select
+                    onValueChange={handleVoiceEngineChange}
+                    defaultValue={field.value}
+                    disabled={isProcessing}
+                  >
+                    <FormControl>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select voice engine" />
+                      </SelectTrigger>
+                    </FormControl>
+                    <SelectContent>
+                      {VOICE_ENGINES.map((engine) => (
+                        <SelectItem key={engine.value} value={engine.value}>
+                          {engine.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <FormDescription>
+                    {watchVoiceEngine.includes("cloning")
+                      ? "Will match the original speakers' voices"
+                      : "Will use AI-generated voices"}
+                  </FormDescription>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+          </div>
+
+          <div className="flex items-center justify-between border rounded-lg p-4">
+            <div className="flex items-start gap-3">
+              <Switch 
+                id="advanced-options"
+                checked={showAdvancedOptions} 
+                onCheckedChange={setShowAdvancedOptions}
+              />
+              <div>
+                <label
+                  htmlFor="advanced-options"
+                  className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+                >
+                  Advanced Options
+                </label>
+                <p className="text-sm text-muted-foreground mt-1">
+                  Configure additional dubbing settings
+                </p>
+              </div>
+            </div>
+          </div>
+
+          {showAdvancedOptions && (
+            <div className="border rounded-lg p-4 space-y-4">
+              <div className="grid md:grid-cols-2 gap-4">
+                <FormField
+                  control={form.control}
+                  name="preserve_background_audio"
+                  render={({ field }) => (
+                    <FormItem className="flex flex-row items-start space-x-3 space-y-0 rounded-md border p-4">
+                      <FormControl>
+                        <Checkbox
+                          checked={field.value}
+                          onCheckedChange={field.onChange}
+                          disabled={isProcessing}
+                        />
+                      </FormControl>
+                      <div className="space-y-1 leading-none">
+                        <FormLabel>Preserve Background Audio</FormLabel>
+                        <FormDescription>
+                          Keep original background sounds and music
+                        </FormDescription>
+                      </div>
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
+                  name="enable_lipsyncing"
+                  render={({ field }) => (
+                    <FormItem className="flex flex-row items-start space-x-3 space-y-0 rounded-md border p-4">
+                      <FormControl>
+                        <Checkbox
+                          checked={field.value}
+                          onCheckedChange={field.onChange}
+                          disabled={isProcessing}
+                        />
+                      </FormControl>
+                      <div className="space-y-1 leading-none">
+                        <FormLabel>Enable Lip Syncing</FormLabel>
+                        <FormDescription>
+                          Sync lip movements with dubbed audio
+                        </FormDescription>
+                      </div>
+                    </FormItem>
+                  )}
+                />
+              </div>
+
+              {watchEnableLipsyncing && (
+                <div className="grid md:grid-cols-2 gap-4">
+                  <FormField
+                    control={form.control}
+                    name="lipsync_backend"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Lip Sync Backend</FormLabel>
+                        <Select
+                          onValueChange={field.onChange}
+                          defaultValue={field.value}
+                          disabled={isProcessing}
+                        >
+                          <FormControl>
+                            <SelectTrigger>
+                              <SelectValue placeholder="Select lip sync backend" />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            {LIPSYNC_BACKENDS.map((backend) => (
+                              <SelectItem key={backend.value} value={backend.value}>
+                                {backend.label}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                        <FormDescription>
+                          Technology used for lip syncing
+                        </FormDescription>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  <FormField
+                    control={form.control}
+                    name="lipsync_enhance"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Lip Sync Enhancement</FormLabel>
+                        <Select
+                          onValueChange={field.onChange}
+                          defaultValue={field.value}
+                          disabled={isProcessing}
+                        >
+                          <FormControl>
+                            <SelectTrigger>
+                              <SelectValue placeholder="Select enhancement" />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            <SelectItem value="default">Default</SelectItem>
+                            <SelectItem value="none">None</SelectItem>
+                          </SelectContent>
+                        </Select>
+                        <FormDescription>
+                          Additional enhancement for lip sync quality
+                        </FormDescription>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </div>
+              )}
+
+              <FormField
+                control={form.control}
+                name="safewords"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>
+                      Safewords
+                      <TooltipProvider>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <Info className="h-4 w-4 ml-2 inline" />
+                          </TooltipTrigger>
+                          <TooltipContent className="max-w-80">
+                            <p>Words that should not be translated, such as names or places. Separate with commas.</p>
+                          </TooltipContent>
+                        </Tooltip>
+                      </TooltipProvider>
+                    </FormLabel>
+                    <FormControl>
+                      <Input
+                        placeholder="e.g. John, New York, iPhone"
+                        {...field}
+                        disabled={isProcessing}
+                      />
+                    </FormControl>
+                    <FormDescription>
+                      Comma-separated list of words to keep in original language
+                    </FormDescription>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="transcription_engine"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Transcription Engine</FormLabel>
+                    <Select
+                      onValueChange={field.onChange}
+                      defaultValue={field.value}
+                      disabled={isProcessing}
+                    >
+                      <FormControl>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select transcription engine" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        <SelectItem value="whisper-zero">Whisper Zero</SelectItem>
+                        <SelectItem value="stable-ts-whisper-large-v3">Stable TS (Faster)</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <FormDescription>
+                      Choose the speech recognition technology
+                    </FormDescription>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="return_transcript"
+                render={({ field }) => (
+                  <FormItem className="flex flex-row items-start space-x-3 space-y-0 rounded-md border p-4">
+                    <FormControl>
+                      <Checkbox
+                        checked={field.value}
+                        onCheckedChange={field.onChange}
+                        disabled={isProcessing}
+                      />
+                    </FormControl>
+                    <div className="space-y-1 leading-none">
+                      <FormLabel>Include Transcript</FormLabel>
+                      <FormDescription>
+                        Get the transcript along with the dubbed video
+                      </FormDescription>
+                    </div>
+                  </FormItem>
+                )}
+              />
+            </div>
+          )}
+        </div>
+
+        <div className="pt-2 border-t flex justify-between items-center">
+          <div className="text-sm">
+            <p>
+              <span className="font-semibold">{selectedLanguages.length}</span> languages selected
+            </p>
+            <p className="text-muted-foreground">
+              {isVoiceCloning ? "With voice cloning" : "With AI voices"}
+            </p>
+          </div>
+          <Button
+            type="submit"
+            className="bg-youtube-red hover:bg-youtube-darkred"
+            disabled={isProcessing || selectedLanguages.length === 0}
+          >
+            {isProcessing ? "Processing..." : `Generate (${cost} credits)`}
+          </Button>
+        </div>
+      </form>
+    </Form>
+  );
+}

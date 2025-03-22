@@ -1,13 +1,10 @@
+
 import { useState, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Slider } from "@/components/ui/slider";
-import { Upload, Play, Pause, Globe, Mic, Wand2, Coins, Trash2, Video } from "lucide-react";
-import { ScrollArea } from "@/components/ui/scroll-area";
+import { Upload, Play, Video, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import ServiceCostDisplay from "@/components/ServiceCostDisplay";
 import CreditConfirmDialog from "@/components/CreditConfirmDialog";
@@ -16,24 +13,10 @@ import { useVideos, type Video as VideoType } from "@/hooks/useVideos";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
-
-const languages = [
-  { code: "es", name: "Spanish" },
-  { code: "fr", name: "French" },
-  { code: "de", name: "German" },
-  { code: "it", name: "Italian" },
-  { code: "pt", name: "Portuguese" },
-  { code: "ru", name: "Russian" },
-  { code: "ja", name: "Japanese" },
-  { code: "ko", name: "Korean" },
-  { code: "zh", name: "Chinese (Simplified)" },
-  { code: "ar", name: "Arabic" },
-  { code: "hi", name: "Hindi" },
-  { code: "id", name: "Indonesian" },
-  { code: "vi", name: "Vietnamese" },
-  { code: "tr", name: "Turkish" },
-  { code: "pl", name: "Polish" },
-];
+import VideoDubbingForm from "@/components/VideoDubbingForm";
+import DubbingJobsList from "@/components/DubbingJobsList";
+import { submitVideoDubbing, checkDubbingJobStatus, getFileUploadUrl } from "@/services/sieveApi";
+import { useInterval } from "@/hooks/useInterval";
 
 const CREDIT_COSTS = {
   BASE_COST: 5,
@@ -48,15 +31,15 @@ const VideoDubbing = () => {
   const [videoURL, setVideoURL] = useState<string | null>(null);
   const [isUploading, setIsUploading] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
-  const [selectedLanguages, setSelectedLanguages] = useState<string[]>([]);
-  const [voiceType, setVoiceType] = useState("clone");
-  const [voicePreference, setVoicePreference] = useState("male1");
+  const [isVoiceCloning, setIsVoiceCloning] = useState(true);
   const [progress, setProgress] = useState(0);
-  const [isPlaying, setIsPlaying] = useState(false);
   const [showCreditConfirm, setShowCreditConfirm] = useState(false);
-  const [qualityLevel, setQualityLevel] = useState<'standard' | 'premium'>('standard');
   const [uploadDialogOpen, setUploadDialogOpen] = useState(false);
   const [videoSelectOpen, setVideoSelectOpen] = useState(false);
+  const [dubbingJobs, setDubbingJobs] = useState<any[]>([]);
+  const [isLoadingJobs, setIsLoadingJobs] = useState(false);
+  const [currentForm, setCurrentForm] = useState<any>(null);
+  const [activeJobIds, setActiveJobIds] = useState<string[]>([]);
   
   const { credits, useCredits: spendCredits, hasEnoughCredits } = useCredits();
   const { videos, isLoading: isLoadingVideos, uploadVideo, deleteVideo } = useVideos();
@@ -68,6 +51,13 @@ const VideoDubbing = () => {
       setVideoURL(null);
     }
   }, [selectedVideo]);
+
+  // Poll for active job status updates
+  useInterval(() => {
+    if (activeJobIds.length > 0) {
+      refreshJobStatus();
+    }
+  }, 10000); // Poll every 10 seconds
 
   const loadVideoURL = async (video: VideoType) => {
     try {
@@ -132,14 +122,19 @@ const VideoDubbing = () => {
   };
 
   const calculateCost = (): number => {
-    if (!selectedVideo || selectedLanguages.length === 0) return 0;
+    if (!selectedVideo || !currentForm) return CREDIT_COSTS.BASE_COST;
+    
+    const numLanguages = currentForm.target_languages?.length || 0;
     
     let totalCost = CREDIT_COSTS.BASE_COST;
-    totalCost += selectedLanguages.length * CREDIT_COSTS.PER_LANGUAGE;
-    if (voiceType === 'clone') {
+    totalCost += numLanguages * CREDIT_COSTS.PER_LANGUAGE;
+    
+    if (isVoiceCloning) {
       totalCost += CREDIT_COSTS.VOICE_CLONE;
     }
-    if (qualityLevel === 'premium') {
+    
+    // Additional costs for premium features
+    if (currentForm.enable_lipsyncing) {
       totalCost += CREDIT_COSTS.PREMIUM_QUALITY;
     }
     
@@ -148,48 +143,126 @@ const VideoDubbing = () => {
 
   const totalCost = calculateCost();
 
-  const handleProcessVideo = () => {
+  const handleProcessVideo = (formValues: any) => {
     if (!selectedVideo) {
       toast.error("Please select a video first.");
       return;
     }
     
-    if (selectedLanguages.length === 0) {
+    if (!formValues.target_languages || formValues.target_languages.length === 0) {
       toast.error("Please select at least one language for dubbing.");
       return;
     }
     
+    setCurrentForm(formValues);
     setShowCreditConfirm(true);
   };
 
-  const confirmAndProcess = () => {
+  const confirmAndProcess = async () => {
+    if (!videoURL || !currentForm) return;
+    
     const cost = calculateCost();
     
     spendCredits.mutate({
       amount: cost,
       service: "Video Dubbing",
-      description: `Dubbed video in ${selectedLanguages.length} languages, ${voiceType === 'clone' ? 'with voice cloning' : 'with AI voice'}`
+      description: `Dubbed video in ${currentForm.target_languages.length} languages, ${isVoiceCloning ? 'with voice cloning' : 'with AI voice'}`
     }, {
-      onSuccess: () => {
+      onSuccess: async () => {
         setIsProcessing(true);
         
-        setTimeout(() => {
+        try {
+          // In a real implementation, you would upload the file to your storage
+          // For this demo, we'll use the existing videoURL
+          
+          // Submit the dubbing job
+          const languages = currentForm.target_languages.join(',');
+          
+          const response = await submitVideoDubbing(videoURL, {
+            target_language: languages,
+            voice_engine: currentForm.voice_engine,
+            translation_engine: currentForm.translation_engine,
+            transcription_engine: currentForm.transcription_engine,
+            preserve_background_audio: currentForm.preserve_background_audio,
+            enable_lipsyncing: currentForm.enable_lipsyncing,
+            lipsync_backend: currentForm.lipsync_backend,
+            lipsync_enhance: currentForm.lipsync_enhance,
+            return_transcript: currentForm.return_transcript,
+            safewords: currentForm.safewords,
+            translation_dictionary: currentForm.translation_dictionary || "",
+            start_time: currentForm.start_time,
+            end_time: currentForm.end_time,
+          });
+          
+          // Add the new job to the list
+          const newJob = {
+            id: response.id,
+            status: response.status,
+            languages: currentForm.target_languages,
+            createdAt: new Date(),
+          };
+          
+          setDubbingJobs(prev => [newJob, ...prev]);
+          setActiveJobIds(prev => [...prev, response.id]);
+          
+          toast.success(`Dubbing job submitted successfully!`);
           setIsProcessing(false);
-          toast.success(`Your video has been dubbed in ${selectedLanguages.length} languages.`);
-        }, 3000);
+        } catch (error) {
+          console.error('Error submitting dubbing job:', error);
+          toast.error('Failed to submit dubbing job');
+          setIsProcessing(false);
+        }
       },
       onError: (error) => {
         toast.error(`Failed to process: ${error.message}`);
+        setIsProcessing(false);
       }
     });
   };
 
-  const toggleLanguage = (langCode: string) => {
-    if (selectedLanguages.includes(langCode)) {
-      setSelectedLanguages(selectedLanguages.filter(code => code !== langCode));
-    } else {
-      setSelectedLanguages([...selectedLanguages, langCode]);
+  const refreshJobStatus = async () => {
+    setIsLoadingJobs(true);
+    
+    try {
+      // In a real implementation, you would fetch all jobs from your backend
+      // For this demo, we'll just update the status of active jobs
+      const updatedJobs = [...dubbingJobs];
+      let stillActive = false;
+      
+      for (let i = 0; i < updatedJobs.length; i++) {
+        if (activeJobIds.includes(updatedJobs[i].id) && 
+            (updatedJobs[i].status === "queued" || updatedJobs[i].status === "running")) {
+          try {
+            const response = await checkDubbingJobStatus(updatedJobs[i].id);
+            
+            updatedJobs[i].status = response.status;
+            
+            if (response.status === "succeeded" && response.outputs?.output_0?.url) {
+              updatedJobs[i].outputUrl = response.outputs.output_0.url;
+            } else if (response.status === "failed" && response.error) {
+              updatedJobs[i].error = response.error;
+            }
+            
+            if (response.status === "queued" || response.status === "running") {
+              stillActive = true;
+            }
+          } catch (error) {
+            console.error(`Error checking job status for ${updatedJobs[i].id}:`, error);
+          }
+        }
+      }
+      
+      setDubbingJobs(updatedJobs);
+      
+      if (!stillActive) {
+        setActiveJobIds([]);
+      }
+    } catch (error) {
+      console.error('Error refreshing job status:', error);
+      toast.error('Failed to refresh job status');
     }
+    
+    setIsLoadingJobs(false);
   };
 
   const handleDeleteVideo = (video: VideoType) => {
@@ -219,7 +292,7 @@ const VideoDubbing = () => {
         serviceName="Video Dubbing"
         creditCost={totalCost}
         onConfirm={confirmAndProcess}
-        description={`This will use ${totalCost} credits to dub your video in ${selectedLanguages.length} languages ${voiceType === 'clone' ? 'with voice cloning' : 'with AI voice'}.`}
+        description={`This will use ${totalCost} credits to dub your video in ${currentForm?.target_languages?.length || 0} languages ${isVoiceCloning ? 'with voice cloning' : 'with AI voice'}.`}
       />
 
       <Tabs defaultValue="upload" className="w-full">
@@ -324,7 +397,7 @@ const VideoDubbing = () => {
                                       handleDeleteVideo(video);
                                     }}
                                   >
-                                    <Trash2 className="h-4 w-4 text-muted-foreground hover:text-red-500" />
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="lucide lucide-trash-2 h-4 w-4 text-muted-foreground hover:text-red-500"><path d="M3 6h18"></path><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"></path><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"></path><line x1="10" x2="10" y1="11" y2="17"></line><line x1="14" x2="14" y1="11" y2="17"></line></svg>
                                   </Button>
                                 </div>
                               ))}
@@ -447,167 +520,50 @@ const VideoDubbing = () => {
         </TabsContent>
         
         <TabsContent value="dub" className="mt-6">
-          <div className="grid md:grid-cols-5 gap-6">
-            <Card className="md:col-span-2">
-              <CardHeader>
-                <CardTitle>Dubbing Settings</CardTitle>
-                <CardDescription>
-                  Configure voice and language settings for your video.
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-6">
-                <div className="space-y-2">
-                  <div className="flex justify-between items-center">
-                    <Label>Voice Type</Label>
-                    <ServiceCostDisplay 
-                      cost={voiceType === 'clone' ? CREDIT_COSTS.VOICE_CLONE : 0} 
-                      showLabel={false} 
-                    />
-                  </div>
-                  <div className="grid grid-cols-2 gap-2">
-                    <Button 
-                      variant={voiceType === "clone" ? "default" : "outline"}
-                      onClick={() => setVoiceType("clone")}
-                      className={voiceType === "clone" ? "bg-youtube-red hover:bg-youtube-darkred" : ""}
-                    >
-                      <Mic className="mr-2 h-4 w-4" />
-                      Clone My Voice
-                    </Button>
-                    <Button 
-                      variant={voiceType === "preset" ? "default" : "outline"}
-                      onClick={() => setVoiceType("preset")}
-                      className={voiceType === "preset" ? "bg-youtube-red hover:bg-youtube-darkred" : ""}
-                    >
-                      <Wand2 className="mr-2 h-4 w-4" />
-                      Use AI Voice
-                    </Button>
-                  </div>
+          <Card>
+            <CardHeader>
+              <div className="flex justify-between items-start">
+                <div>
+                  <CardTitle>Dubbing Settings</CardTitle>
+                  <CardDescription>
+                    Configure languages and voice settings for your video
+                  </CardDescription>
                 </div>
-
-                {voiceType === "preset" && (
-                  <div className="space-y-2">
-                    <Label htmlFor="voice-preference">Voice Preference</Label>
-                    <Select value={voicePreference} onValueChange={setVoicePreference}>
-                      <SelectTrigger id="voice-preference">
-                        <SelectValue placeholder="Select voice type" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="male1">Male (Natural)</SelectItem>
-                        <SelectItem value="male2">Male (Deep)</SelectItem>
-                        <SelectItem value="female1">Female (Natural)</SelectItem>
-                        <SelectItem value="female2">Female (Professional)</SelectItem>
-                        <SelectItem value="neutral">Gender Neutral</SelectItem>
-                      </SelectContent>
-                    </Select>
+                <ServiceCostDisplay 
+                  cost={totalCost} 
+                  label="Estimated cost" 
+                />
+              </div>
+            </CardHeader>
+            <CardContent>
+              {!selectedVideo ? (
+                <div className="text-center py-12">
+                  <div className="mx-auto w-12 h-12 rounded-full bg-muted flex items-center justify-center mb-4">
+                    <Video className="h-6 w-6 text-muted-foreground" />
                   </div>
-                )}
-
-                <div className="space-y-2">
-                  <div className="flex justify-between items-center">
-                    <Label>Quality Level</Label>
-                    <ServiceCostDisplay 
-                      cost={qualityLevel === 'premium' ? CREDIT_COSTS.PREMIUM_QUALITY : 0} 
-                      showLabel={false}
-                    />
-                  </div>
-                  <div className="grid grid-cols-2 gap-2">
-                    <Button 
-                      variant={qualityLevel === "standard" ? "default" : "outline"}
-                      onClick={() => setQualityLevel("standard")}
-                      className={qualityLevel === "standard" ? "bg-youtube-red hover:bg-youtube-darkred" : ""}
-                    >
-                      Standard
-                    </Button>
-                    <Button 
-                      variant={qualityLevel === "premium" ? "default" : "outline"}
-                      onClick={() => setQualityLevel("premium")}
-                      className={qualityLevel === "premium" ? "bg-youtube-red hover:bg-youtube-darkred" : ""}
-                    >
-                      Premium
-                    </Button>
-                  </div>
+                  <h3 className="font-medium">No video selected</h3>
+                  <p className="text-sm text-muted-foreground mt-1">
+                    Select a video from the "Select Video" tab first
+                  </p>
+                  <Button 
+                    variant="outline" 
+                    className="mt-4"
+                    onClick={() => document.querySelector('[data-radix-collection-item][value="upload"]')?.dispatchEvent(new MouseEvent('click'))}
+                  >
+                    Go to Select Video
+                  </Button>
                 </div>
-
-                <div className="space-y-2">
-                  <Label>Voice Settings</Label>
-                  <div className="space-y-4">
-                    <div className="space-y-2">
-                      <div className="flex justify-between">
-                        <span className="text-sm">Speed</span>
-                        <span className="text-sm text-muted-foreground">Normal</span>
-                      </div>
-                      <Slider defaultValue={[50]} max={100} step={1} />
-                    </div>
-                    <div className="space-y-2">
-                      <div className="flex justify-between">
-                        <span className="text-sm">Pitch</span>
-                        <span className="text-sm text-muted-foreground">Default</span>
-                      </div>
-                      <Slider defaultValue={[50]} max={100} step={1} />
-                    </div>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-
-            <Card className="md:col-span-3">
-              <CardHeader>
-                <div className="flex justify-between items-start">
-                  <div>
-                    <CardTitle>Target Languages</CardTitle>
-                    <CardDescription>
-                      Select the languages you want to dub your video into.
-                    </CardDescription>
-                  </div>
-                  <ServiceCostDisplay 
-                    cost={selectedLanguages.length * CREDIT_COSTS.PER_LANGUAGE} 
-                    label="Per language" 
-                  />
-                </div>
-              </CardHeader>
-              <CardContent>
-                <ScrollArea className="h-[300px] pr-4">
-                  <div className="grid grid-cols-2 gap-2">
-                    {languages.map((lang) => (
-                      <Button
-                        key={lang.code}
-                        variant="outline"
-                        className={`justify-start ${
-                          selectedLanguages.includes(lang.code) 
-                            ? "border-youtube-red bg-youtube-red/10 text-youtube-red" 
-                            : ""
-                        }`}
-                        onClick={() => toggleLanguage(lang.code)}
-                      >
-                        <Globe className="mr-2 h-4 w-4" />
-                        {lang.name}
-                      </Button>
-                    ))}
-                  </div>
-                </ScrollArea>
-              </CardContent>
-              <CardFooter className="flex justify-between border-t pt-6">
-                <div className="flex items-center gap-4">
-                  <div className="text-sm text-muted-foreground">
-                    {selectedLanguages.length} languages selected
-                  </div>
-                  {totalCost > 0 && (
-                    <div className="flex items-center gap-1 text-sm font-medium">
-                      <Coins className="h-4 w-4 text-yellow-500" />
-                      Total: {totalCost} credits
-                    </div>
-                  )}
-                </div>
-                <Button 
-                  onClick={handleProcessVideo} 
-                  disabled={!selectedVideo || isProcessing || selectedLanguages.length === 0 || !hasEnoughCredits(totalCost)}
-                  className={isProcessing ? "" : "bg-youtube-red hover:bg-youtube-darkred"}
-                >
-                  {isProcessing ? "Processing..." : hasEnoughCredits(totalCost) ? "Generate Dubbed Videos" : "Not Enough Credits"}
-                </Button>
-              </CardFooter>
-            </Card>
-          </div>
+              ) : (
+                <VideoDubbingForm 
+                  onSubmit={handleProcessVideo}
+                  isProcessing={isProcessing}
+                  isVoiceCloning={isVoiceCloning}
+                  setIsVoiceCloning={setIsVoiceCloning}
+                  cost={totalCost}
+                />
+              )}
+            </CardContent>
+          </Card>
         </TabsContent>
         
         <TabsContent value="preview" className="mt-6">
@@ -615,57 +571,16 @@ const VideoDubbing = () => {
             <CardHeader>
               <CardTitle>Preview Dubbed Videos</CardTitle>
               <CardDescription>
-                Preview and download your dubbed videos.
+                Preview and download your dubbed videos
               </CardDescription>
             </CardHeader>
-            <CardContent className="space-y-6">
-              {!selectedVideo ? (
-                <div className="text-center py-12">
-                  <div className="mx-auto w-12 h-12 rounded-full bg-muted flex items-center justify-center mb-4">
-                    <Globe className="h-6 w-6 text-muted-foreground" />
-                  </div>
-                  <h3 className="font-medium">No dubbed videos yet</h3>
-                  <p className="text-sm text-muted-foreground mt-1">
-                    Select a video and generate dubs to see them here
-                  </p>
-                </div>
-              ) : (
-                <div className="space-y-6">
-                  <div className="relative aspect-video bg-black rounded-lg overflow-hidden flex items-center justify-center">
-                    {videoURL ? (
-                      <video 
-                        src={videoURL} 
-                        className="w-full h-full object-contain"
-                        controls
-                      />
-                    ) : (
-                      <div className="absolute inset-0 bg-gradient-to-b from-transparent to-black/20"></div>
-                    )}
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label>Available Languages</Label>
-                    <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
-                      <Button variant="outline" className="justify-start">
-                        <Globe className="mr-2 h-4 w-4" />
-                        Original (English)
-                      </Button>
-                      {selectedLanguages.map((code) => (
-                        <Button key={code} variant="outline" className="justify-start">
-                          <Globe className="mr-2 h-4 w-4" />
-                          {languages.find(l => l.code === code)?.name}
-                        </Button>
-                      ))}
-                    </div>
-                  </div>
-                </div>
-              )}
+            <CardContent>
+              <DubbingJobsList 
+                jobs={dubbingJobs}
+                onRefresh={refreshJobStatus}
+                isLoading={isLoadingJobs}
+              />
             </CardContent>
-            <CardFooter className="flex justify-end">
-              <Button disabled={!selectedVideo || selectedLanguages.length === 0} variant="outline">
-                Download All
-              </Button>
-            </CardFooter>
           </Card>
         </TabsContent>
       </Tabs>
