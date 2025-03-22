@@ -1,4 +1,3 @@
-
 import { supabase } from "@/integrations/supabase/client";
 
 export interface GenerateSubtitlesParams {
@@ -57,7 +56,7 @@ export const checkSubtitlesStatus = async (predictionId: string) => {
 export const uploadAudioFile = async (file: File): Promise<string> => {
   const fileExt = file.name.split('.').pop();
   const fileName = `${crypto.randomUUID()}.${fileExt}`;
-  const filePath = `subtitles/${fileName}`;
+  const filePath = `${fileName}`;
 
   const { data, error } = await supabase.storage
     .from('uploads')
