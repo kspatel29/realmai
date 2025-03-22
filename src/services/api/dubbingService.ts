@@ -96,7 +96,7 @@ export const checkDubbingJobStatus = async (jobId: string): Promise<SieveDubbing
       status: data.status,
       created_at: data.created_at || new Date().toISOString(),
       updated_at: data.updated_at || new Date().toISOString(),
-      function: data.function || "sieve/dubbing",
+      function: data.function?.name || "dubbing",
       inputs: data.inputs || {},
     };
     
@@ -105,18 +105,29 @@ export const checkDubbingJobStatus = async (jobId: string): Promise<SieveDubbing
       result.status = "succeeded";
     }
     
-    // Extract the output URL if available
-    if (data.outputs && Array.isArray(data.outputs) && data.outputs.length > 0) {
-      // Create the output_0 property in the format our app expects
-      if (data.outputs[0].data && data.outputs[0].data.url) {
+    // Extract the output URL if available - handle both API response formats
+    if (data.outputs) {
+      // Handle array format outputs
+      if (Array.isArray(data.outputs) && data.outputs.length > 0) {
+        if (data.outputs[0].data && data.outputs[0].data.url) {
+          result.outputs = {
+            output_0: {
+              url: data.outputs[0].data.url
+            }
+          };
+          result.status = "succeeded";
+          console.log(`Job ${jobId} has output URL: ${data.outputs[0].data.url}`);
+        }
+      } 
+      // Handle object format outputs
+      else if (typeof data.outputs === 'object' && data.outputs.output_0?.url) {
         result.outputs = {
           output_0: {
-            url: data.outputs[0].data.url
+            url: data.outputs.output_0.url
           }
         };
-        // If we have a URL, the job is definitely successful
         result.status = "succeeded";
-        console.log(`Job ${jobId} has output URL: ${data.outputs[0].data.url}`);
+        console.log(`Job ${jobId} has output URL: ${data.outputs.output_0.url}`);
       }
     }
     
