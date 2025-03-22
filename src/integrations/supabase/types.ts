@@ -116,7 +116,19 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      create_user_credits: {
+        Args: {
+          user_id_param: string
+          credits_balance_param: number
+        }
+        Returns: {
+          created_at: string | null
+          credits_balance: number
+          id: string
+          updated_at: string | null
+          user_id: string
+        }[]
+      }
     }
     Enums: {
       [_ in never]: never

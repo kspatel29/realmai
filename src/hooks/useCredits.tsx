@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
@@ -169,14 +170,14 @@ export const useCredits = () => {
           const { data, error } = await supabase.rpc('create_user_credits', {
             user_id_param: userId,
             credits_balance_param: amount
-          });
+          }) as { data: UserCredits | null; error: Error | null };
           
           if (error) {
             console.error('Error creating user credits:', error);
             throw error;
           }
           
-          return data;
+          return data as UserCredits;
         }
       } catch (error) {
         console.error('Error in addCreditsToUser:', error);
