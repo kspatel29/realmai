@@ -14,6 +14,22 @@ export interface SubtitlesResult {
   vtt_file: string;
 }
 
+export interface SubtitleJob {
+  id: string;
+  user_id: string;
+  status: string;
+  created_at: string;
+  updated_at: string;
+  srt_url: string | null;
+  vtt_url: string | null;
+  preview_text: string | null;
+  language: string | null;
+  model_name: string;
+  original_filename: string | null;
+  prediction_id: string | null;
+  error: string | null;
+}
+
 export const generateSubtitles = async (params: GenerateSubtitlesParams) => {
   console.log("Calling subtitles generation with params:", params);
   
@@ -101,4 +117,67 @@ export const isAudioFile = (file: File): boolean => {
   const audioExtensions = ['mp3', 'wav', 'ogg', 'aac', 'm4a', 'flac'];
   const extension = file.name.split('.').pop()?.toLowerCase() || '';
   return audioExtensions.includes(extension);
+};
+
+// Create a new subtitle job entry
+export const createSubtitleJob = async (params: {
+  userId: string;
+  modelName: string;
+  language?: string;
+  originalFilename?: string;
+  predictionId?: string;
+}): Promise<string> => {
+  const { data, error } = await supabase
+    .from('subtitle_jobs')
+    .insert({
+      user_id: params.userId,
+      model_name: params.modelName,
+      language: params.language || null,
+      original_filename: params.originalFilename || null,
+      prediction_id: params.predictionId || null,
+      status: 'starting'
+    })
+    .select()
+    .single();
+
+  if (error) {
+    console.error("Error creating subtitle job:", error);
+    throw new Error(`Error creating subtitle job: ${error.message}`);
+  }
+
+  return data.id;
+};
+
+// Update a subtitle job with results
+export const updateSubtitleJob = async (
+  jobId: string, 
+  updates: Partial<SubtitleJob>
+): Promise<void> => {
+  const { error } = await supabase
+    .from('subtitle_jobs')
+    .update({
+      ...updates,
+      updated_at: new Date().toISOString()
+    })
+    .eq('id', jobId);
+
+  if (error) {
+    console.error("Error updating subtitle job:", error);
+    throw new Error(`Error updating subtitle job: ${error.message}`);
+  }
+};
+
+// Fetch all subtitle jobs for a user
+export const fetchSubtitleJobs = async (): Promise<SubtitleJob[]> => {
+  const { data, error } = await supabase
+    .from('subtitle_jobs')
+    .select('*')
+    .order('created_at', { ascending: false });
+
+  if (error) {
+    console.error("Error fetching subtitle jobs:", error);
+    throw new Error(`Error fetching subtitle jobs: ${error.message}`);
+  }
+
+  return data || [];
 };
