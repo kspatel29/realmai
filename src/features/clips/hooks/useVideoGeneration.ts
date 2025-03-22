@@ -55,9 +55,11 @@ export const useVideoGeneration = () => {
           description: `Generated video clip: ${values.prompt.substring(0, 30)}...`
         },
         {
-          onSuccess: () => {
-            // Simplified for demo purposes, in production would make proper API call
-            setTimeout(() => {
+          onSuccess: async () => {
+            try {
+              // Call the replicate service
+              const result = await createReplicateVideoClip(input);
+              
               setIsProcessing(false);
               
               setGeneratedClips([
@@ -65,8 +67,8 @@ export const useVideoGeneration = () => {
                   id: `clip-${Date.now()}`, 
                   title: values.prompt.substring(0, 30) + "...", 
                   duration: values.duration + "s", 
-                  thumbnail: "", 
-                  url: videoUrl
+                  thumbnail: startFrame || "", 
+                  url: result.output || videoUrl
                 }
               ]);
               
@@ -76,7 +78,15 @@ export const useVideoGeneration = () => {
               });
               
               if (onSuccess) onSuccess();
-            }, 3000);
+            } catch (error) {
+              setIsProcessing(false);
+              toast({
+                title: "Generation failed",
+                description: "There was an error generating your video clip.",
+                variant: "destructive"
+              });
+              console.error("Error during video generation:", error);
+            }
           },
           onError: (error) => {
             setIsProcessing(false);

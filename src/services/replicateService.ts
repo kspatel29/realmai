@@ -16,13 +16,30 @@ interface VideoGenerationInput {
 
 export const createReplicateVideoClip = async (input: VideoGenerationInput): Promise<any> => {
   try {
+    console.log("Generating video with Replicate using input:", input);
+    
     // NOTE: In a real application, this would be a call to your backend API
     // that would then call Replicate with your API key
     
-    // For now, we're simulating the API call
-    console.log("Generating video with Replicate using input:", input);
+    // For demonstration purposes, we're simulating a response
+    // In a real implementation, you would use:
+    // const replicate = new Replicate({
+    //   auth: process.env.REPLICATE_API_KEY || "",
+    // });
+    // 
+    // const output = await replicate.run("kwaivgi/kling-v1.6-pro", {
+    //   input: {
+    //     prompt: input.prompt,
+    //     negative_prompt: input.negative_prompt,
+    //     start_image: input.start_image,
+    //     end_image: input.end_image,
+    //     aspect_ratio: input.aspect_ratio,
+    //     duration: input.duration,
+    //     cfg_scale: input.cfg_scale,
+    //   }
+    // });
     
-    // Simulate API response
+    // Simulating API response for demo
     return new Promise((resolve) => {
       setTimeout(() => {
         resolve({
@@ -32,21 +49,6 @@ export const createReplicateVideoClip = async (input: VideoGenerationInput): Pro
         });
       }, 3000);
     });
-    
-    // In a real implementation with a backend API:
-    // const response = await fetch('/api/generate-video', {
-    //   method: 'POST',
-    //   headers: {
-    //     'Content-Type': 'application/json',
-    //   },
-    //   body: JSON.stringify(input),
-    // });
-    // 
-    // if (!response.ok) {
-    //   throw new Error('Failed to generate video');
-    // }
-    // 
-    // return await response.json();
   } catch (error) {
     console.error("Error generating video:", error);
     throw error;
@@ -55,6 +57,14 @@ export const createReplicateVideoClip = async (input: VideoGenerationInput): Pro
 
 export const checkReplicatePredictionStatus = async (predictionId: string): Promise<any> => {
   try {
+    // In a real implementation with a backend API:
+    // const replicate = new Replicate({
+    //   auth: process.env.REPLICATE_API_KEY || "",
+    // });
+    // 
+    // const prediction = await replicate.predictions.get(predictionId);
+    // return prediction;
+    
     // Simulate API response
     return new Promise((resolve) => {
       setTimeout(() => {
@@ -65,15 +75,6 @@ export const checkReplicatePredictionStatus = async (predictionId: string): Prom
         });
       }, 1000);
     });
-    
-    // In a real implementation with a backend API:
-    // const response = await fetch(`/api/prediction-status/${predictionId}`);
-    // 
-    // if (!response.ok) {
-    //   throw new Error('Failed to check prediction status');
-    // }
-    // 
-    // return await response.json();
   } catch (error) {
     console.error("Error checking prediction status:", error);
     throw error;
