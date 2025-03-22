@@ -109,14 +109,15 @@ serve(async (req) => {
       input.end_image = body.end_image;
     }
     
-    console.log("Using Replicate model: kwaivgi/kling-v1.6-pro");
+    console.log("Using Replicate official model: kwaivgi/kling-v1.6-pro");
     console.log("With input:", JSON.stringify(input));
 
-    // Create prediction
+    // Create prediction using the official model approach (no version needed)
     try {
       console.log("Creating prediction...");
+      // For official models, we use the run method directly with the model name
       const prediction = await replicate.predictions.create({
-        version: "33e7a37e190af7e87a32c84ce060872a3ea1675adcab41571a2694e73a4cbefb",
+        model: "kwaivgi/kling-v1.6-pro",
         input
       });
       
