@@ -1,5 +1,4 @@
-
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
@@ -115,11 +114,7 @@ const Subtitles = () => {
     refetchInterval: 3000
   });
 
-  // Add effect to handle prediction status changes
-  // This replaces the onSuccess from the previous implementation
-  // since onSuccess is not valid in useQuery options
-  // in the latest version of react-query
-  useState(() => {
+  useEffect(() => {
     if (!predictionStatus) return;
     
     if (predictionStatus.status === "succeeded") {
