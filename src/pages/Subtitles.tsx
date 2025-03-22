@@ -69,10 +69,9 @@ const Subtitles = () => {
       />
 
       <Tabs defaultValue="upload" className="w-full">
-        <TabsList className="grid grid-cols-3 w-full max-w-md">
+        <TabsList className="grid grid-cols-2 w-full max-w-md">
           <TabsTrigger value="upload">Upload</TabsTrigger>
           <TabsTrigger value="generate">Generate</TabsTrigger>
-          <TabsTrigger value="download">Download</TabsTrigger>
         </TabsList>
         
         <TabsContent value="upload" className="mt-6">
@@ -93,15 +92,15 @@ const Subtitles = () => {
             onSubmit={handleGenerateSubtitles}
           />
         </TabsContent>
-        
-        <TabsContent value="download" className="mt-6">
-          <DownloadTab
-            srtFileUrl={srtFileUrl}
-            vttFileUrl={vttFileUrl}
-            subtitlesText={editableText}
-          />
-        </TabsContent>
       </Tabs>
+      
+      {(srtFileUrl || vttFileUrl) && (
+        <DownloadTab
+          srtFileUrl={srtFileUrl}
+          vttFileUrl={vttFileUrl}
+          subtitlesText={editableText}
+        />
+      )}
     </div>
   );
 };

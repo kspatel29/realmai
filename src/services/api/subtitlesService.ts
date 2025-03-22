@@ -33,11 +33,13 @@ export const generateSubtitles = async (params: GenerateSubtitlesParams) => {
     return data.output as SubtitlesResult;
   }
   
-  // If we have a prediction ID, throw a specific error that can be caught
+  // If we have a prediction ID, return a special object that indicates polling is needed
   if (data?.id) {
-    const err = new Error(`Processing in progress: id: ${data.id}`);
-    err.name = "PredictionInProgress";
-    throw err;
+    // Instead of throwing an error, return an object with the prediction ID
+    return {
+      predictionId: data.id,
+      status: data.status || 'starting'
+    };
   }
 
   throw new Error("Invalid response from subtitles generation service");

@@ -93,40 +93,31 @@ export const useSubtitlesProcess = () => {
     }, {
       onSuccess: async () => {
         try {
-          await generateSubtitles({
+          const result = await generateSubtitles({
             audioPath: uploadedFileUrl,
             modelName: formValues.model_name,
             language: formValues.language,
             vadFilter: formValues.vad_filter
           });
           
-          // This should not be reached as generateSubtitles should either return output or throw an error
-          sonnerToast.success("Subtitles have been generated successfully.");
-          setIsProcessing(false);
+          // Check if the result has a predictionId (async job started)
+          if ('predictionId' in result) {
+            setPredictionId(result.predictionId);
+            sonnerToast.info(`Subtitle generation has started. This may take around ${estimatedWaitTime} minutes.`);
+          } else {
+            // Direct output available
+            setSrtFileUrl(result.srt_file);
+            setVttFileUrl(result.vtt_file);
+            setEditableText(result.preview || "");
+            setIsProcessing(false);
+            sonnerToast.success("Subtitles have been generated successfully.");
+          }
           
         } catch (error) {
-          console.log("Generate subtitles error:", error);
-          
-          // Check if this is a "prediction in progress" error with an ID
-          if (error instanceof Error && error.message.includes("id:")) {
-            try {
-              const idMatch = error.message.match(/id: ([a-zA-Z0-9]+)/);
-              if (idMatch && idMatch[1]) {
-                setPredictionId(idMatch[1]);
-                sonnerToast.info(`Subtitle generation has started. This may take around ${estimatedWaitTime} minutes.`);
-              } else {
-                throw new Error("Failed to extract prediction ID");
-              }
-            } catch (extractError) {
-              setIsProcessing(false);
-              setEstimatedWaitTime(null);
-              sonnerToast.error(`Failed to process: ${extractError instanceof Error ? extractError.message : "An error occurred"}`);
-            }
-          } else {
-            setIsProcessing(false);
-            setEstimatedWaitTime(null);
-            sonnerToast.error(`Failed to process: ${error instanceof Error ? error.message : "An error occurred"}`);
-          }
+          console.error("Generate subtitles error:", error);
+          setIsProcessing(false);
+          setEstimatedWaitTime(null);
+          sonnerToast.error(`Failed to process: ${error instanceof Error ? error.message : "An error occurred"}`);
         }
       },
       onError: (error) => {
