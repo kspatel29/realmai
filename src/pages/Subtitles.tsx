@@ -1,5 +1,5 @@
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useSubtitlesCost } from "@/features/subtitles/useSubtitlesCost";
 import { useSubtitlesProcess } from "@/features/subtitles/useSubtitlesProcess";
@@ -13,6 +13,7 @@ import { toast as sonnerToast } from "sonner";
 const Subtitles = () => {
   const [showCreditConfirm, setShowCreditConfirm] = useState(false);
   const [formValues, setFormValues] = useState<SubtitlesFormValues | null>(null);
+  const [totalCost, setTotalCost] = useState<number>(0);
   
   const {
     isUploading,
@@ -31,6 +32,20 @@ const Subtitles = () => {
   
   const { calculateCost } = useSubtitlesCost();
 
+  // Update cost when form values change
+  useEffect(() => {
+    const updateCost = async () => {
+      if (formValues?.model_name) {
+        const cost = await calculateCost(formValues.model_name);
+        setTotalCost(cost);
+      } else {
+        const cost = await calculateCost();
+        setTotalCost(cost);
+      }
+    };
+    updateCost();
+  }, [formValues, calculateCost]);
+
   const handleGenerateSubtitles = (values: SubtitlesFormValues) => {
     console.log("Generate subtitles with file URL:", uploadedFileUrl);
     
@@ -43,14 +58,12 @@ const Subtitles = () => {
     setShowCreditConfirm(true);
   };
 
-  const confirmAndProcess = () => {
+  const confirmAndProcess = async () => {
     if (formValues) {
-      const cost = calculateCost(formValues.model_name);
+      const cost = await calculateCost(formValues.model_name);
       processSubtitles(formValues, cost);
     }
   };
-
-  const totalCost = calculateCost(formValues?.model_name);
 
   return (
     <div className="space-y-8 animate-fade-in">

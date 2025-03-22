@@ -59,7 +59,15 @@ export const useVideoGeneration = () => {
     
     try {
       // Make sure values are properly structured before sending to the API
-      const input = {
+      const input: {
+        prompt: string,
+        negative_prompt: string,
+        aspect_ratio: string,
+        duration: number,
+        cfg_scale: number,
+        start_image?: string,
+        end_image?: string
+      } = {
         prompt: values.prompt,
         negative_prompt: values.negative_prompt || "",
         aspect_ratio: values.aspect_ratio,
