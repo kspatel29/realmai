@@ -25,39 +25,39 @@ const CallToAction = () => {
             <div 
               key={plan.id} 
               className={`rounded-2xl overflow-hidden border shadow-lg bg-white transition-all duration-300 hover:shadow-xl hover:translate-y-[-4px] ${
-                plan.id === 'creator' ? 'ring-2 ring-youtube-red scale-105 md:scale-110 relative z-10' : ''
+                plan.id === 'creator-pro' ? 'ring-2 ring-youtube-red scale-105 md:scale-110 relative z-10' : ''
               }`}
             >
-              {plan.id === 'creator' && (
+              {plan.id === 'creator-pro' && (
                 <div className="bg-youtube-red text-white text-center py-2 text-sm font-medium">
                   Most Popular
                 </div>
               )}
               <div className="p-8">
                 <h3 className="text-2xl font-bold mb-2">{plan.name}</h3>
-                <div className="flex items-end mb-4">
+                <div className="flex items-end mb-6">
                   <span className="text-4xl font-bold">{plan.price !== null ? `$${plan.price}` : "Custom"}</span>
                   <span className="text-muted-foreground ml-2">{plan.price !== null ? "per month" : ""}</span>
                 </div>
                 
                 {plan.creditsPerMonth && (
-                  <div className="flex items-center gap-2 bg-gray-50 p-3 rounded-lg mb-6">
+                  <div className="flex items-center justify-center gap-2 bg-gray-50 p-3 rounded-lg mb-6">
                     <Coins className="h-5 w-5 text-yellow-500" />
                     <span className="text-lg font-medium">{plan.creditsPerMonth} credits monthly</span>
                   </div>
                 )}
                 
-                <p className="text-muted-foreground mb-6">
+                <p className="text-muted-foreground mb-6 text-center">
                   {plan.description}
                 </p>
                 
                 <Link to="/signup">
                   <Button 
-                    className={`w-full h-12 ${plan.id === 'creator' ? 'bg-youtube-red hover:bg-youtube-darkred' : ''}`}
-                    variant={plan.id === 'creator' ? 'default' : 'outline'}
+                    className={`w-full h-12 ${plan.id === 'creator-pro' ? 'bg-youtube-red hover:bg-youtube-darkred' : ''}`}
+                    variant={plan.id === 'creator-pro' ? 'default' : 'outline'}
                     size="lg"
                   >
-                    {plan.id === 'enterprise' ? 'Contact Sales' : 'Sign Up'}
+                    {plan.id === 'studio-pro' ? 'Contact Sales' : 'Sign Up'}
                     <ArrowRight className="ml-2 h-4 w-4" />
                   </Button>
                 </Link>
@@ -99,12 +99,12 @@ const CallToAction = () => {
                     ${pkg.price}
                   </div>
                 </div>
-                <p className="text-sm text-muted-foreground mb-3">{pkg.description}</p>
-                <div className="flex items-center mb-4">
+                <p className="text-sm text-muted-foreground mb-3 text-center">{pkg.description}</p>
+                <div className="flex items-center justify-center mb-4">
                   <Coins className="h-5 w-5 text-yellow-500 mr-2" />
                   <div className="text-3xl font-bold">{pkg.credits}</div>
                 </div>
-                <div className="text-xs text-muted-foreground mb-4">
+                <div className="text-xs text-muted-foreground mb-4 text-center">
                   ${(pkg.price / pkg.credits * 100).toFixed(1)}¢ per credit
                 </div>
                 <Link to="/signup">

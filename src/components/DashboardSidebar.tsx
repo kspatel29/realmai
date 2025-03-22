@@ -11,7 +11,8 @@ import {
   HelpCircle, 
   LogOut, 
   Menu,
-  Clock
+  Clock,
+  CreditCard
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useIsMobile } from "@/hooks/use-mobile";
@@ -60,6 +61,11 @@ const DashboardSidebar = ({ isSidebarOpen, toggleSidebar }: DashboardSidebarProp
   ];
 
   const bottomNavigation = [
+    {
+      title: "Billing",
+      href: "/dashboard/billing",
+      icon: <CreditCard className="h-5 w-5" />,
+    },
     {
       title: "Settings",
       href: "/dashboard/settings",

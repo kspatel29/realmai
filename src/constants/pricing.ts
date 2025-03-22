@@ -5,8 +5,8 @@ export const CREDIT_CONVERSION_RATE = 15;
 // Subscription plans
 export const SUBSCRIPTION_PLANS = [
   {
-    id: "free",
-    name: "Free",
+    id: "starter",
+    name: "Starter",
     price: 0,
     creditsPerMonth: 75,
     description: "Try out basic features",
@@ -18,8 +18,8 @@ export const SUBSCRIPTION_PLANS = [
     ]
   },
   {
-    id: "starter",
-    name: "Starting Out",
+    id: "essentials",
+    name: "Essentials",
     price: 35,
     creditsPerMonth: 550,
     description: "Perfect for beginners",
@@ -32,8 +32,8 @@ export const SUBSCRIPTION_PLANS = [
     ]
   },
   {
-    id: "creator",
-    name: "Creator",
+    id: "creator-pro",
+    name: "Creator Pro",
     price: 200,
     creditsPerMonth: 3100,
     description: "For serious content creators",
@@ -46,8 +46,8 @@ export const SUBSCRIPTION_PLANS = [
     ]
   },
   {
-    id: "enterprise",
-    name: "Enterprise",
+    id: "studio-pro",
+    name: "Studio Pro",
     price: null, // Contact sales
     creditsPerMonth: null,
     description: "Custom solutions for large teams",
