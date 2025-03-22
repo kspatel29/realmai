@@ -5,4 +5,4 @@ import { useCredits as useCreditsHook } from "./credits";
 export const useCredits = useCreditsHook;
 
 // Re-export types for backward compatibility
-export { CreditTransaction, UserCredits } from "./credits";
+export type { CreditTransaction, UserCredits } from "./credits";
