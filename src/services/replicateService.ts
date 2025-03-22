@@ -16,7 +16,7 @@ export const createReplicateVideoClip = async (input: VideoGenerationInput): Pro
     console.log("Calling Replicate edge function with input:", input);
     
     // Clean up input to ensure we don't send invalid data
-    const cleanInput = {
+    const cleanInput: VideoGenerationInput = {
       prompt: input.prompt,
       negative_prompt: input.negative_prompt || "",
       aspect_ratio: input.aspect_ratio,
