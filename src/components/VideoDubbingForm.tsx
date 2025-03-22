@@ -26,6 +26,7 @@ const formSchema = z.object({
   target_languages: z.array(z.string()).min(1, "Select at least one language"),
   enable_voice_cloning: z.boolean(),
   preserve_background_audio: z.boolean(),
+  enable_lipsyncing: z.boolean(),
   safewords: z.string(),
   translation_dictionary: z.string(),
   start_time: z.number(),
@@ -58,6 +59,7 @@ export default function VideoDubbingForm({
       target_languages: [],
       enable_voice_cloning: true,
       preserve_background_audio: true,
+      enable_lipsyncing: true,
       safewords: "",
       translation_dictionary: "",
       start_time: 0,
@@ -150,6 +152,28 @@ export default function VideoDubbingForm({
                     <FormLabel>Enable Voice Cloning</FormLabel>
                     <FormDescription>
                       Match the original speakers' voices in the dubbed audio
+                    </FormDescription>
+                  </div>
+                </FormItem>
+              )}
+            />
+
+            <FormField
+              control={form.control}
+              name="enable_lipsyncing"
+              render={({ field }) => (
+                <FormItem className="flex flex-row items-start space-x-3 space-y-0 rounded-md border p-4">
+                  <FormControl>
+                    <Checkbox
+                      checked={field.value}
+                      onCheckedChange={field.onChange}
+                      disabled={isProcessing}
+                    />
+                  </FormControl>
+                  <div className="space-y-1 leading-none">
+                    <FormLabel>Enable Lip Sync</FormLabel>
+                    <FormDescription>
+                      Sync the mouth movements with the dubbed audio
                     </FormDescription>
                   </div>
                 </FormItem>

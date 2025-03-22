@@ -1,3 +1,4 @@
+
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
@@ -167,11 +168,64 @@ export const useVideos = () => {
     }
   });
 
+  // Add a new function to mark videos as unused (to be called when navigating away or component unmount)
+  const cleanupUnusedVideos = useMutation({
+    mutationFn: async () => {
+      if (!user) return;
+      
+      // Get videos that are in the 'ready' state but haven't been used
+      const { data: unusedVideos, error } = await supabase
+        .from('videos')
+        .select('*')
+        .eq('user_id', user.id)
+        .eq('status', 'ready')
+        .is('used_in_job', null);
+        
+      if (error) {
+        console.error('Error fetching unused videos:', error);
+        throw error;
+      }
+      
+      // Delete each unused video
+      const deletePromises = unusedVideos?.map(video => deleteVideo.mutateAsync(video.id)) || [];
+      await Promise.all(deletePromises);
+      
+      return unusedVideos?.length || 0;
+    }
+  });
+
+  // Mark a video as used in a job
+  const markVideoAsUsed = useMutation({
+    mutationFn: async ({ videoId, jobId }: { videoId: string; jobId: string }) => {
+      if (!user) throw new Error('User not authenticated');
+      
+      const { error } = await supabase
+        .from('videos')
+        .update({ 
+          used_in_job: jobId,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', videoId);
+      
+      if (error) {
+        console.error('Error marking video as used:', error);
+        throw error;
+      }
+      
+      return { videoId, jobId };
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['videos', user?.id] });
+    }
+  });
+
   return {
     videos,
     isLoading,
     error,
     uploadVideo,
-    deleteVideo
+    deleteVideo,
+    cleanupUnusedVideos,
+    markVideoAsUsed
   };
 };

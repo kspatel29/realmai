@@ -1,3 +1,4 @@
+
 import { toast } from "sonner";
 
 const API_KEY = 'j1VbRemG8Mymh9HXGlGEK0YDqTQCA5BNJa7thj4z_64';
@@ -121,7 +122,7 @@ export const submitVideoDubbing = async (videoUrl: string, options: {
         translation_dictionary: options.translation_dictionary || "",
         start_time: options.start_time ?? 0,
         end_time: options.end_time ?? -1,
-        enable_lipsyncing: true, // Always enable lip syncing
+        enable_lipsyncing: options.enable_lipsyncing ?? true, // Use the user's choice
         lipsync_backend: "sievesync-1.1", // Always use sievesync-1.1
         lipsync_enhance: "default" // Always use default enhancement
       }

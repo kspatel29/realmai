@@ -38,7 +38,7 @@ const VideoDubbing = () => {
   const [currentForm, setCurrentForm] = useState<any>(null);
   
   const { credits, useCredits: spendCredits, hasEnoughCredits, addCreditsToUser } = useCredits();
-  const { videos, isLoading: isLoadingVideos, uploadVideo, deleteVideo } = useVideos();
+  const { videos, isLoading: isLoadingVideos, uploadVideo, deleteVideo, cleanupUnusedVideos } = useVideos();
   const { 
     jobs: dubbingJobs, 
     isLoading: isLoadingJobs, 
@@ -63,6 +63,18 @@ const VideoDubbing = () => {
       });
     }
   }, []);
+
+  useEffect(() => {
+    return () => {
+      // Cleanup unused videos when component unmounts
+      if (videos && videos.length > 0) {
+        const unusedVideos = videos.filter(v => v.used_in_job === null);
+        if (unusedVideos.length > 0) {
+          cleanupUnusedVideos.mutate();
+        }
+      }
+    };
+  }, [videos]);
 
   useEffect(() => {
     if (selectedVideo) {
@@ -173,7 +185,7 @@ const VideoDubbing = () => {
   };
 
   const confirmAndProcess = async () => {
-    if (!videoURL || !currentForm) return;
+    if (!videoURL || !currentForm || !selectedVideo) return;
     
     const cost = calculateCost();
     
@@ -192,17 +204,26 @@ const VideoDubbing = () => {
             target_language: languages,
             enable_voice_cloning: currentForm.enable_voice_cloning,
             preserve_background_audio: currentForm.preserve_background_audio,
+            enable_lipsyncing: currentForm.enable_lipsyncing,
             safewords: currentForm.safewords,
             translation_dictionary: currentForm.translation_dictionary || "",
             start_time: currentForm.start_time,
             end_time: currentForm.end_time,
           });
           
-          await createJob.mutateAsync({
+          const newJob = await createJob.mutateAsync({
             sieve_job_id: response.id,
             status: response.status,
             languages: currentForm.target_languages,
           });
+          
+          // Mark the video as used in a job
+          if (selectedVideo) {
+            markVideoAsUsed.mutate({
+              videoId: selectedVideo.id,
+              jobId: newJob.id
+            });
+          }
           
           toast.success(`Dubbing job submitted successfully!`);
           setIsProcessing(false);
