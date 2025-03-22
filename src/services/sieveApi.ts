@@ -1,4 +1,3 @@
-
 import { toast } from "sonner";
 
 const API_KEY = 'j1VbRemG8Mymh9HXGlGEK0YDqTQCA5BNJa7thj4z_64';
@@ -104,7 +103,6 @@ export const submitVideoDubbing = async (videoUrl: string, options: {
   end_time?: number;
 }) => {
   try {
-    // Determine which voice engine to use based on voice cloning setting
     const voice_engine = options.enable_voice_cloning ? "sieve-default-cloning" : "openai-alloy (no voice cloning)";
 
     const payload = {
@@ -112,9 +110,9 @@ export const submitVideoDubbing = async (videoUrl: string, options: {
       inputs: {
         source_file: { url: videoUrl },
         target_language: options.target_language,
-        translation_engine: "sieve-default-translator", // Always use default
+        translation_engine: "sieve-default-translator",
         voice_engine,
-        transcription_engine: "whisper-zero", // Always use whisper-zero
+        transcription_engine: "whisper-zero",
         output_mode: "voice-dubbing",
         return_transcript: false,
         preserve_background_audio: options.preserve_background_audio ?? true,
@@ -122,9 +120,9 @@ export const submitVideoDubbing = async (videoUrl: string, options: {
         translation_dictionary: options.translation_dictionary || "",
         start_time: options.start_time ?? 0,
         end_time: options.end_time ?? -1,
-        enable_lipsyncing: options.enable_lipsyncing ?? true, // Use the user's choice
-        lipsync_backend: "sievesync-1.1", // Always use sievesync-1.1
-        lipsync_enhance: "default" // Always use default enhancement
+        enable_lipsyncing: options.enable_lipsyncing ?? true,
+        lipsync_backend: "sievesync-1.1",
+        lipsync_enhance: "default"
       }
     };
 
@@ -150,7 +148,7 @@ export const submitVideoDubbing = async (videoUrl: string, options: {
   }
 };
 
-export const checkDubbingJobStatus = async (jobId: string) => {
+export const checkDubbingJobStatus = async (jobId: string): Promise<SieveDubbingResponse> => {
   try {
     const response = await fetch(`${API_BASE_URL}/jobs/${jobId}`, {
       method: 'GET',
@@ -161,12 +159,42 @@ export const checkDubbingJobStatus = async (jobId: string) => {
 
     if (!response.ok) {
       const errorData = await response.json();
-      throw new Error(errorData.message || 'Failed to check job status');
+      console.error(`Error response from API for job ${jobId}:`, errorData);
+      
+      return {
+        id: jobId,
+        status: "failed",
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+        function: "sieve/dubbing",
+        inputs: {},
+        error: {
+          message: errorData.message || `Failed with HTTP status ${response.status}`
+        }
+      };
     }
 
-    return await response.json();
+    const data = await response.json();
+    
+    if (data.error && data.error.traceback && data.status !== "failed") {
+      console.warn(`Job ${jobId} has an error but status is ${data.status}, correcting to failed`);
+      data.status = "failed";
+    }
+    
+    return data;
   } catch (error) {
     console.error(`Error checking job status for ${jobId}:`, error);
-    throw error;
+    
+    return {
+      id: jobId,
+      status: "failed",
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+      function: "sieve/dubbing",
+      inputs: {},
+      error: {
+        message: error instanceof Error ? error.message : "Unknown error occurred"
+      }
+    };
   }
 };

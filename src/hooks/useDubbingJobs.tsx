@@ -137,9 +137,22 @@ export const useDubbingJobs = () => {
           try {
             const response = await checkDubbingJobStatus(job.sieve_job_id);
             
+            // Check if the job failed with an error response
+            if (response.status === "failed" || 
+                (response.error && response.error.message) || 
+                (response.status === "queued" && job.status === "running")) {
+              // If the job is in a failed state, update it accordingly
+              return updateJob.mutateAsync({
+                id: job.id,
+                status: "failed", // Ensure we mark it as failed even if API returns queued but has error
+                output_url: response.outputs?.output_0?.url,
+                error: response.error?.message || "Failed to process the video. The video might be inaccessible or the link expired."
+              });
+            }
+            
+            // Normal status update for non-error cases
             if (response.status !== job.status || 
-                (response.status === "succeeded" && !job.output_url && response.outputs?.output_0?.url) ||
-                (response.status === "failed" && !job.error && response.error)) {
+                (response.status === "succeeded" && !job.output_url && response.outputs?.output_0?.url)) {
               
               return updateJob.mutateAsync({
                 id: job.id,
@@ -152,7 +165,13 @@ export const useDubbingJobs = () => {
             return job;
           } catch (error) {
             console.error(`Error checking job status for ${job.sieve_job_id}:`, error);
-            return job;
+            
+            // If the API call itself fails, mark the job as failed
+            return updateJob.mutateAsync({
+              id: job.id,
+              status: "failed",
+              error: error instanceof Error ? error.message : "Unknown error occurred while checking job status"
+            });
           }
         })
       );
