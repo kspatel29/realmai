@@ -1,4 +1,3 @@
-
 import { useEffect, useRef, useState } from "react";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -14,7 +13,7 @@ import { useToast } from "@/hooks/use-toast";
 import { 
   Upload, Video, Scissors, Clock, Download, DownloadCloud, Play,
   Pause, SkipBack, SkipForward, RefreshCw, Image as ImageIcon,
-  Film, MagicWand, XCircle, Check, AlertCircle
+  Film, Sparkles, XCircle, Check, AlertCircle
 } from "lucide-react";
 import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { useForm } from "react-hook-form";
@@ -90,7 +89,6 @@ const ClipsGenerator = () => {
     setIsUploading(true);
     
     try {
-      // Simulate upload process
       let progress = 0;
       const interval = setInterval(() => {
         progress += 5;
@@ -138,7 +136,6 @@ const ClipsGenerator = () => {
     setIsProcessing(true);
     
     try {
-      // Prepare input data for the Replicate API
       const input = {
         prompt: values.prompt,
         negative_prompt: values.negative_prompt || "",
@@ -149,21 +146,18 @@ const ClipsGenerator = () => {
         end_image: endFrame || undefined,
       };
       
-      // Call the Replicate API
       console.log("Generating video with inputs:", input);
       
-      // Simulating API call for now
       setTimeout(() => {
         setIsProcessing(false);
         
-        // Simulated video generation response
         setGeneratedClips([
           { 
             id: `clip-${Date.now()}`, 
             title: values.prompt.substring(0, 30) + "...", 
             duration: values.duration + "s", 
             thumbnail: "", 
-            url: videoUrl // Using the uploaded video as a placeholder
+            url: videoUrl
           }
         ]);
         
@@ -172,19 +166,8 @@ const ClipsGenerator = () => {
           description: "Your video clip has been generated successfully."
         });
         
-        // Move to preview tab
         setCurrentTab("preview");
       }, 3000);
-      
-      // For actual implementation:
-      // const result = await createReplicateVideoClip(input);
-      // setGeneratedClips([{ 
-      //   id: `clip-${Date.now()}`, 
-      //   title: values.prompt.substring(0, 30) + "...", 
-      //   duration: values.duration + "s", 
-      //   thumbnail: "", 
-      //   url: result.output 
-      // }]);
       
     } catch (error) {
       setIsProcessing(false);
@@ -233,7 +216,7 @@ const ClipsGenerator = () => {
                         onPlay={() => setIsPlaying(true)}
                         onPause={() => setIsPlaying(false)}
                       />
-                      <div className="absolute bottom-0 left-0 right-0 bg-background/80 backdrop-blur-sm p-2 flex items-center justify-center gap-2">
+                      <div className="absolute bottom-0 left-0 right-0 bg-background/800 backdrop-blur-sm p-2 flex items-center justify-center gap-2">
                         <Button 
                           variant="outline" 
                           size="sm" 
@@ -478,7 +461,7 @@ const ClipsGenerator = () => {
                         {isProcessing ? (
                           <><RefreshCw className="mr-2 h-4 w-4 animate-spin" /> Processing...</>
                         ) : (
-                          <><MagicWand className="mr-2 h-4 w-4" /> Generate Video</>
+                          <><Sparkles className="mr-2 h-4 w-4" /> Generate Video</>
                         )}
                       </Button>
                     </div>
