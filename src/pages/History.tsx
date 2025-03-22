@@ -1,18 +1,33 @@
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useDubbingJobs } from "@/hooks/useDubbingJobs";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { RefreshCw, Clock, Download, AlertTriangle, CheckCircle, Video, Play, Pause } from "lucide-react";
+import { RefreshCw, Clock, Download, AlertTriangle, CheckCircle, Video, Play, Pause, Link2 } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { format } from "date-fns";
 import { toast } from "sonner";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 
 const History = () => {
-  const { jobs, isLoading, error, refreshJobStatus, isUpdating } = useDubbingJobs();
+  const { 
+    jobs, 
+    isLoading, 
+    error, 
+    refreshJobStatus, 
+    updateJobWithUrl,
+    isUpdating 
+  } = useDubbingJobs();
   const [isLoaded, setIsLoaded] = useState(false);
   const [selectedJob, setSelectedJob] = useState<typeof jobs[0] | null>(null);
   const [isPlaying, setIsPlaying] = useState(false);
+  const [manualUrlOpen, setManualUrlOpen] = useState(false);
+  const [manualUrl, setManualUrl] = useState("");
+  const [isUpdatingUrl, setIsUpdatingUrl] = useState(false);
+  
+  const videoRef = useRef<HTMLVideoElement>(null);
 
   // Animation on component load
   useEffect(() => {
@@ -26,6 +41,7 @@ const History = () => {
   // Refresh job statuses on component load
   useEffect(() => {
     if (!isLoading && !isUpdating) {
+      console.log("Initial refresh of job statuses");
       refreshJobStatus();
     }
     
@@ -52,7 +68,7 @@ const History = () => {
     // If selected job updated in the jobs array, update the selected job
     if (selectedJob) {
       const updatedJob = jobs.find(job => job.id === selectedJob.id);
-      if (updatedJob && updatedJob.status !== selectedJob.status) {
+      if (updatedJob && updatedJob !== selectedJob) {
         setSelectedJob(updatedJob);
         
         // Show toast for job status changes
@@ -108,12 +124,11 @@ const History = () => {
 
   // Play/Pause video
   const togglePlayPause = () => {
-    const video = document.getElementById("history-video") as HTMLVideoElement;
-    if (video) {
+    if (videoRef.current) {
       if (isPlaying) {
-        video.pause();
+        videoRef.current.pause();
       } else {
-        video.play();
+        videoRef.current.play();
       }
       setIsPlaying(!isPlaying);
     }
@@ -122,6 +137,29 @@ const History = () => {
   const handleRefresh = () => {
     toast.info("Refreshing job statuses...");
     refreshJobStatus();
+  };
+
+  const handleManualUrlSubmit = async () => {
+    if (!selectedJob || !manualUrl) return;
+    
+    setIsUpdatingUrl(true);
+    
+    try {
+      const success = await updateJobWithUrl(selectedJob.sieve_job_id, manualUrl);
+      
+      if (success) {
+        toast.success("Job updated with the provided URL!");
+        setManualUrlOpen(false);
+        setManualUrl("");
+      } else {
+        toast.error("Failed to update the job. Please check the URL.");
+      }
+    } catch (error) {
+      toast.error("An error occurred while updating the job");
+      console.error("Error updating job URL:", error);
+    } finally {
+      setIsUpdatingUrl(false);
+    }
   };
 
   return (
@@ -133,16 +171,29 @@ const History = () => {
             View and manage your past jobs and activities
           </p>
         </div>
-        <Button
-          variant="outline"
-          size="sm"
-          className="gap-2"
-          onClick={handleRefresh}
-          disabled={isUpdating}
-        >
-          <RefreshCw className={`h-4 w-4 ${isUpdating ? "animate-spin" : ""}`} />
-          Refresh
-        </Button>
+        <div className="flex gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            className="gap-2"
+            onClick={handleRefresh}
+            disabled={isUpdating}
+          >
+            <RefreshCw className={`h-4 w-4 ${isUpdating ? "animate-spin" : ""}`} />
+            Refresh
+          </Button>
+          {selectedJob && (
+            <Button
+              variant="outline"
+              size="sm"
+              className="gap-2"
+              onClick={() => setManualUrlOpen(true)}
+            >
+              <Link2 className="h-4 w-4" />
+              Set URL
+            </Button>
+          )}
+        </div>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -261,6 +312,7 @@ const History = () => {
                   <div className="relative aspect-video bg-black rounded-lg overflow-hidden">
                     <video 
                       id="history-video"
+                      ref={videoRef}
                       src={selectedJob.output_url}
                       className="w-full h-full object-contain"
                       controls
@@ -327,6 +379,60 @@ const History = () => {
           </Card>
         </div>
       </div>
+
+      <Dialog open={manualUrlOpen} onOpenChange={setManualUrlOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Update Job URL</DialogTitle>
+            <DialogDescription>
+              If you have a direct URL to the dubbed video output, you can update the job manually.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label htmlFor="url">Video URL</Label>
+              <Input 
+                id="url" 
+                placeholder="https://..." 
+                value={manualUrl} 
+                onChange={(e) => setManualUrl(e.target.value)}
+              />
+              <p className="text-xs text-muted-foreground">
+                Paste the URL provided by the API response.
+              </p>
+            </div>
+            {selectedJob && (
+              <div className="text-sm">
+                <p>Job ID: {selectedJob.sieve_job_id}</p>
+                <p>Current status: {selectedJob.status}</p>
+                {selectedJob.output_url && (
+                  <p className="truncate">Current URL: {selectedJob.output_url}</p>
+                )}
+              </div>
+            )}
+          </div>
+          <DialogFooter>
+            <Button 
+              variant="outline" 
+              onClick={() => setManualUrlOpen(false)}
+              disabled={isUpdatingUrl}
+            >
+              Cancel
+            </Button>
+            <Button 
+              onClick={handleManualUrlSubmit}
+              disabled={!manualUrl || isUpdatingUrl}
+            >
+              {isUpdatingUrl ? (
+                <>
+                  <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
+                  Updating...
+                </>
+              ) : "Update Job"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };

@@ -1,5 +1,5 @@
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { 
   Card, 
   CardContent, 
@@ -20,11 +20,15 @@ import {
   Clock, 
   Loader2, 
   Globe,
-  RefreshCw 
+  RefreshCw,
+  Link2
 } from "lucide-react";
 import { SieveLanguage, SUPPORTED_LANGUAGES } from "@/services/sieveApi";
-import { DubbingJob } from "@/hooks/useDubbingJobs";
+import { DubbingJob, useDubbingJobs } from "@/hooks/useDubbingJobs";
 import { toast } from "sonner";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 
 interface DubbingJobsListProps {
   jobs: DubbingJob[];
@@ -35,7 +39,12 @@ interface DubbingJobsListProps {
 export default function DubbingJobsList({ jobs, onRefresh, isLoading }: DubbingJobsListProps) {
   const [selectedJob, setSelectedJob] = useState<DubbingJob | null>(null);
   const [isPlaying, setIsPlaying] = useState(false);
-  const [videoElement, setVideoElement] = useState<HTMLVideoElement | null>(null);
+  const [manualUrlOpen, setManualUrlOpen] = useState(false);
+  const [manualUrl, setManualUrl] = useState("");
+  const [isUpdatingUrl, setIsUpdatingUrl] = useState(false);
+  
+  const videoRef = useRef<HTMLVideoElement | null>(null);
+  const { updateJobWithUrl } = useDubbingJobs();
 
   useEffect(() => {
     // Set the first completed job as selected if none is selected
@@ -52,14 +61,19 @@ export default function DubbingJobsList({ jobs, onRefresh, isLoading }: DubbingJ
     if (selectedJob && !jobs.find(job => job.id === selectedJob.id) && jobs.length > 0) {
       setSelectedJob(jobs[0]);
     }
+    
+    // Update selected job if its data changed
+    if (selectedJob) {
+      const updatedJob = jobs.find(job => job.id === selectedJob.id);
+      if (updatedJob && JSON.stringify(updatedJob) !== JSON.stringify(selectedJob)) {
+        setSelectedJob(updatedJob);
+      }
+    }
   }, [jobs, selectedJob]);
 
   useEffect(() => {
     // Initialize video element reference when selected job changes
-    const video = document.getElementById("preview-video") as HTMLVideoElement;
-    if (video) {
-      setVideoElement(video);
-    }
+    videoRef.current = document.getElementById("preview-video") as HTMLVideoElement;
     
     // Auto-refresh active jobs on component mount or when selected job changes
     const hasActiveJobs = jobs.some(job => job.status === "queued" || job.status === "running");
@@ -69,11 +83,11 @@ export default function DubbingJobsList({ jobs, onRefresh, isLoading }: DubbingJ
   }, [selectedJob, isLoading, onRefresh, jobs]);
 
   const togglePlayPause = () => {
-    if (videoElement) {
+    if (videoRef.current) {
       if (isPlaying) {
-        videoElement.pause();
+        videoRef.current.pause();
       } else {
-        videoElement.play();
+        videoRef.current.play();
       }
       setIsPlaying(!isPlaying);
     }
@@ -118,6 +132,30 @@ export default function DubbingJobsList({ jobs, onRefresh, isLoading }: DubbingJ
     onRefresh();
   };
 
+  const handleManualUrlSubmit = async () => {
+    if (!selectedJob || !manualUrl) return;
+    
+    setIsUpdatingUrl(true);
+    
+    try {
+      const success = await updateJobWithUrl(selectedJob.sieve_job_id, manualUrl);
+      
+      if (success) {
+        toast.success("Job updated with the provided URL!");
+        setManualUrlOpen(false);
+        setManualUrl("");
+        onRefresh();
+      } else {
+        toast.error("Failed to update the job. Please check the URL.");
+      }
+    } catch (error) {
+      toast.error("An error occurred while updating the job");
+      console.error("Error updating job URL:", error);
+    } finally {
+      setIsUpdatingUrl(false);
+    }
+  };
+
   if (jobs.length === 0) {
     return (
       <div className="text-center py-12">
@@ -136,25 +174,38 @@ export default function DubbingJobsList({ jobs, onRefresh, isLoading }: DubbingJ
     <div className="space-y-6">
       <div className="flex justify-between items-center">
         <h3 className="text-lg font-medium">Your Dubbing Jobs</h3>
-        <Button 
-          variant="outline" 
-          size="sm" 
-          onClick={handleRefresh}
-          disabled={isLoading}
-          className="gap-2"
-        >
-          {isLoading ? (
-            <>
-              <Loader2 className="h-4 w-4 animate-spin" />
-              Refreshing...
-            </>
-          ) : (
-            <>
-              <RefreshCw className="h-4 w-4" />
-              Refresh
-            </>
+        <div className="flex gap-2">
+          <Button 
+            variant="outline" 
+            size="sm" 
+            onClick={handleRefresh}
+            disabled={isLoading}
+            className="gap-2"
+          >
+            {isLoading ? (
+              <>
+                <Loader2 className="h-4 w-4 animate-spin" />
+                Refreshing...
+              </>
+            ) : (
+              <>
+                <RefreshCw className="h-4 w-4" />
+                Refresh
+              </>
+            )}
+          </Button>
+          {selectedJob && (
+            <Button
+              variant="outline"
+              size="sm"
+              className="gap-2"
+              onClick={() => setManualUrlOpen(true)}
+            >
+              <Link2 className="h-4 w-4" />
+              Set URL
+            </Button>
           )}
-        </Button>
+        </div>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -293,6 +344,60 @@ export default function DubbingJobsList({ jobs, onRefresh, isLoading }: DubbingJ
           </Card>
         </div>
       </div>
+
+      <Dialog open={manualUrlOpen} onOpenChange={setManualUrlOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Update Job URL</DialogTitle>
+            <DialogDescription>
+              If you have a direct URL to the dubbed video output, you can update the job manually.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label htmlFor="dubbing-url">Video URL</Label>
+              <Input 
+                id="dubbing-url" 
+                placeholder="https://..." 
+                value={manualUrl} 
+                onChange={(e) => setManualUrl(e.target.value)}
+              />
+              <p className="text-xs text-muted-foreground">
+                Paste the URL provided by the API response.
+              </p>
+            </div>
+            {selectedJob && (
+              <div className="text-sm">
+                <p>Job ID: {selectedJob.sieve_job_id}</p>
+                <p>Current status: {selectedJob.status}</p>
+                {selectedJob.output_url && (
+                  <p className="truncate">Current URL: {selectedJob.output_url}</p>
+                )}
+              </div>
+            )}
+          </div>
+          <DialogFooter>
+            <Button 
+              variant="outline" 
+              onClick={() => setManualUrlOpen(false)}
+              disabled={isUpdatingUrl}
+            >
+              Cancel
+            </Button>
+            <Button 
+              onClick={handleManualUrlSubmit}
+              disabled={!manualUrl || isUpdatingUrl}
+            >
+              {isUpdatingUrl ? (
+                <>
+                  <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
+                  Updating...
+                </>
+              ) : "Update Job"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

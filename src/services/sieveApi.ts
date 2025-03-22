@@ -150,6 +150,7 @@ export const submitVideoDubbing = async (videoUrl: string, options: {
 
 export const checkDubbingJobStatus = async (jobId: string): Promise<SieveDubbingResponse> => {
   try {
+    console.log(`Checking status for job ${jobId}`);
     const response = await fetch(`${API_BASE_URL}/jobs/${jobId}`, {
       method: 'GET',
       headers: {
@@ -175,14 +176,14 @@ export const checkDubbingJobStatus = async (jobId: string): Promise<SieveDubbing
     }
 
     const data = await response.json();
-    console.log(`Raw API response for job ${jobId}:`, data);
+    console.log(`Raw API response for job ${jobId}:`, JSON.stringify(data, null, 2));
     
-    if (data.outputs?.output_0?.url && data.status !== "succeeded") {
-      console.log(`Job ${jobId} has output URL but status is ${data.status}, correcting to succeeded`);
+    if (data.outputs && data.outputs.output_0 && data.outputs.output_0.url) {
+      console.log(`Job ${jobId} has output URL: ${data.outputs.output_0.url}, marking as succeeded`);
       data.status = "succeeded";
     }
     
-    if ((data.error && data.error.message) && data.status !== "failed") {
+    if (data.error && data.error.message && data.status !== "failed") {
       console.log(`Job ${jobId} has an error but status is ${data.status}, correcting to failed`);
       data.status = "failed";
     }
@@ -202,5 +203,15 @@ export const checkDubbingJobStatus = async (jobId: string): Promise<SieveDubbing
         message: error instanceof Error ? error.message : "Unknown error occurred"
       }
     };
+  }
+};
+
+export const verifyOutputUrl = async (url: string): Promise<boolean> => {
+  try {
+    const response = await fetch(url, { method: 'HEAD' });
+    return response.ok;
+  } catch (error) {
+    console.error('Error verifying output URL:', error);
+    return false;
   }
 };
