@@ -65,7 +65,6 @@ export const LIPSYNC_BACKENDS = [
   { value: "latentsync", label: "LatentSync" }
 ];
 
-// Function to get a file upload URL
 export const getFileUploadUrl = async (fileName: string, contentType: string): Promise<string> => {
   try {
     const response = await fetch(`${API_BASE_URL}/push/inputs/sign`, {
@@ -93,14 +92,11 @@ export const getFileUploadUrl = async (fileName: string, contentType: string): P
   }
 };
 
-// Submit video dubbing job
 export const submitVideoDubbing = async (videoUrl: string, options: {
   target_language: string;
   enable_voice_cloning?: boolean;
   preserve_background_audio?: boolean;
   enable_lipsyncing?: boolean;
-  lipsync_backend?: string;
-  lipsync_enhance?: string;
   safewords?: string;
   translation_dictionary?: string;
   start_time?: number;
@@ -125,9 +121,9 @@ export const submitVideoDubbing = async (videoUrl: string, options: {
         translation_dictionary: options.translation_dictionary || "",
         start_time: options.start_time ?? 0,
         end_time: options.end_time ?? -1,
-        enable_lipsyncing: options.enable_lipsyncing ?? false,
-        lipsync_backend: options.lipsync_backend || "sievesync-1.1",
-        lipsync_enhance: options.lipsync_enhance || "default"
+        enable_lipsyncing: true, // Always enable lip syncing
+        lipsync_backend: "sievesync-1.1", // Always use sievesync-1.1
+        lipsync_enhance: "default" // Always use default enhancement
       }
     };
 
@@ -153,7 +149,6 @@ export const submitVideoDubbing = async (videoUrl: string, options: {
   }
 };
 
-// Check dubbing job status
 export const checkDubbingJobStatus = async (jobId: string) => {
   try {
     const response = await fetch(`${API_BASE_URL}/jobs/${jobId}`, {

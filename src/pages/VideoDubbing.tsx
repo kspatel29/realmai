@@ -1,5 +1,4 @@
-
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
@@ -10,19 +9,19 @@ import ServiceCostDisplay from "@/components/ServiceCostDisplay";
 import CreditConfirmDialog from "@/components/CreditConfirmDialog";
 import { useCredits } from "@/hooks/useCredits";
 import { useVideos, type Video as VideoType } from "@/hooks/useVideos";
+import { useDubbingJobs } from "@/hooks/useDubbingJobs";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import VideoDubbingForm from "@/components/VideoDubbingForm";
 import DubbingJobsList from "@/components/DubbingJobsList";
-import { submitVideoDubbing, checkDubbingJobStatus, getFileUploadUrl } from "@/services/sieveApi";
+import { submitVideoDubbing } from "@/services/sieveApi";
 import { useInterval } from "@/hooks/useInterval";
 
 const CREDIT_COSTS = {
   BASE_COST: 5,
   PER_LANGUAGE: 3,
   VOICE_CLONE: 5,
-  LIPSYNC: 3
 };
 
 const VideoDubbing = () => {
@@ -36,23 +35,33 @@ const VideoDubbing = () => {
   const [showCreditConfirm, setShowCreditConfirm] = useState(false);
   const [uploadDialogOpen, setUploadDialogOpen] = useState(false);
   const [videoSelectOpen, setVideoSelectOpen] = useState(false);
-  const [dubbingJobs, setDubbingJobs] = useState<any[]>([]);
-  const [isLoadingJobs, setIsLoadingJobs] = useState(false);
   const [currentForm, setCurrentForm] = useState<any>(null);
-  const [activeJobIds, setActiveJobIds] = useState<string[]>([]);
   
   const { credits, useCredits: spendCredits, hasEnoughCredits, addCreditsToUser } = useCredits();
   const { videos, isLoading: isLoadingVideos, uploadVideo, deleteVideo } = useVideos();
+  const { 
+    jobs: dubbingJobs, 
+    isLoading: isLoadingJobs, 
+    createJob, 
+    refreshJobStatus,
+    isUpdating 
+  } = useDubbingJobs();
+  
+  const hasAddedCreditsRef = useRef(false);
 
-  // Add 1000 credits to the specified user for development
   useEffect(() => {
     const developmentUserId = 'a73c1162-06ee-42b5-a50e-77f268419d4f';
     
-    // Only run this once when the component mounts
-    addCreditsToUser.mutate({
-      userId: developmentUserId,
-      amount: 1000
-    });
+    if (!hasAddedCreditsRef.current) {
+      addCreditsToUser.mutate({
+        userId: developmentUserId,
+        amount: 1000
+      }, {
+        onSuccess: () => {
+          hasAddedCreditsRef.current = true;
+        }
+      });
+    }
   }, []);
 
   useEffect(() => {
@@ -63,12 +72,11 @@ const VideoDubbing = () => {
     }
   }, [selectedVideo]);
 
-  // Poll for active job status updates
   useInterval(() => {
-    if (activeJobIds.length > 0) {
+    if (dubbingJobs.some(job => job.status === "queued" || job.status === "running")) {
       refreshJobStatus();
     }
-  }, 10000); // Poll every 10 seconds
+  }, 10000);
 
   const loadVideoURL = async (video: VideoType) => {
     try {
@@ -144,11 +152,6 @@ const VideoDubbing = () => {
       totalCost += CREDIT_COSTS.VOICE_CLONE;
     }
     
-    // Additional costs for lip syncing
-    if (currentForm.enable_lipsyncing) {
-      totalCost += CREDIT_COSTS.LIPSYNC;
-    }
-    
     return totalCost;
   };
 
@@ -177,38 +180,29 @@ const VideoDubbing = () => {
     spendCredits.mutate({
       amount: cost,
       service: "Video Dubbing",
-      description: `Dubbed video in ${currentForm.target_languages.length} languages, ${isVoiceCloning ? 'with voice cloning' : 'with AI voice'}${currentForm.enable_lipsyncing ? ', with lip syncing' : ''}`
+      description: `Dubbed video in ${currentForm.target_languages.length} languages, ${isVoiceCloning ? 'with voice cloning' : 'with AI voice'}`
     }, {
       onSuccess: async () => {
         setIsProcessing(true);
         
         try {
-          // Submit the dubbing job
           const languages = currentForm.target_languages.join(',');
           
           const response = await submitVideoDubbing(videoURL, {
             target_language: languages,
             enable_voice_cloning: currentForm.enable_voice_cloning,
             preserve_background_audio: currentForm.preserve_background_audio,
-            enable_lipsyncing: currentForm.enable_lipsyncing,
-            lipsync_backend: currentForm.lipsync_backend,
-            lipsync_enhance: currentForm.lipsync_enhance,
             safewords: currentForm.safewords,
             translation_dictionary: currentForm.translation_dictionary || "",
             start_time: currentForm.start_time,
             end_time: currentForm.end_time,
           });
           
-          // Add the new job to the list
-          const newJob = {
-            id: response.id,
+          await createJob.mutateAsync({
+            sieve_job_id: response.id,
             status: response.status,
             languages: currentForm.target_languages,
-            createdAt: new Date(),
-          };
-          
-          setDubbingJobs(prev => [newJob, ...prev]);
-          setActiveJobIds(prev => [...prev, response.id]);
+          });
           
           toast.success(`Dubbing job submitted successfully!`);
           setIsProcessing(false);
@@ -223,51 +217,6 @@ const VideoDubbing = () => {
         setIsProcessing(false);
       }
     });
-  };
-
-  const refreshJobStatus = async () => {
-    setIsLoadingJobs(true);
-    
-    try {
-      // In a real implementation, you would fetch all jobs from your backend
-      // For this demo, we'll just update the status of active jobs
-      const updatedJobs = [...dubbingJobs];
-      let stillActive = false;
-      
-      for (let i = 0; i < updatedJobs.length; i++) {
-        if (activeJobIds.includes(updatedJobs[i].id) && 
-            (updatedJobs[i].status === "queued" || updatedJobs[i].status === "running")) {
-          try {
-            const response = await checkDubbingJobStatus(updatedJobs[i].id);
-            
-            updatedJobs[i].status = response.status;
-            
-            if (response.status === "succeeded" && response.outputs?.output_0?.url) {
-              updatedJobs[i].outputUrl = response.outputs.output_0.url;
-            } else if (response.status === "failed" && response.error) {
-              updatedJobs[i].error = response.error;
-            }
-            
-            if (response.status === "queued" || response.status === "running") {
-              stillActive = true;
-            }
-          } catch (error) {
-            console.error(`Error checking job status for ${updatedJobs[i].id}:`, error);
-          }
-        }
-      }
-      
-      setDubbingJobs(updatedJobs);
-      
-      if (!stillActive) {
-        setActiveJobIds([]);
-      }
-    } catch (error) {
-      console.error('Error refreshing job status:', error);
-      toast.error('Failed to refresh job status');
-    }
-    
-    setIsLoadingJobs(false);
   };
 
   const handleDeleteVideo = (video: VideoType) => {
@@ -297,7 +246,7 @@ const VideoDubbing = () => {
         serviceName="Video Dubbing"
         creditCost={totalCost}
         onConfirm={confirmAndProcess}
-        description={`This will use ${totalCost} credits to dub your video in ${currentForm?.target_languages?.length || 0} languages ${currentForm?.enable_voice_cloning ? 'with voice cloning' : 'with AI voice'}${currentForm?.enable_lipsyncing ? ', with lip syncing' : ''}.`}
+        description={`This will use ${totalCost} credits to dub your video in ${currentForm?.target_languages?.length || 0} languages ${currentForm?.enable_voice_cloning ? 'with voice cloning' : 'with AI voice'}.`}
       />
 
       <Tabs defaultValue="upload" className="w-full">
@@ -576,14 +525,14 @@ const VideoDubbing = () => {
             <CardHeader>
               <CardTitle>Preview Dubbed Videos</CardTitle>
               <CardDescription>
-                Preview and download your dubbed videos
+                View and download your dubbed videos
               </CardDescription>
             </CardHeader>
             <CardContent>
               <DubbingJobsList 
                 jobs={dubbingJobs}
                 onRefresh={refreshJobStatus}
-                isLoading={isLoadingJobs}
+                isLoading={isLoadingJobs || isUpdating}
               />
             </CardContent>
           </Card>

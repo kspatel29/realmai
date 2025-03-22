@@ -21,16 +21,8 @@ import {
   Loader2, 
   Globe 
 } from "lucide-react";
-import { SieveDubbingResponse, SieveLanguage, SUPPORTED_LANGUAGES } from "@/services/sieveApi";
-
-interface DubbingJob {
-  id: string;
-  status: "queued" | "running" | "succeeded" | "failed";
-  languages: string[];
-  createdAt: Date;
-  outputUrl?: string;
-  error?: string;
-}
+import { SieveLanguage, SUPPORTED_LANGUAGES } from "@/services/sieveApi";
+import { DubbingJob } from "@/hooks/useDubbingJobs";
 
 interface DubbingJobsListProps {
   jobs: DubbingJob[];
@@ -49,7 +41,14 @@ export default function DubbingJobsList({ jobs, onRefresh, isLoading }: DubbingJ
       const completedJob = jobs.find(job => job.status === "succeeded");
       if (completedJob) {
         setSelectedJob(completedJob);
+      } else {
+        setSelectedJob(jobs[0]);
       }
+    }
+    
+    // If the selected job is no longer in the list, select the first job
+    if (selectedJob && !jobs.find(job => job.id === selectedJob.id) && jobs.length > 0) {
+      setSelectedJob(jobs[0]);
     }
   }, [jobs, selectedJob]);
 
@@ -151,10 +150,10 @@ export default function DubbingJobsList({ jobs, onRefresh, isLoading }: DubbingJ
                 <div className="flex justify-between items-start">
                   <div>
                     <CardTitle className="text-base truncate">
-                      Job #{job.id.substring(0, 8)}
+                      Job #{job.sieve_job_id.substring(0, 8)}
                     </CardTitle>
                     <CardDescription className="text-xs">
-                      {job.createdAt.toLocaleString()}
+                      {new Date(job.created_at).toLocaleString()}
                     </CardDescription>
                   </div>
                   {getStatusBadge(job.status)}
@@ -189,10 +188,10 @@ export default function DubbingJobsList({ jobs, onRefresh, isLoading }: DubbingJ
         <div className="md:col-span-2">
           <Card>
             <CardHeader className="p-4">
-              <CardTitle className="text-base">
+              <CardTitle className="text-base flex items-center gap-2">
                 {selectedJob ? (
                   <>
-                    Preview Job #{selectedJob.id.substring(0, 8)}
+                    Preview Job #{selectedJob.sieve_job_id.substring(0, 8)}
                     {getStatusBadge(selectedJob.status)}
                   </>
                 ) : "Video Preview"}
@@ -206,11 +205,11 @@ export default function DubbingJobsList({ jobs, onRefresh, isLoading }: DubbingJ
               </CardDescription>
             </CardHeader>
             <CardContent className="p-4 pt-0 space-y-3">
-              {selectedJob?.status === "succeeded" && selectedJob.outputUrl ? (
+              {selectedJob?.status === "succeeded" && selectedJob.output_url ? (
                 <div className="relative aspect-video bg-black rounded-lg overflow-hidden">
                   <video 
                     id="preview-video"
-                    src={selectedJob.outputUrl}
+                    src={selectedJob.output_url}
                     className="w-full h-full object-contain"
                     controls
                     onPlay={() => setIsPlaying(true)}
@@ -261,11 +260,11 @@ export default function DubbingJobsList({ jobs, onRefresh, isLoading }: DubbingJ
               )}
             </CardContent>
             <CardFooter className="p-4 pt-0 flex justify-end">
-              {selectedJob?.status === "succeeded" && selectedJob.outputUrl && (
+              {selectedJob?.status === "succeeded" && selectedJob.output_url && (
                 <Button
                   variant="default"
                   className="bg-youtube-red hover:bg-youtube-darkred"
-                  onClick={() => window.open(selectedJob.outputUrl, "_blank")}
+                  onClick={() => window.open(selectedJob.output_url, "_blank")}
                 >
                   <Download className="mr-2 h-4 w-4" />
                   Download

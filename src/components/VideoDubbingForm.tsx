@@ -16,7 +16,7 @@ import {
   FormLabel,
   FormMessage,
 } from "@/components/ui/form";
-import { SUPPORTED_LANGUAGES, LIPSYNC_BACKENDS } from "@/services/sieveApi";
+import { SUPPORTED_LANGUAGES } from "@/services/sieveApi";
 import { Badge } from "@/components/ui/badge";
 import { Check, Globe, Info } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
@@ -26,9 +26,6 @@ const formSchema = z.object({
   target_languages: z.array(z.string()).min(1, "Select at least one language"),
   enable_voice_cloning: z.boolean(),
   preserve_background_audio: z.boolean(),
-  enable_lipsyncing: z.boolean(),
-  lipsync_backend: z.string().optional(),
-  lipsync_enhance: z.enum(["default", "none"]).optional(),
   safewords: z.string(),
   translation_dictionary: z.string(),
   start_time: z.number(),
@@ -61,9 +58,6 @@ export default function VideoDubbingForm({
       target_languages: [],
       enable_voice_cloning: true,
       preserve_background_audio: true,
-      enable_lipsyncing: false,
-      lipsync_backend: "sievesync-1.1",
-      lipsync_enhance: "default",
       safewords: "",
       translation_dictionary: "",
       start_time: 0,
@@ -85,7 +79,6 @@ export default function VideoDubbingForm({
     });
   };
 
-  const watchEnableLipsyncing = form.watch("enable_lipsyncing");
   const watchEnableVoiceCloning = form.watch("enable_voice_cloning");
 
   // Update the isVoiceCloning state when toggle changes
@@ -140,7 +133,7 @@ export default function VideoDubbingForm({
             )}
           />
 
-          <div className="grid md:grid-cols-2 gap-4">
+          <div className="grid md:grid-cols-1 gap-4">
             <FormField
               control={form.control}
               name="enable_voice_cloning"
@@ -162,83 +155,7 @@ export default function VideoDubbingForm({
                 </FormItem>
               )}
             />
-
-            <FormField
-              control={form.control}
-              name="enable_lipsyncing"
-              render={({ field }) => (
-                <FormItem className="flex flex-row items-start space-x-3 space-y-0 rounded-md border p-4 relative">
-                  <FormControl>
-                    <Checkbox
-                      checked={field.value}
-                      onCheckedChange={field.onChange}
-                      disabled={isProcessing}
-                    />
-                  </FormControl>
-                  <div className="space-y-1 leading-none">
-                    <FormLabel>Enable Lip Syncing</FormLabel>
-                    <FormDescription>
-                      Sync lip movements with dubbed audio (costs extra)
-                    </FormDescription>
-                  </div>
-                  <Badge className="absolute top-2 right-2 bg-amber-500">+3 credits</Badge>
-                </FormItem>
-              )}
-            />
           </div>
-
-          {watchEnableLipsyncing && (
-            <div className="border rounded-lg p-4 space-y-4">
-              <FormField
-                control={form.control}
-                name="lipsync_backend"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Lip Sync Technology</FormLabel>
-                    <select
-                      className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
-                      value={field.value}
-                      onChange={field.onChange}
-                      disabled={isProcessing}
-                    >
-                      {LIPSYNC_BACKENDS.map((backend) => (
-                        <option key={backend.value} value={backend.value}>
-                          {backend.label}
-                        </option>
-                      ))}
-                    </select>
-                    <FormDescription>
-                      Technology used for lip syncing
-                    </FormDescription>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              <FormField
-                control={form.control}
-                name="lipsync_enhance"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Lip Sync Enhancement</FormLabel>
-                    <select
-                      className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
-                      value={field.value}
-                      onChange={field.onChange}
-                      disabled={isProcessing}
-                    >
-                      <option value="default">Default</option>
-                      <option value="none">None</option>
-                    </select>
-                    <FormDescription>
-                      Additional enhancement for lip sync quality
-                    </FormDescription>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-            </div>
-          )}
 
           <div className="flex items-center justify-between border rounded-lg p-4">
             <div className="flex items-start gap-3">
