@@ -52,18 +52,30 @@ serve(async (req) => {
 
     console.log("Generating video with input:", body)
     
+    // Clean up input before sending to Replicate
+    const input = {
+      prompt: body.prompt,
+      negative_prompt: body.negative_prompt || "",
+      aspect_ratio: body.aspect_ratio || "16:9",
+      duration: typeof body.duration === 'number' ? body.duration : parseInt(body.duration, 10) || 5,
+      cfg_scale: typeof body.cfg_scale === 'number' ? body.cfg_scale : parseFloat(body.cfg_scale) || 0.5,
+    }
+    
+    // Only add start_image and end_image if they are valid strings
+    if (body.start_image && typeof body.start_image === 'string') {
+      input.start_image = body.start_image
+    }
+    
+    if (body.end_image && typeof body.end_image === 'string') {
+      input.end_image = body.end_image
+    }
+    
+    console.log("Cleaned input for Replicate:", input)
+    
     // Start the prediction but don't wait for it to complete
     const prediction = await replicate.predictions.create({
       version: "3a139358cc4ae29264fbcafd6ee8fbd92726dfa35c8b1e1ba03a7e04d8697bbb", // kling-v1.6-pro model version
-      input: {
-        prompt: body.prompt,
-        negative_prompt: body.negative_prompt,
-        start_image: body.start_image,
-        end_image: body.end_image,
-        aspect_ratio: body.aspect_ratio,
-        duration: body.duration,
-        cfg_scale: body.cfg_scale,
-      },
+      input,
     })
     
     console.log("Prediction created:", prediction)

@@ -35,15 +35,23 @@ export const useVideoGeneration = () => {
     setIsProcessing(true);
     
     try {
+      // Make sure values are properly structured before sending to the API
       const input = {
         prompt: values.prompt,
         negative_prompt: values.negative_prompt || "",
         aspect_ratio: values.aspect_ratio,
         duration: parseInt(values.duration),
         cfg_scale: values.cfg_scale,
-        start_image: startFrame || undefined,
-        end_image: endFrame || undefined,
       };
+      
+      // Only add valid start and end frames
+      if (startFrame && typeof startFrame === 'string') {
+        input.start_image = startFrame;
+      }
+      
+      if (endFrame && typeof endFrame === 'string') {
+        input.end_image = endFrame;
+      }
       
       console.log("Generating video with inputs:", input);
       
