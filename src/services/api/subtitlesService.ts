@@ -1,3 +1,4 @@
+
 import { supabase } from "@/integrations/supabase/client";
 
 export interface GenerateSubtitlesParams {
@@ -26,18 +27,22 @@ export const generateSubtitles = async (params: GenerateSubtitlesParams) => {
 };
 
 export const extractAudioFromVideo = async (videoPath: string): Promise<string> => {
+  console.log("Extracting audio from video:", videoPath);
   const { data, error } = await supabase.functions.invoke("generate-subtitles", {
     body: { extractAudio: true, videoPath },
   });
 
   if (error) {
+    console.error("Error extracting audio:", error);
     throw new Error(error.message);
   }
 
   if (!data.audioUrl) {
-    throw new Error("Failed to extract audio from video");
+    console.error("Failed to extract audio, response:", data);
+    throw new Error(data.error || "Failed to extract audio from video");
   }
 
+  console.log("Extracted audio URL:", data.audioUrl);
   return data.audioUrl;
 };
 
@@ -58,6 +63,8 @@ export const uploadAudioFile = async (file: File): Promise<string> => {
   const fileName = `${crypto.randomUUID()}.${fileExt}`;
   const filePath = `${fileName}`;
 
+  console.log(`Uploading file ${file.name} to uploads/${filePath}`);
+  
   const { data, error } = await supabase.storage
     .from('uploads')
     .upload(filePath, file, {
@@ -66,6 +73,7 @@ export const uploadAudioFile = async (file: File): Promise<string> => {
     });
 
   if (error) {
+    console.error("Error uploading file:", error);
     throw new Error(`Error uploading file: ${error.message}`);
   }
 
@@ -73,6 +81,7 @@ export const uploadAudioFile = async (file: File): Promise<string> => {
     .from('uploads')
     .getPublicUrl(filePath);
 
+  console.log("Uploaded file URL:", urlData.publicUrl);
   return urlData.publicUrl;
 };
 

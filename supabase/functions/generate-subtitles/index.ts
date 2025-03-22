@@ -24,6 +24,7 @@ async function extractAudioFromVideo(videoUrl) {
     });
     
     // Call the audio extractor model
+    console.log("Calling Replicate audio extractor model with URL:", videoUrl);
     const extractionOutput = await replicate.run(
       "vaibhavs10/audio-extractor:3d86abe461f9d7d75da6a205bac8765063b9dbe44d94a511189c28dcdac3e68c",
       {
@@ -35,6 +36,13 @@ async function extractAudioFromVideo(videoUrl) {
     );
     
     console.log("Audio extraction result:", extractionOutput);
+    
+    // Validate extraction output - it should contain a URL
+    if (!extractionOutput || typeof extractionOutput !== 'string' || !extractionOutput.startsWith('http')) {
+      console.error("Invalid extraction output:", extractionOutput);
+      throw new Error("Audio extraction failed: Invalid response from extractor");
+    }
+    
     return extractionOutput;
   } catch (error) {
     console.error("Error extracting audio:", error);
@@ -59,6 +67,7 @@ serve(async (req) => {
     })
 
     const body = await req.json()
+    console.log("Request body:", JSON.stringify(body));
 
     // If it's a status check request
     if (body.predictionId) {
@@ -80,7 +89,7 @@ serve(async (req) => {
         });
       } catch (error) {
         console.error("Audio extraction failed:", error);
-        return new Response(JSON.stringify({ error: error.message }), {
+        return new Response(JSON.stringify({ error: `Audio extraction failed: ${error.message}` }), {
           headers: { ...corsHeaders, 'Content-Type': 'application/json' },
           status: 500,
         });
@@ -101,23 +110,44 @@ serve(async (req) => {
 
     console.log("Generating subtitles for audio:", body.audioPath)
     
-    const output = await replicate.run(
-      "stayallive/whisper-subtitles:b97ba81004e7132181864c885a76cae0e56bc61caa4190a395f6d8ba45b7a969",
-      {
-        input: {
-          audio_path: body.audioPath,
-          model_name: body.modelName || "small",
-          language: body.language || "en",
-          vad_filter: body.vadFilter !== undefined ? body.vadFilter : true,
+    try {
+      const output = await replicate.run(
+        "stayallive/whisper-subtitles:b97ba81004e7132181864c885a76cae0e56bc61caa4190a395f6d8ba45b7a969",
+        {
+          input: {
+            audio_path: body.audioPath,
+            model_name: body.modelName || "small",
+            language: body.language || "en",
+            vad_filter: body.vadFilter !== undefined ? body.vadFilter : true,
+          }
         }
-      }
-    )
+      )
 
-    console.log("Generation response:", output)
-    return new Response(JSON.stringify({ output }), {
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      status: 200,
-    })
+      console.log("Generation response:", output);
+      
+      if (!output || !output.srt_file || !output.vtt_file) {
+        console.error("Invalid subtitles generation output:", output);
+        return new Response(JSON.stringify({ 
+          error: "Subtitles generation failed: Invalid response from model"
+        }), {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          status: 500,
+        });
+      }
+      
+      return new Response(JSON.stringify({ output }), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        status: 200,
+      });
+    } catch (error) {
+      console.error("Subtitles generation failed:", error);
+      return new Response(JSON.stringify({ 
+        error: `Subtitles generation failed: ${error.message}`
+      }), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        status: 500,
+      });
+    }
   } catch (error) {
     console.error("Error in subtitles generation function:", error)
     return new Response(JSON.stringify({ error: error.message }), {
