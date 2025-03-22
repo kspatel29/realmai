@@ -80,7 +80,7 @@ const VideoDubbing = () => {
         }
       }
     };
-  }, [videos]);
+  }, [videos, cleanupUnusedVideos]);
 
   useEffect(() => {
     if (selectedVideo) {
@@ -145,7 +145,7 @@ const VideoDubbing = () => {
           setTimeout(() => {
             setIsUploading(false);
             setProgress(0);
-            setSelectedVideo(newVideo);
+            setSelectedVideo(newVideo as VideoType);
             setUploadDialogOpen(false);
           }, 500);
         },

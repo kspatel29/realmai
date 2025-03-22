@@ -39,7 +39,7 @@ export const useVideos = () => {
         throw error;
       }
       
-      return data || [];
+      return data as Video[] || [];
     },
     enabled: !!user,
   });
