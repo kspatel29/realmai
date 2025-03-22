@@ -1,5 +1,5 @@
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
@@ -8,26 +8,76 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Slider } from "@/components/ui/slider";
-import { Upload, FileText, Scissors, Video, Clock, Download, DownloadCloud } from "lucide-react";
+import { Textarea } from "@/components/ui/textarea";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { useToast } from "@/hooks/use-toast";
+import { 
+  Upload, Video, Scissors, Clock, Download, DownloadCloud, Play,
+  Pause, SkipBack, SkipForward, RefreshCw, Image as ImageIcon,
+  Film, MagicWand, XCircle, Check, AlertCircle
+} from "lucide-react";
+import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
+import { useForm } from "react-hook-form";
+import { z } from "zod";
+import VideoFrameSelector from "@/components/VideoFrameSelector";
+import { createReplicateVideoClip } from "@/services/replicateService";
+import { useVideos } from "@/hooks/useVideos";
+
+const videoGenerationSchema = z.object({
+  prompt: z.string().min(3, "Prompt must be at least 3 characters"),
+  negative_prompt: z.string().optional(),
+  aspect_ratio: z.enum(["16:9", "9:16", "1:1"]).default("16:9"),
+  duration: z.enum(["5", "10"]).default("5"),
+  cfg_scale: z.number().min(0).max(1).default(0.5),
+  use_existing_video: z.boolean().default(false),
+});
+
+type VideoGenerationFormValues = z.infer<typeof videoGenerationSchema>;
 
 const ClipsGenerator = () => {
   const [file, setFile] = useState<File | null>(null);
   const [isUploading, setIsUploading] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
   const [progress, setProgress] = useState(0);
+  const [videoUrl, setVideoUrl] = useState<string | null>(null);
+  const [startFrame, setStartFrame] = useState<string | null>(null);
+  const [endFrame, setEndFrame] = useState<string | null>(null);
+  const [currentTab, setCurrentTab] = useState("upload");
   const [generatedClips, setGeneratedClips] = useState<any[]>([]);
+  const [isPlaying, setIsPlaying] = useState(false);
   
+  const videoRef = useRef<HTMLVideoElement>(null);
   const { toast } = useToast();
+  const { videos, uploadVideo } = useVideos();
+
+  const form = useForm<VideoGenerationFormValues>({
+    defaultValues: {
+      prompt: "",
+      negative_prompt: "",
+      aspect_ratio: "16:9",
+      duration: "5",
+      cfg_scale: 0.5,
+      use_existing_video: false,
+    },
+  });
+
+  useEffect(() => {
+    if (file) {
+      const url = URL.createObjectURL(file);
+      setVideoUrl(url);
+      return () => URL.revokeObjectURL(url);
+    }
+  }, [file]);
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
       setFile(e.target.files[0]);
+      setStartFrame(null);
+      setEndFrame(null);
     }
   };
 
-  const handleUpload = () => {
+  const handleUpload = async () => {
     if (!file) {
       toast({
         title: "No file selected",
@@ -39,71 +89,162 @@ const ClipsGenerator = () => {
     
     setIsUploading(true);
     
-    // Simulate upload process
-    let progress = 0;
-    const interval = setInterval(() => {
-      progress += 5;
-      setProgress(progress);
+    try {
+      // Simulate upload process
+      let progress = 0;
+      const interval = setInterval(() => {
+        progress += 5;
+        setProgress(progress);
+        
+        if (progress >= 100) {
+          clearInterval(interval);
+          setIsUploading(false);
+          toast({
+            title: "Upload complete",
+            description: "Your video has been uploaded successfully."
+          });
+          setCurrentTab("generate");
+        }
+      }, 300);
       
-      if (progress >= 100) {
-        clearInterval(interval);
-        setIsUploading(false);
-        toast({
-          title: "Upload complete",
-          description: "Your video has been uploaded successfully."
-        });
-      }
-    }, 300);
+      // Actual upload to storage could be done here
+      // await uploadVideo.mutateAsync({
+      //   file, 
+      //   title: file.name.split('.')[0],
+      //   description: ""
+      // });
+    } catch (error) {
+      setIsUploading(false);
+      toast({
+        title: "Upload failed",
+        description: "There was an error uploading your video.",
+        variant: "destructive"
+      });
+    }
   };
 
-  const handleGenerateClips = () => {
+  const togglePlayPause = () => {
+    if (videoRef.current) {
+      if (isPlaying) {
+        videoRef.current.pause();
+      } else {
+        videoRef.current.play();
+      }
+      setIsPlaying(!isPlaying);
+    }
+  };
+
+  const handleGenerateClips = async (values: VideoGenerationFormValues) => {
     setIsProcessing(true);
     
-    // Simulate processing
-    setTimeout(() => {
+    try {
+      // Prepare input data for the Replicate API
+      const input = {
+        prompt: values.prompt,
+        negative_prompt: values.negative_prompt || "",
+        aspect_ratio: values.aspect_ratio,
+        duration: parseInt(values.duration),
+        cfg_scale: values.cfg_scale,
+        start_image: startFrame || undefined,
+        end_image: endFrame || undefined,
+      };
+      
+      // Call the Replicate API
+      console.log("Generating video with inputs:", input);
+      
+      // Simulating API call for now
+      setTimeout(() => {
+        setIsProcessing(false);
+        
+        // Simulated video generation response
+        setGeneratedClips([
+          { 
+            id: `clip-${Date.now()}`, 
+            title: values.prompt.substring(0, 30) + "...", 
+            duration: values.duration + "s", 
+            thumbnail: "", 
+            url: videoUrl // Using the uploaded video as a placeholder
+          }
+        ]);
+        
+        toast({
+          title: "Clip generated",
+          description: "Your video clip has been generated successfully."
+        });
+        
+        // Move to preview tab
+        setCurrentTab("preview");
+      }, 3000);
+      
+      // For actual implementation:
+      // const result = await createReplicateVideoClip(input);
+      // setGeneratedClips([{ 
+      //   id: `clip-${Date.now()}`, 
+      //   title: values.prompt.substring(0, 30) + "...", 
+      //   duration: values.duration + "s", 
+      //   thumbnail: "", 
+      //   url: result.output 
+      // }]);
+      
+    } catch (error) {
       setIsProcessing(false);
-      setGeneratedClips([
-        { id: 1, title: "Exciting Moment", duration: "0:42", thumbnail: "" },
-        { id: 2, title: "Key Insight", duration: "1:15", thumbnail: "" },
-        { id: 3, title: "Highlight", duration: "0:38", thumbnail: "" }
-      ]);
       toast({
-        title: "Clips generated",
-        description: "We've generated 3 clips from your video."
+        title: "Generation failed",
+        description: "There was an error generating your video clip.",
+        variant: "destructive"
       });
-    }, 3000);
+    }
   };
 
   return (
     <div className="space-y-8 animate-fade-in">
       <div>
-        <h1 className="text-2xl font-bold tracking-tight mb-2">Clips Generator</h1>
+        <h1 className="text-2xl font-bold tracking-tight mb-2">Video Generation</h1>
         <p className="text-muted-foreground">
-          Automatically create short, engaging clips from your longer videos to share on social media.
+          Create stunning short videos from text prompts or customize existing videos.
         </p>
       </div>
 
-      <Tabs defaultValue="upload" className="w-full">
+      <Tabs value={currentTab} onValueChange={setCurrentTab} className="w-full">
         <TabsList className="grid grid-cols-3 w-full max-w-md">
           <TabsTrigger value="upload">Upload</TabsTrigger>
           <TabsTrigger value="generate">Generate</TabsTrigger>
-          <TabsTrigger value="preview">Preview & Export</TabsTrigger>
+          <TabsTrigger value="preview">Preview</TabsTrigger>
         </TabsList>
         
         <TabsContent value="upload" className="mt-6">
           <Card>
             <CardHeader>
-              <CardTitle>Upload Video</CardTitle>
+              <CardTitle>Upload Video (Optional)</CardTitle>
               <CardDescription>
-                Upload the video you want to generate clips from.
+                Upload a video to extract frames for the start and end of your generated clip, or generate directly from text.
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">
               <div className="border-2 border-dashed border-gray-200 dark:border-gray-800 rounded-lg p-8 text-center">
                 {file ? (
-                  <div className="space-y-2">
-                    <div className="bg-muted rounded h-48 flex items-center justify-center">
-                      <Video className="h-12 w-12 text-muted-foreground" />
+                  <div className="space-y-4">
+                    <div className="bg-muted rounded overflow-hidden relative aspect-video">
+                      <video 
+                        ref={videoRef}
+                        src={videoUrl!} 
+                        className="w-full h-full object-contain" 
+                        controls={false}
+                        onPlay={() => setIsPlaying(true)}
+                        onPause={() => setIsPlaying(false)}
+                      />
+                      <div className="absolute bottom-0 left-0 right-0 bg-background/80 backdrop-blur-sm p-2 flex items-center justify-center gap-2">
+                        <Button 
+                          variant="outline" 
+                          size="sm" 
+                          onClick={togglePlayPause}
+                        >
+                          {isPlaying ? <Pause className="h-4 w-4" /> : <Play className="h-4 w-4" />}
+                        </Button>
+                        <div className="flex-1">
+                          <Slider disabled />
+                        </div>
+                      </div>
                     </div>
                     <p className="font-medium">{file.name}</p>
                     <p className="text-sm text-muted-foreground">
@@ -155,164 +296,295 @@ const ClipsGenerator = () => {
               <Button variant="outline" onClick={() => setFile(null)} disabled={!file || isUploading}>
                 Cancel
               </Button>
-              <Button 
-                onClick={handleUpload} 
-                disabled={!file || isUploading}
-                className={isUploading ? "" : "bg-youtube-red hover:bg-youtube-darkred"}
-              >
-                {isUploading ? `Uploading ${progress}%` : "Upload Video"}
-                <Upload className="ml-2 h-4 w-4" />
-              </Button>
+              <div className="flex gap-2">
+                <Button
+                  onClick={() => setCurrentTab("generate")}
+                >
+                  Skip to Generate
+                </Button>
+                <Button 
+                  onClick={handleUpload} 
+                  disabled={!file || isUploading}
+                  className={isUploading ? "" : "bg-youtube-red hover:bg-youtube-darkred"}
+                >
+                  {isUploading ? `Uploading ${progress}%` : "Upload Video"}
+                  <Upload className="ml-2 h-4 w-4" />
+                </Button>
+              </div>
             </CardFooter>
           </Card>
         </TabsContent>
         
         <TabsContent value="generate" className="mt-6">
-          <div className="grid md:grid-cols-5 gap-6">
-            <Card className="md:col-span-2">
+          <div className="grid md:grid-cols-2 gap-6">
+            <Card className="order-2 md:order-1">
               <CardHeader>
-                <CardTitle>Clip Settings</CardTitle>
+                <CardTitle>Video Generation Settings</CardTitle>
                 <CardDescription>
-                  Configure how your clips will be generated.
+                  Configure how your video will be generated.
                 </CardDescription>
               </CardHeader>
-              <CardContent className="space-y-6">
-                <div className="space-y-2">
-                  <Label htmlFor="clip-type">Clip Type</Label>
-                  <Select defaultValue="highlights">
-                    <SelectTrigger id="clip-type">
-                      <SelectValue placeholder="Select clip type" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="highlights">Key Highlights</SelectItem>
-                      <SelectItem value="insights">Valuable Insights</SelectItem>
-                      <SelectItem value="quotes">Quotable Moments</SelectItem>
-                      <SelectItem value="custom">Custom (Manual Selection)</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
+              <CardContent>
+                <Form {...form}>
+                  <form onSubmit={form.handleSubmit(handleGenerateClips)} className="space-y-6">
+                    <FormField
+                      control={form.control}
+                      name="prompt"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Prompt</FormLabel>
+                          <FormControl>
+                            <Textarea 
+                              placeholder="Describe what you want to see in your video..." 
+                              className="min-h-24 resize-none"
+                              {...field} 
+                            />
+                          </FormControl>
+                          <FormDescription>
+                            Be descriptive for better results.
+                          </FormDescription>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
 
-                <div className="space-y-2">
-                  <Label htmlFor="clips-count">Number of Clips</Label>
-                  <Select defaultValue="3">
-                    <SelectTrigger id="clips-count">
-                      <SelectValue placeholder="Select number of clips" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="1">1 Clip</SelectItem>
-                      <SelectItem value="3">3 Clips</SelectItem>
-                      <SelectItem value="5">5 Clips</SelectItem>
-                      <SelectItem value="10">10 Clips</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
+                    <FormField
+                      control={form.control}
+                      name="negative_prompt"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Negative Prompt</FormLabel>
+                          <FormControl>
+                            <Textarea 
+                              placeholder="Describe what you DON'T want to see..." 
+                              className="min-h-16 resize-none"
+                              {...field} 
+                            />
+                          </FormControl>
+                          <FormDescription>
+                            Optional: Specify elements to exclude
+                          </FormDescription>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
 
-                <div className="space-y-2">
-                  <Label>Clip Duration</Label>
-                  <div className="flex justify-between items-center">
-                    <span className="text-sm">30 seconds</span>
-                    <span className="text-sm">2 minutes</span>
-                  </div>
-                  <Slider defaultValue={[45]} max={120} step={15} />
-                  <p className="text-xs text-muted-foreground">Selected duration: 45 seconds</p>
-                </div>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <FormField
+                        control={form.control}
+                        name="aspect_ratio"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Aspect Ratio</FormLabel>
+                            <Select 
+                              onValueChange={field.onChange} 
+                              defaultValue={field.value}
+                            >
+                              <FormControl>
+                                <SelectTrigger>
+                                  <SelectValue placeholder="Select aspect ratio" />
+                                </SelectTrigger>
+                              </FormControl>
+                              <SelectContent>
+                                <SelectItem value="16:9">Landscape (16:9)</SelectItem>
+                                <SelectItem value="9:16">Portrait (9:16)</SelectItem>
+                                <SelectItem value="1:1">Square (1:1)</SelectItem>
+                              </SelectContent>
+                            </Select>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
 
-                <div className="space-y-2">
-                  <div className="flex items-center space-x-2">
-                    <Checkbox id="add-captions" defaultChecked />
-                    <label htmlFor="add-captions" className="text-sm font-medium">
-                      Add captions to clips
-                    </label>
-                  </div>
-                  <div className="flex items-center space-x-2">
-                    <Checkbox id="add-intro" />
-                    <label htmlFor="add-intro" className="text-sm font-medium">
-                      Add intro & outro
-                    </label>
-                  </div>
-                  <div className="flex items-center space-x-2">
-                    <Checkbox id="optimize-vertical" defaultChecked />
-                    <label htmlFor="optimize-vertical" className="text-sm font-medium">
-                      Optimize for vertical (9:16)
-                    </label>
-                  </div>
-                </div>
+                      <FormField
+                        control={form.control}
+                        name="duration"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Duration</FormLabel>
+                            <Select 
+                              onValueChange={field.onChange} 
+                              defaultValue={field.value}
+                            >
+                              <FormControl>
+                                <SelectTrigger>
+                                  <SelectValue placeholder="Select duration" />
+                                </SelectTrigger>
+                              </FormControl>
+                              <SelectContent>
+                                <SelectItem value="5">5 seconds</SelectItem>
+                                <SelectItem value="10">10 seconds</SelectItem>
+                              </SelectContent>
+                            </Select>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                    </div>
+
+                    <FormField
+                      control={form.control}
+                      name="cfg_scale"
+                      render={({ field: { value, onChange } }) => (
+                        <FormItem>
+                          <FormLabel>Creativity Level: {(value * 100).toFixed(0)}%</FormLabel>
+                          <FormControl>
+                            <Slider 
+                              value={[value]} 
+                              min={0} 
+                              max={1} 
+                              step={0.01} 
+                              onValueChange={([val]) => onChange(val)} 
+                            />
+                          </FormControl>
+                          <FormDescription className="flex justify-between text-xs">
+                            <span>More creative</span>
+                            <span>More precise</span>
+                          </FormDescription>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+
+                    <FormField
+                      control={form.control}
+                      name="use_existing_video"
+                      render={({ field }) => (
+                        <FormItem className="flex flex-row items-start space-x-3 space-y-0 rounded-md border p-4">
+                          <FormControl>
+                            <Checkbox
+                              checked={field.value}
+                              onCheckedChange={field.onChange}
+                            />
+                          </FormControl>
+                          <div className="space-y-1 leading-none">
+                            <FormLabel>
+                              Use frames from uploaded video
+                            </FormLabel>
+                            <FormDescription>
+                              {file ? "Your video will be used to extract start and end frames" : "Upload a video first to enable this option"}
+                            </FormDescription>
+                          </div>
+                        </FormItem>
+                      )}
+                    />
+                    
+                    <div className="pt-4 flex justify-end">
+                      <Button 
+                        type="submit" 
+                        disabled={isProcessing || (!startFrame && form.watch("use_existing_video") && file !== null)}
+                        className={isProcessing ? "" : "bg-youtube-red hover:bg-youtube-darkred"}
+                      >
+                        {isProcessing ? (
+                          <><RefreshCw className="mr-2 h-4 w-4 animate-spin" /> Processing...</>
+                        ) : (
+                          <><MagicWand className="mr-2 h-4 w-4" /> Generate Video</>
+                        )}
+                      </Button>
+                    </div>
+                  </form>
+                </Form>
               </CardContent>
             </Card>
 
-            <Card className="md:col-span-3">
+            <Card className="order-1 md:order-2">
               <CardHeader>
-                <CardTitle>AI Analysis</CardTitle>
+                <CardTitle>Frame Selection</CardTitle>
                 <CardDescription>
-                  Our AI will analyze your video to find the most engaging moments.
+                  {file 
+                    ? "Select start and end frames from your video" 
+                    : "Upload a video first to select frames"}
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-6">
-                <div className="space-y-2">
-                  <Label>AI Detection Focus</Label>
-                  <div className="grid grid-cols-2 gap-2">
-                    <div className="flex items-center space-x-2">
-                      <Checkbox id="focus-energy" defaultChecked />
-                      <label htmlFor="focus-energy" className="text-sm font-medium">
-                        High energy moments
-                      </label>
+                {form.watch("use_existing_video") && file ? (
+                  <div className="space-y-4">
+                    {videoUrl && (
+                      <VideoFrameSelector
+                        videoUrl={videoUrl}
+                        onStartFrameSelected={setStartFrame}
+                        onEndFrameSelected={setEndFrame}
+                      />
+                    )}
+                    
+                    <div className="grid grid-cols-2 gap-4 mt-4">
+                      <div>
+                        <Label className="block mb-2">Start Frame</Label>
+                        <div className="border rounded-md overflow-hidden aspect-video bg-muted relative">
+                          {startFrame ? (
+                            <img src={startFrame} alt="Start frame" className="w-full h-full object-contain" />
+                          ) : (
+                            <div className="flex items-center justify-center h-full">
+                              <ImageIcon className="h-12 w-12 text-muted-foreground" />
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                      <div>
+                        <Label className="block mb-2">End Frame</Label>
+                        <div className="border rounded-md overflow-hidden aspect-video bg-muted relative">
+                          {endFrame ? (
+                            <img src={endFrame} alt="End frame" className="w-full h-full object-contain" />
+                          ) : (
+                            <div className="flex items-center justify-center h-full">
+                              <ImageIcon className="h-12 w-12 text-muted-foreground" />
+                            </div>
+                          )}
+                        </div>
+                      </div>
                     </div>
-                    <div className="flex items-center space-x-2">
-                      <Checkbox id="focus-insights" defaultChecked />
-                      <label htmlFor="focus-insights" className="text-sm font-medium">
-                        Key insights
-                      </label>
-                    </div>
-                    <div className="flex items-center space-x-2">
-                      <Checkbox id="focus-humor" defaultChecked />
-                      <label htmlFor="focus-humor" className="text-sm font-medium">
-                        Humor & entertainment
-                      </label>
-                    </div>
-                    <div className="flex items-center space-x-2">
-                      <Checkbox id="focus-facts" />
-                      <label htmlFor="focus-facts" className="text-sm font-medium">
-                        Facts & statistics
-                      </label>
-                    </div>
+                    
+                    {(!startFrame || !endFrame) && (
+                      <div className="bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 p-3 rounded-md flex items-start">
+                        <AlertCircle className="h-5 w-5 text-yellow-600 dark:text-yellow-400 mt-0.5 mr-3 flex-shrink-0" />
+                        <div>
+                          <p className="text-sm font-medium text-yellow-800 dark:text-yellow-200">
+                            {!startFrame && !endFrame 
+                              ? "Please select both start and end frames" 
+                              : !startFrame 
+                                ? "Please select a start frame" 
+                                : "Please select an end frame"}
+                          </p>
+                          <p className="text-xs text-yellow-700 dark:text-yellow-300 mt-1">
+                            Use the timeline controller to extract frames from your video
+                          </p>
+                        </div>
+                      </div>
+                    )}
                   </div>
-                </div>
-
-                <div className="space-y-2">
-                  <Label>Optimization Target</Label>
-                  <Select defaultValue="tiktok">
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select platform" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="all">All Platforms</SelectItem>
-                      <SelectItem value="tiktok">TikTok</SelectItem>
-                      <SelectItem value="instagram">Instagram Reels</SelectItem>
-                      <SelectItem value="youtube">YouTube Shorts</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                <div className="text-center py-6">
-                  <div className="mx-auto w-16 h-16 rounded-full bg-muted/30 flex items-center justify-center mb-3">
-                    <Scissors className="h-8 w-8 text-youtube-red" />
+                ) : (
+                  <div className="flex flex-col items-center justify-center py-12 space-y-4">
+                    {!file ? (
+                      <>
+                        <Film className="h-16 w-16 text-muted-foreground" />
+                        <div className="text-center">
+                          <h3 className="font-medium">No video uploaded</h3>
+                          <p className="text-sm text-muted-foreground mt-1">
+                            Upload a video in the previous step to select frames
+                          </p>
+                          <Button 
+                            variant="outline" 
+                            className="mt-4"
+                            onClick={() => setCurrentTab("upload")}
+                          >
+                            Go to Upload
+                          </Button>
+                        </div>
+                      </>
+                    ) : (
+                      <>
+                        <XCircle className="h-16 w-16 text-muted-foreground" />
+                        <div className="text-center">
+                          <h3 className="font-medium">Frame selection disabled</h3>
+                          <p className="text-sm text-muted-foreground mt-1">
+                            Enable "Use frames from uploaded video" in the settings
+                          </p>
+                        </div>
+                      </>
+                    )}
                   </div>
-                  <h3 className="font-medium text-lg">Ready to generate clips</h3>
-                  <p className="text-sm text-muted-foreground mt-1 max-w-md mx-auto">
-                    Our AI will analyze your video and extract the most engaging moments based on your settings.
-                  </p>
-                </div>
+                )}
               </CardContent>
-              <CardFooter className="flex justify-end border-t pt-6">
-                <Button 
-                  onClick={handleGenerateClips} 
-                  disabled={!file || isProcessing}
-                  className={isProcessing ? "" : "bg-youtube-red hover:bg-youtube-darkred"}
-                >
-                  {isProcessing ? "Processing..." : "Generate Clips"}
-                  <Scissors className="ml-2 h-4 w-4" />
-                </Button>
-              </CardFooter>
             </Card>
           </div>
         </TabsContent>
@@ -320,20 +592,20 @@ const ClipsGenerator = () => {
         <TabsContent value="preview" className="mt-6">
           <Card>
             <CardHeader>
-              <CardTitle>Preview & Export Clips</CardTitle>
+              <CardTitle>Preview & Download</CardTitle>
               <CardDescription>
-                Review, edit, and download your generated clips.
+                Preview and download your generated video clips.
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">
               {generatedClips.length === 0 ? (
                 <div className="text-center py-12">
                   <div className="mx-auto w-12 h-12 rounded-full bg-muted flex items-center justify-center mb-4">
-                    <FileText className="h-6 w-6 text-muted-foreground" />
+                    <Film className="h-6 w-6 text-muted-foreground" />
                   </div>
                   <h3 className="font-medium">No clips generated yet</h3>
                   <p className="text-sm text-muted-foreground mt-1">
-                    Upload a video and generate clips to see them here
+                    Generate clips to see them here
                   </p>
                 </div>
               ) : (
@@ -343,7 +615,15 @@ const ClipsGenerator = () => {
                       {generatedClips.map((clip) => (
                         <div key={clip.id} className="border rounded-lg overflow-hidden">
                           <div className="aspect-video bg-black flex items-center justify-center">
-                            <Video className="h-12 w-12 text-white/30" />
+                            {clip.url ? (
+                              <video 
+                                src={clip.url} 
+                                className="w-full h-full object-contain" 
+                                controls 
+                              />
+                            ) : (
+                              <Video className="h-12 w-12 text-white/30" />
+                            )}
                           </div>
                           <div className="p-4">
                             <div className="flex justify-between items-center mb-2">
@@ -354,7 +634,7 @@ const ClipsGenerator = () => {
                             </div>
                             <div className="flex space-x-2 mt-4">
                               <Button variant="outline" size="sm" className="flex-1">
-                                Edit
+                                <Check className="h-4 w-4 mr-1" /> Save to Library
                               </Button>
                               <Button variant="outline" size="sm" className="flex-1">
                                 <Download className="h-4 w-4 mr-1" /> Download
@@ -368,7 +648,13 @@ const ClipsGenerator = () => {
                 </div>
               )}
             </CardContent>
-            <CardFooter className="flex justify-end border-t pt-6">
+            <CardFooter className="flex justify-between border-t pt-6">
+              <Button 
+                variant="outline"
+                onClick={() => setCurrentTab("generate")}
+              >
+                Back to Generation
+              </Button>
               <Button 
                 className="bg-youtube-red hover:bg-youtube-darkred" 
                 disabled={generatedClips.length === 0}
