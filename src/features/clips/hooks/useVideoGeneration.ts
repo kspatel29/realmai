@@ -60,6 +60,15 @@ export const useVideoGeneration = () => {
               // Call the replicate service
               const result = await createReplicateVideoClip(input);
               
+              if (result.status === "failed") {
+                throw new Error("Video generation failed: " + (result.error || "Unknown error"));
+              }
+              
+              // Get the video URL from the result
+              const videoOutput = result.output ? 
+                (Array.isArray(result.output) ? result.output[0] : result.output) : 
+                videoUrl;
+              
               setIsProcessing(false);
               
               setGeneratedClips([
@@ -68,7 +77,7 @@ export const useVideoGeneration = () => {
                   title: values.prompt.substring(0, 30) + "...", 
                   duration: values.duration + "s", 
                   thumbnail: startFrame || "", 
-                  url: result.output || videoUrl
+                  url: videoOutput
                 }
               ]);
               
