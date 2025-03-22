@@ -8,7 +8,7 @@ const corsHeaders = {
     "authorization, x-client-info, apikey, content-type",
 };
 
-// Helper to extract audio from a video URL
+// Helper to extract audio using FFmpeg in Replicate
 async function extractAudioFromVideo(videoUrl) {
   try {
     console.log("Extracting audio from video:", videoUrl);
@@ -18,7 +18,7 @@ async function extractAudioFromVideo(videoUrl) {
       throw new Error(`Invalid video URL: ${JSON.stringify(videoUrl)}`);
     }
     
-    // Use Replicate to extract audio using the audio-extractor model
+    // Use Replicate with ffmpeg to extract audio
     const REPLICATE_API_TOKEN = Deno.env.get('REPLICATE_API_TOKEN');
     if (!REPLICATE_API_TOKEN) {
       throw new Error('REPLICATE_API_TOKEN is not set');
@@ -28,35 +28,31 @@ async function extractAudioFromVideo(videoUrl) {
       auth: REPLICATE_API_TOKEN,
     });
     
-    // Log the model being used
-    console.log("Using audio extractor model: vaibhavs10/audio-extractor:3d86abe461f9d7d75da6a205bac8765063b9dbe44d94a511189c28dcdac3e68c");
-    
-    // Call the audio extractor model with more detailed logging
-    console.log("Calling Replicate audio extractor model with URL:", videoUrl);
+    // Use the replicate-ffmpeg model for audio extraction
+    console.log("Using ffmpeg model: lucataco/ffmpeg:b959eee21a1c1b62cac44b3c7010ffa9df669b0e3d2622ab2718931a62d85e78");
     
     try {
-      const extractionOutput = await replicate.run(
-        "vaibhavs10/audio-extractor:3d86abe461f9d7d75da6a205bac8765063b9dbe44d94a511189c28dcdac3e68c",
+      const output = await replicate.run(
+        "lucataco/ffmpeg:b959eee21a1c1b62cac44b3c7010ffa9df669b0e3d2622ab2718931a62d85e78",
         {
           input: {
-            audio_source: videoUrl,
-            audio_format: "mp3" // Changed from wav to mp3 for better compatibility
+            input_video: videoUrl,
+            command: "-y -i {INPUT} -vn -acodec mp3 -ab 192k {OUTPUT}"
           }
         }
       );
       
-      console.log("Audio extraction result:", extractionOutput);
+      console.log("Audio extraction result:", output);
       
-      // Validate extraction output - it should contain a URL
-      if (!extractionOutput || typeof extractionOutput !== 'string' || !extractionOutput.startsWith('http')) {
-        console.error("Invalid extraction output:", extractionOutput);
-        throw new Error("Audio extraction failed: Invalid response from extractor");
+      // Validate extraction output - the expected response is a URL
+      if (!output || typeof output !== 'string' || !output.startsWith('http')) {
+        console.error("Invalid extraction output:", output);
+        throw new Error("Audio extraction failed: Invalid response from ffmpeg model");
       }
       
-      return extractionOutput;
+      return output;
     } catch (replicateError) {
       console.error("Replicate API error:", replicateError);
-      // Try to get more details from the error
       const errorDetails = replicateError.message || JSON.stringify(replicateError);
       throw new Error(`Replicate API error during audio extraction: ${errorDetails}`);
     }

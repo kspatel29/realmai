@@ -1,4 +1,3 @@
-
 import { supabase } from "@/integrations/supabase/client";
 
 export interface GenerateSubtitlesParams {
@@ -53,7 +52,7 @@ export const extractAudioFromVideo = async (videoPath: string): Promise<string> 
 
     if (error) {
       console.error("Error invoking generate-subtitles function:", error);
-      throw new Error(`Error extracting audio: ${error.message}`);
+      throw error; // Pass the original error through for better debugging
     }
 
     if (!data?.audioUrl) {
@@ -69,11 +68,7 @@ export const extractAudioFromVideo = async (videoPath: string): Promise<string> 
     return data.audioUrl;
   } catch (error) {
     console.error("Audio extraction error:", error);
-    if (error instanceof Error) {
-      throw error;
-    } else {
-      throw new Error(`Unknown error during audio extraction: ${String(error)}`);
-    }
+    throw error; // Pass the original error through for better debugging
   }
 };
 
