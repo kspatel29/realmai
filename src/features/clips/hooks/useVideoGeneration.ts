@@ -3,7 +3,7 @@ import { useState } from "react";
 import { VideoGenerationFormValues } from "../components/VideoGenerationForm";
 import { ClipData } from "../components/ClipPreview";
 import { useToast } from "@/hooks/use-toast";
-import { useCredits } from "@/hooks/useCredits";
+import { useCredits } from "@/hooks/credits";
 import { createReplicateVideoClip } from "@/services/replicateService";
 
 // Video generation cost in credits
@@ -13,7 +13,7 @@ export const useVideoGeneration = () => {
   const [isProcessing, setIsProcessing] = useState(false);
   const [generatedClips, setGeneratedClips] = useState<ClipData[]>([]);
   const { toast } = useToast();
-  const { useCredits, hasEnoughCredits } = useCredits();
+  const { hasEnoughCredits, useCredits: spendCredits } = useCredits();
 
   const generateVideoClip = async (
     values: VideoGenerationFormValues,
@@ -48,7 +48,7 @@ export const useVideoGeneration = () => {
       console.log("Generating video with inputs:", input);
       
       // Use credits for the video generation
-      useCredits.mutate(
+      spendCredits.mutate(
         {
           amount: VIDEO_GENERATION_COST,
           service: "Video Generation",

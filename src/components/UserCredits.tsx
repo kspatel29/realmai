@@ -4,7 +4,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Coins } from 'lucide-react';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
-import { useCredits } from '@/hooks/useCredits';
+import { useCredits } from '@/hooks/credits';
 
 const UserCredits = () => {
   const { credits, isLoading } = useCredits();
