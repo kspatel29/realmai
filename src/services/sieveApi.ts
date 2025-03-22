@@ -17,11 +17,7 @@ export interface SieveDubbingResponse {
   updated_at: string;
   function: string;
   inputs: Record<string, any>;
-  outputs?: {
-    output_0?: {
-      url: string;
-    };
-  };
+  outputs?: any[]; // Changed to match the actual API response structure
   error?: {
     message: string;
   };
@@ -184,29 +180,46 @@ export const checkDubbingJobStatus = async (jobId: string): Promise<SieveDubbing
     const data = await response.json();
     console.log(`Raw API response for job ${jobId}:`, JSON.stringify(data, null, 2));
     
-    // "finished" status from Sieve API means the job is completed successfully
-    if (data.status === "finished") {
-      data.status = "succeeded";
+    // Create a response object that matches our expected format
+    const result: SieveDubbingResponse = {
+      id: data.id,
+      status: data.status,
+      created_at: data.created_at || new Date().toISOString(),
+      updated_at: data.updated_at || new Date().toISOString(),
+      function: data.function || "sieve/dubbing",
+      inputs: data.inputs || {},
+    };
+    
+    // Handle "finished" status from Sieve API (it means completed successfully)
+    if (result.status === "finished") {
+      result.status = "succeeded";
     }
     
-    // Check for output URL presence - this is the most reliable indicator of success
-    if (data.outputs && data.outputs[0] && data.outputs[0].data && data.outputs[0].data.url) {
-      console.log(`Job ${jobId} has output URL in outputs[0]: ${data.outputs[0].data.url}`);
-      data.status = "succeeded";
-      
-      // Ensure the output is in the expected format for our application
-      if (!data.outputs.output_0) {
-        data.outputs.output_0 = { url: data.outputs[0].data.url };
+    // Extract the output URL if available
+    if (data.outputs && Array.isArray(data.outputs) && data.outputs.length > 0) {
+      // Create the output_0 property in the format our app expects
+      if (data.outputs[0].data && data.outputs[0].data.url) {
+        result.outputs = {
+          output_0: {
+            url: data.outputs[0].data.url
+          }
+        };
+        // If we have a URL, the job is definitely successful
+        result.status = "succeeded";
+        console.log(`Job ${jobId} has output URL: ${data.outputs[0].data.url}`);
       }
     }
     
-    // Check for errors
-    if (data.error && data.error.message && data.status !== "failed") {
-      console.log(`Job ${jobId} has an error but status is ${data.status}, correcting to failed`);
-      data.status = "failed";
+    // Handle error cases
+    if (data.error) {
+      result.error = {
+        message: typeof data.error === 'string' ? data.error : 
+                 data.error.message || 'Unknown error'
+      };
+      result.status = "failed";
     }
     
-    return data;
+    return result;
   } catch (error) {
     console.error(`Error checking job status for ${jobId}:`, error);
     
