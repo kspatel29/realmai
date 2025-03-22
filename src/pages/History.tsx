@@ -3,7 +3,7 @@ import { useState, useEffect } from "react";
 import { useDubbingJobs } from "@/hooks/useDubbingJobs";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { RefreshCw, Clock, Download, AlertTriangle, CheckCircle } from "lucide-react";
+import { RefreshCw, Clock, Download, AlertTriangle, CheckCircle, Video } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { format } from "date-fns";
 
