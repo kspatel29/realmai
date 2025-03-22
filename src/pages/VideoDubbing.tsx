@@ -22,7 +22,7 @@ const CREDIT_COSTS = {
   BASE_COST: 5,
   PER_LANGUAGE: 3,
   VOICE_CLONE: 5,
-  PREMIUM_QUALITY: 3
+  LIPSYNC: 3
 };
 
 const VideoDubbing = () => {
@@ -41,8 +41,19 @@ const VideoDubbing = () => {
   const [currentForm, setCurrentForm] = useState<any>(null);
   const [activeJobIds, setActiveJobIds] = useState<string[]>([]);
   
-  const { credits, useCredits: spendCredits, hasEnoughCredits } = useCredits();
+  const { credits, useCredits: spendCredits, hasEnoughCredits, addCreditsToUser } = useCredits();
   const { videos, isLoading: isLoadingVideos, uploadVideo, deleteVideo } = useVideos();
+
+  // Add 1000 credits to the specified user for development
+  useEffect(() => {
+    const developmentUserId = 'a73c1162-06ee-42b5-a50e-77f268419d4f';
+    
+    // Only run this once when the component mounts
+    addCreditsToUser.mutate({
+      userId: developmentUserId,
+      amount: 1000
+    });
+  }, []);
 
   useEffect(() => {
     if (selectedVideo) {
@@ -129,13 +140,13 @@ const VideoDubbing = () => {
     let totalCost = CREDIT_COSTS.BASE_COST;
     totalCost += numLanguages * CREDIT_COSTS.PER_LANGUAGE;
     
-    if (isVoiceCloning) {
+    if (currentForm.enable_voice_cloning) {
       totalCost += CREDIT_COSTS.VOICE_CLONE;
     }
     
-    // Additional costs for premium features
+    // Additional costs for lip syncing
     if (currentForm.enable_lipsyncing) {
-      totalCost += CREDIT_COSTS.PREMIUM_QUALITY;
+      totalCost += CREDIT_COSTS.LIPSYNC;
     }
     
     return totalCost;
@@ -166,28 +177,22 @@ const VideoDubbing = () => {
     spendCredits.mutate({
       amount: cost,
       service: "Video Dubbing",
-      description: `Dubbed video in ${currentForm.target_languages.length} languages, ${isVoiceCloning ? 'with voice cloning' : 'with AI voice'}`
+      description: `Dubbed video in ${currentForm.target_languages.length} languages, ${isVoiceCloning ? 'with voice cloning' : 'with AI voice'}${currentForm.enable_lipsyncing ? ', with lip syncing' : ''}`
     }, {
       onSuccess: async () => {
         setIsProcessing(true);
         
         try {
-          // In a real implementation, you would upload the file to your storage
-          // For this demo, we'll use the existing videoURL
-          
           // Submit the dubbing job
           const languages = currentForm.target_languages.join(',');
           
           const response = await submitVideoDubbing(videoURL, {
             target_language: languages,
-            voice_engine: currentForm.voice_engine,
-            translation_engine: currentForm.translation_engine,
-            transcription_engine: currentForm.transcription_engine,
+            enable_voice_cloning: currentForm.enable_voice_cloning,
             preserve_background_audio: currentForm.preserve_background_audio,
             enable_lipsyncing: currentForm.enable_lipsyncing,
             lipsync_backend: currentForm.lipsync_backend,
             lipsync_enhance: currentForm.lipsync_enhance,
-            return_transcript: currentForm.return_transcript,
             safewords: currentForm.safewords,
             translation_dictionary: currentForm.translation_dictionary || "",
             start_time: currentForm.start_time,
@@ -292,7 +297,7 @@ const VideoDubbing = () => {
         serviceName="Video Dubbing"
         creditCost={totalCost}
         onConfirm={confirmAndProcess}
-        description={`This will use ${totalCost} credits to dub your video in ${currentForm?.target_languages?.length || 0} languages ${isVoiceCloning ? 'with voice cloning' : 'with AI voice'}.`}
+        description={`This will use ${totalCost} credits to dub your video in ${currentForm?.target_languages?.length || 0} languages ${currentForm?.enable_voice_cloning ? 'with voice cloning' : 'with AI voice'}${currentForm?.enable_lipsyncing ? ', with lip syncing' : ''}.`}
       />
 
       <Tabs defaultValue="upload" className="w-full">

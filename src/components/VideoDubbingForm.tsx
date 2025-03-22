@@ -7,7 +7,6 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Switch } from "@/components/ui/switch";
-import { Slider } from "@/components/ui/slider";
 import {
   Form,
   FormControl,
@@ -17,15 +16,7 @@ import {
   FormLabel,
   FormMessage,
 } from "@/components/ui/form";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import { toast } from "sonner";
-import { SUPPORTED_LANGUAGES, VOICE_ENGINES, TRANSLATION_ENGINES, LIPSYNC_BACKENDS } from "@/services/sieveApi";
+import { SUPPORTED_LANGUAGES, LIPSYNC_BACKENDS } from "@/services/sieveApi";
 import { Badge } from "@/components/ui/badge";
 import { Check, Globe, Info } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
@@ -33,14 +24,11 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/comp
 // Define the form schema using Zod
 const formSchema = z.object({
   target_languages: z.array(z.string()).min(1, "Select at least one language"),
-  translation_engine: z.enum(["sieve-default-translator", "gpt4", "seamless"]),
-  voice_engine: z.string(),
-  transcription_engine: z.enum(["whisper-zero", "stable-ts-whisper-large-v3"]),
+  enable_voice_cloning: z.boolean(),
   preserve_background_audio: z.boolean(),
   enable_lipsyncing: z.boolean(),
   lipsync_backend: z.string().optional(),
   lipsync_enhance: z.enum(["default", "none"]).optional(),
-  return_transcript: z.boolean(),
   safewords: z.string(),
   translation_dictionary: z.string(),
   start_time: z.number(),
@@ -71,14 +59,11 @@ export default function VideoDubbingForm({
     resolver: zodResolver(formSchema),
     defaultValues: {
       target_languages: [],
-      translation_engine: "gpt4",
-      voice_engine: "elevenlabs (voice cloning)",
-      transcription_engine: "whisper-zero",
+      enable_voice_cloning: true,
       preserve_background_audio: true,
       enable_lipsyncing: false,
       lipsync_backend: "sievesync-1.1",
       lipsync_enhance: "default",
-      return_transcript: false,
       safewords: "",
       translation_dictionary: "",
       start_time: 0,
@@ -100,13 +85,13 @@ export default function VideoDubbingForm({
     });
   };
 
-  const watchVoiceEngine = form.watch("voice_engine");
   const watchEnableLipsyncing = form.watch("enable_lipsyncing");
+  const watchEnableVoiceCloning = form.watch("enable_voice_cloning");
 
-  // Update the isVoiceCloning state when voice engine changes
-  const handleVoiceEngineChange = (value: string) => {
-    form.setValue("voice_engine", value);
-    setIsVoiceCloning(value.includes("cloning"));
+  // Update the isVoiceCloning state when toggle changes
+  const handleVoiceCloneToggle = (value: boolean) => {
+    form.setValue("enable_voice_cloning", value);
+    setIsVoiceCloning(value);
   };
 
   return (
@@ -158,70 +143,102 @@ export default function VideoDubbingForm({
           <div className="grid md:grid-cols-2 gap-4">
             <FormField
               control={form.control}
-              name="translation_engine"
+              name="enable_voice_cloning"
               render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Translation Engine</FormLabel>
-                  <Select
-                    onValueChange={field.onChange}
-                    defaultValue={field.value}
-                    disabled={isProcessing}
-                  >
-                    <FormControl>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select translation engine" />
-                      </SelectTrigger>
-                    </FormControl>
-                    <SelectContent>
-                      {TRANSLATION_ENGINES.map((engine) => (
-                        <SelectItem key={engine.value} value={engine.value}>
-                          {engine.label}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  <FormDescription>
-                    Select the AI engine to translate your content
-                  </FormDescription>
-                  <FormMessage />
+                <FormItem className="flex flex-row items-start space-x-3 space-y-0 rounded-md border p-4">
+                  <FormControl>
+                    <Checkbox
+                      checked={field.value}
+                      onCheckedChange={handleVoiceCloneToggle}
+                      disabled={isProcessing}
+                    />
+                  </FormControl>
+                  <div className="space-y-1 leading-none">
+                    <FormLabel>Enable Voice Cloning</FormLabel>
+                    <FormDescription>
+                      Match the original speakers' voices in the dubbed audio
+                    </FormDescription>
+                  </div>
                 </FormItem>
               )}
             />
 
             <FormField
               control={form.control}
-              name="voice_engine"
+              name="enable_lipsyncing"
               render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Voice Engine</FormLabel>
-                  <Select
-                    onValueChange={handleVoiceEngineChange}
-                    defaultValue={field.value}
-                    disabled={isProcessing}
-                  >
-                    <FormControl>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select voice engine" />
-                      </SelectTrigger>
-                    </FormControl>
-                    <SelectContent>
-                      {VOICE_ENGINES.map((engine) => (
-                        <SelectItem key={engine.value} value={engine.value}>
-                          {engine.label}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  <FormDescription>
-                    {watchVoiceEngine.includes("cloning")
-                      ? "Will match the original speakers' voices"
-                      : "Will use AI-generated voices"}
-                  </FormDescription>
-                  <FormMessage />
+                <FormItem className="flex flex-row items-start space-x-3 space-y-0 rounded-md border p-4 relative">
+                  <FormControl>
+                    <Checkbox
+                      checked={field.value}
+                      onCheckedChange={field.onChange}
+                      disabled={isProcessing}
+                    />
+                  </FormControl>
+                  <div className="space-y-1 leading-none">
+                    <FormLabel>Enable Lip Syncing</FormLabel>
+                    <FormDescription>
+                      Sync lip movements with dubbed audio (costs extra)
+                    </FormDescription>
+                  </div>
+                  <Badge className="absolute top-2 right-2 bg-amber-500">+3 credits</Badge>
                 </FormItem>
               )}
             />
           </div>
+
+          {watchEnableLipsyncing && (
+            <div className="border rounded-lg p-4 space-y-4">
+              <FormField
+                control={form.control}
+                name="lipsync_backend"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Lip Sync Technology</FormLabel>
+                    <select
+                      className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                      value={field.value}
+                      onChange={field.onChange}
+                      disabled={isProcessing}
+                    >
+                      {LIPSYNC_BACKENDS.map((backend) => (
+                        <option key={backend.value} value={backend.value}>
+                          {backend.label}
+                        </option>
+                      ))}
+                    </select>
+                    <FormDescription>
+                      Technology used for lip syncing
+                    </FormDescription>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="lipsync_enhance"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Lip Sync Enhancement</FormLabel>
+                    <select
+                      className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                      value={field.value}
+                      onChange={field.onChange}
+                      disabled={isProcessing}
+                    >
+                      <option value="default">Default</option>
+                      <option value="none">None</option>
+                    </select>
+                    <FormDescription>
+                      Additional enhancement for lip sync quality
+                    </FormDescription>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            </div>
+          )}
 
           <div className="flex items-center justify-between border rounded-lg p-4">
             <div className="flex items-start gap-3">
@@ -246,116 +263,27 @@ export default function VideoDubbingForm({
 
           {showAdvancedOptions && (
             <div className="border rounded-lg p-4 space-y-4">
-              <div className="grid md:grid-cols-2 gap-4">
-                <FormField
-                  control={form.control}
-                  name="preserve_background_audio"
-                  render={({ field }) => (
-                    <FormItem className="flex flex-row items-start space-x-3 space-y-0 rounded-md border p-4">
-                      <FormControl>
-                        <Checkbox
-                          checked={field.value}
-                          onCheckedChange={field.onChange}
-                          disabled={isProcessing}
-                        />
-                      </FormControl>
-                      <div className="space-y-1 leading-none">
-                        <FormLabel>Preserve Background Audio</FormLabel>
-                        <FormDescription>
-                          Keep original background sounds and music
-                        </FormDescription>
-                      </div>
-                    </FormItem>
-                  )}
-                />
-
-                <FormField
-                  control={form.control}
-                  name="enable_lipsyncing"
-                  render={({ field }) => (
-                    <FormItem className="flex flex-row items-start space-x-3 space-y-0 rounded-md border p-4">
-                      <FormControl>
-                        <Checkbox
-                          checked={field.value}
-                          onCheckedChange={field.onChange}
-                          disabled={isProcessing}
-                        />
-                      </FormControl>
-                      <div className="space-y-1 leading-none">
-                        <FormLabel>Enable Lip Syncing</FormLabel>
-                        <FormDescription>
-                          Sync lip movements with dubbed audio
-                        </FormDescription>
-                      </div>
-                    </FormItem>
-                  )}
-                />
-              </div>
-
-              {watchEnableLipsyncing && (
-                <div className="grid md:grid-cols-2 gap-4">
-                  <FormField
-                    control={form.control}
-                    name="lipsync_backend"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Lip Sync Backend</FormLabel>
-                        <Select
-                          onValueChange={field.onChange}
-                          defaultValue={field.value}
-                          disabled={isProcessing}
-                        >
-                          <FormControl>
-                            <SelectTrigger>
-                              <SelectValue placeholder="Select lip sync backend" />
-                            </SelectTrigger>
-                          </FormControl>
-                          <SelectContent>
-                            {LIPSYNC_BACKENDS.map((backend) => (
-                              <SelectItem key={backend.value} value={backend.value}>
-                                {backend.label}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                        <FormDescription>
-                          Technology used for lip syncing
-                        </FormDescription>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-
-                  <FormField
-                    control={form.control}
-                    name="lipsync_enhance"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Lip Sync Enhancement</FormLabel>
-                        <Select
-                          onValueChange={field.onChange}
-                          defaultValue={field.value}
-                          disabled={isProcessing}
-                        >
-                          <FormControl>
-                            <SelectTrigger>
-                              <SelectValue placeholder="Select enhancement" />
-                            </SelectTrigger>
-                          </FormControl>
-                          <SelectContent>
-                            <SelectItem value="default">Default</SelectItem>
-                            <SelectItem value="none">None</SelectItem>
-                          </SelectContent>
-                        </Select>
-                        <FormDescription>
-                          Additional enhancement for lip sync quality
-                        </FormDescription>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                </div>
-              )}
+              <FormField
+                control={form.control}
+                name="preserve_background_audio"
+                render={({ field }) => (
+                  <FormItem className="flex flex-row items-start space-x-3 space-y-0 rounded-md border p-4">
+                    <FormControl>
+                      <Checkbox
+                        checked={field.value}
+                        onCheckedChange={field.onChange}
+                        disabled={isProcessing}
+                      />
+                    </FormControl>
+                    <div className="space-y-1 leading-none">
+                      <FormLabel>Preserve Background Audio</FormLabel>
+                      <FormDescription>
+                        Keep original background sounds and music
+                      </FormDescription>
+                    </div>
+                  </FormItem>
+                )}
+              />
 
               <FormField
                 control={form.control}
@@ -389,57 +317,6 @@ export default function VideoDubbingForm({
                   </FormItem>
                 )}
               />
-
-              <FormField
-                control={form.control}
-                name="transcription_engine"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Transcription Engine</FormLabel>
-                    <Select
-                      onValueChange={field.onChange}
-                      defaultValue={field.value}
-                      disabled={isProcessing}
-                    >
-                      <FormControl>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Select transcription engine" />
-                        </SelectTrigger>
-                      </FormControl>
-                      <SelectContent>
-                        <SelectItem value="whisper-zero">Whisper Zero</SelectItem>
-                        <SelectItem value="stable-ts-whisper-large-v3">Stable TS (Faster)</SelectItem>
-                      </SelectContent>
-                    </Select>
-                    <FormDescription>
-                      Choose the speech recognition technology
-                    </FormDescription>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              <FormField
-                control={form.control}
-                name="return_transcript"
-                render={({ field }) => (
-                  <FormItem className="flex flex-row items-start space-x-3 space-y-0 rounded-md border p-4">
-                    <FormControl>
-                      <Checkbox
-                        checked={field.value}
-                        onCheckedChange={field.onChange}
-                        disabled={isProcessing}
-                      />
-                    </FormControl>
-                    <div className="space-y-1 leading-none">
-                      <FormLabel>Include Transcript</FormLabel>
-                      <FormDescription>
-                        Get the transcript along with the dubbed video
-                      </FormDescription>
-                    </div>
-                  </FormItem>
-                )}
-              />
             </div>
           )}
         </div>
@@ -450,7 +327,7 @@ export default function VideoDubbingForm({
               <span className="font-semibold">{selectedLanguages.length}</span> languages selected
             </p>
             <p className="text-muted-foreground">
-              {isVoiceCloning ? "With voice cloning" : "With AI voices"}
+              {watchEnableVoiceCloning ? "With voice cloning" : "With AI voices"}
             </p>
           </div>
           <Button
