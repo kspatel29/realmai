@@ -72,23 +72,32 @@ serve(async (req) => {
     
     console.log("Cleaned input for Replicate:", input)
     
-    // Start the prediction using the correct model
-    // Update to use the proper model for video generation
-    const prediction = await replicate.predictions.create({
-      version: "3a139358cc4ae29264fbcafd6ee8fbd92726dfa35c8b1e1ba03a7e04d8697bbb", // kling-v1.6-pro model version
-      input: input,
-    })
-    
-    console.log("Prediction created:", prediction)
-    
-    // Return the prediction ID so the client can poll for status
-    return new Response(JSON.stringify({ 
-      id: prediction.id,
-      status: prediction.status
-    }), {
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      status: 202, // Accepted
-    });
+    try {
+      // Start the prediction using the correct model
+      const prediction = await replicate.predictions.create({
+        version: "3a139358cc4ae29264fbcafd6ee8fbd92726dfa35c8b1e1ba03a7e04d8697bbb", // kling-v1.6-pro model version
+        input: input,
+      })
+      
+      console.log("Prediction created:", prediction)
+      
+      // Return the prediction ID so the client can poll for status
+      return new Response(JSON.stringify({ 
+        id: prediction.id,
+        status: prediction.status
+      }), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        status: 202, // Accepted
+      });
+    } catch (replicateError) {
+      console.error("Replicate API error:", replicateError)
+      return new Response(JSON.stringify({ 
+        error: replicateError.message || "Error creating prediction with Replicate API"
+      }), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        status: 500,
+      })
+    }
   } catch (error) {
     console.error("Error in video generation function:", error)
     return new Response(JSON.stringify({ error: error.message || "Unknown error occurred" }), {

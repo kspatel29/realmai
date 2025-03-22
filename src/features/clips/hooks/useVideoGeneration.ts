@@ -9,6 +9,17 @@ import { createReplicateVideoClip } from "@/services/replicateService";
 // Video generation cost in credits
 const VIDEO_GENERATION_COST = 10;
 
+// Define an interface for the video generation input
+interface VideoGenerationRequestInput {
+  prompt: string;
+  negative_prompt?: string;
+  aspect_ratio: string;
+  duration: number;
+  cfg_scale: number;
+  start_image?: string;
+  end_image?: string;
+}
+
 export const useVideoGeneration = () => {
   const [isProcessing, setIsProcessing] = useState(false);
   const [generatedClips, setGeneratedClips] = useState<ClipData[]>([]);
@@ -36,7 +47,7 @@ export const useVideoGeneration = () => {
     
     try {
       // Make sure values are properly structured before sending to the API
-      const input = {
+      const input: VideoGenerationRequestInput = {
         prompt: values.prompt,
         negative_prompt: values.negative_prompt || "",
         aspect_ratio: values.aspect_ratio,
