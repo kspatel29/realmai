@@ -29,13 +29,19 @@ const ServiceCard = ({ title, description, icon, action, color, cost, href, link
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
     >
-      <div className={`absolute top-0 right-0 w-24 h-24 rounded-full filter blur-xl opacity-10 transition-all duration-300 ${
-        isHovered ? "scale-125" : "scale-100"
-      }`} style={{ backgroundColor: color }}></div>
+      <div 
+        className={`absolute top-0 right-0 w-24 h-24 rounded-full filter blur-xl opacity-10 transition-all duration-300 ${
+          isHovered ? "scale-125" : "scale-100"
+        }`} 
+        style={{ backgroundColor: color }}
+      ></div>
       
       <CardHeader className="relative z-10">
         <div className="flex justify-between items-start">
-          <div className={`p-3 rounded-lg bg-opacity-10`} style={{ backgroundColor: `${color}20` }}>
+          <div 
+            className="p-3 rounded-lg"
+            style={{ backgroundColor: `${color}20` }}
+          >
             {icon}
           </div>
           {cost !== undefined && <ServiceCostDisplay cost={cost} />}
