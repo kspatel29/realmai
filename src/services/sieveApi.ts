@@ -1,3 +1,4 @@
+
 import { toast } from "sonner";
 
 const API_KEY = 'j1VbRemG8Mymh9HXGlGEK0YDqTQCA5BNJa7thj4z_64';
@@ -120,7 +121,7 @@ export const submitVideoDubbing = async (videoUrl: string, options: {
         translation_dictionary: options.translation_dictionary || "",
         start_time: options.start_time ?? 0,
         end_time: options.end_time ?? -1,
-        enable_lipsyncing: options.enable_lipsyncing ?? true,
+        enable_lipsyncing: options.enable_lipsyncing ?? false, // Updated to false as default
         lipsync_backend: "sievesync-1.1",
         lipsync_enhance: "default"
       }
@@ -151,6 +152,8 @@ export const submitVideoDubbing = async (videoUrl: string, options: {
 export const checkDubbingJobStatus = async (jobId: string): Promise<SieveDubbingResponse> => {
   try {
     console.log(`Checking status for job ${jobId}`);
+    
+    // Correct API endpoint to get job status
     const response = await fetch(`${API_BASE_URL}/jobs/${jobId}`, {
       method: 'GET',
       headers: {
@@ -178,11 +181,13 @@ export const checkDubbingJobStatus = async (jobId: string): Promise<SieveDubbing
     const data = await response.json();
     console.log(`Raw API response for job ${jobId}:`, JSON.stringify(data, null, 2));
     
+    // Check for successful completion (output URL exists)
     if (data.outputs && data.outputs.output_0 && data.outputs.output_0.url) {
       console.log(`Job ${jobId} has output URL: ${data.outputs.output_0.url}, marking as succeeded`);
       data.status = "succeeded";
     }
     
+    // Check for errors
     if (data.error && data.error.message && data.status !== "failed") {
       console.log(`Job ${jobId} has an error but status is ${data.status}, correcting to failed`);
       data.status = "failed";

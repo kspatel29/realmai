@@ -59,7 +59,7 @@ export default function VideoDubbingForm({
       target_languages: [],
       enable_voice_cloning: true,
       preserve_background_audio: true,
-      enable_lipsyncing: true,
+      enable_lipsyncing: false, // Changed from true to false
       safewords: "",
       translation_dictionary: "",
       start_time: 0,
@@ -173,7 +173,7 @@ export default function VideoDubbingForm({
                   <div className="space-y-1 leading-none">
                     <FormLabel>Enable Lip Sync</FormLabel>
                     <FormDescription>
-                      Sync the mouth movements with the dubbed audio
+                      Sync the mouth movements with the dubbed audio (costs extra)
                     </FormDescription>
                   </div>
                 </FormItem>
