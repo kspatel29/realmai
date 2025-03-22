@@ -15,6 +15,7 @@ export interface Video {
   status: string;
   created_at: string;
   updated_at: string;
+  used_in_job: string | null;
 }
 
 export const useVideos = () => {

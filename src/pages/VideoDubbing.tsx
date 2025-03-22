@@ -38,7 +38,14 @@ const VideoDubbing = () => {
   const [currentForm, setCurrentForm] = useState<any>(null);
   
   const { credits, useCredits: spendCredits, hasEnoughCredits, addCreditsToUser } = useCredits();
-  const { videos, isLoading: isLoadingVideos, uploadVideo, deleteVideo, cleanupUnusedVideos } = useVideos();
+  const { 
+    videos, 
+    isLoading: isLoadingVideos, 
+    uploadVideo, 
+    deleteVideo, 
+    cleanupUnusedVideos,
+    markVideoAsUsed 
+  } = useVideos();
   const { 
     jobs: dubbingJobs, 
     isLoading: isLoadingJobs, 
@@ -66,7 +73,6 @@ const VideoDubbing = () => {
 
   useEffect(() => {
     return () => {
-      // Cleanup unused videos when component unmounts
       if (videos && videos.length > 0) {
         const unusedVideos = videos.filter(v => v.used_in_job === null);
         if (unusedVideos.length > 0) {
