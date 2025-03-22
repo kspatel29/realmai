@@ -29,11 +29,11 @@ export const useCredits = () => {
     queryFn: async (): Promise<UserCredits | null> => {
       if (!user) return null;
       
+      // Fix: Get all records and take the one with the latest update
       const { data, error } = await supabase
         .from('user_credits')
         .select('*')
-        .eq('user_id', user.id)
-        .maybeSingle();
+        .eq('user_id', user.id);
       
       if (error) {
         console.error('Error fetching credits:', error);
@@ -41,7 +41,16 @@ export const useCredits = () => {
         throw error;
       }
       
-      return data;
+      if (!data || data.length === 0) {
+        return null;
+      }
+      
+      // Sort by updated_at in descending order and take the first record
+      const sortedData = [...data].sort((a, b) => {
+        return new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime();
+      });
+      
+      return sortedData[0];
     },
     enabled: !!user,
   });
@@ -54,7 +63,7 @@ export const useCredits = () => {
       const { data, error } = await supabase
         .from('user_credits')
         .update({ credits_balance: newBalance, updated_at: new Date().toISOString() })
-        .eq('user_id', user.id)
+        .eq('id', credits.id)
         .select()
         .single();
       
@@ -85,7 +94,7 @@ export const useCredits = () => {
       const { data, error } = await supabase
         .from('user_credits')
         .update({ credits_balance: newBalance, updated_at: new Date().toISOString() })
-        .eq('user_id', user.id)
+        .eq('id', credits.id)
         .select()
         .single();
       
@@ -115,7 +124,7 @@ export const useCredits = () => {
       const { data, error } = await supabase
         .from('user_credits')
         .update({ credits_balance: newBalance, updated_at: new Date().toISOString() })
-        .eq('user_id', user.id)
+        .eq('id', credits.id)
         .select()
         .single();
       
@@ -142,20 +151,22 @@ export const useCredits = () => {
           .from('user_credits')
           .select('*')
           .eq('user_id', userId)
-          .maybeSingle();
+          .order('updated_at', { ascending: false })
+          .limit(1);
         
         if (fetchError) {
           console.error('Error fetching user credits:', fetchError);
           throw fetchError;
         }
         
-        if (existingCredits) {
-          // Update existing record
-          const newBalance = existingCredits.credits_balance + amount;
+        if (existingCredits && existingCredits.length > 0) {
+          // Update existing record (use the most recent one)
+          const latestCredit = existingCredits[0];
+          const newBalance = latestCredit.credits_balance + amount;
           const { data, error } = await supabase
             .from('user_credits')
             .update({ credits_balance: newBalance, updated_at: new Date().toISOString() })
-            .eq('user_id', userId)
+            .eq('id', latestCredit.id)
             .select()
             .single();
           
