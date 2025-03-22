@@ -5,9 +5,10 @@ import { Slider } from "@/components/ui/slider";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Button } from "@/components/ui/button";
-import { RefreshCw, Sparkles } from "lucide-react";
+import { RefreshCw, Sparkles, Upload } from "lucide-react";
 import { UseFormReturn } from "react-hook-form";
 import { z } from "zod";
+import { Input } from "@/components/ui/input";
 
 const videoGenerationSchema = z.object({
   prompt: z.string().min(3, "Prompt must be at least 3 characters"),
@@ -16,6 +17,8 @@ const videoGenerationSchema = z.object({
   duration: z.enum(["5", "10"]).default("5"),
   cfg_scale: z.number().min(0).max(1).default(0.5),
   use_existing_video: z.boolean().default(false),
+  upload_start_frame: z.boolean().default(false),
+  upload_end_frame: z.boolean().default(false),
 });
 
 export type VideoGenerationFormValues = z.infer<typeof videoGenerationSchema>;
@@ -25,7 +28,10 @@ interface VideoGenerationFormProps {
   isProcessing: boolean;
   file: File | null;
   startFrame: string | null;
+  endFrame: string | null;
   onSubmit: (values: VideoGenerationFormValues) => void;
+  onStartFrameUpload: (e: React.ChangeEvent<HTMLInputElement>) => void;
+  onEndFrameUpload: (e: React.ChangeEvent<HTMLInputElement>) => void;
 }
 
 const VideoGenerationForm = ({ 
@@ -33,7 +39,10 @@ const VideoGenerationForm = ({
   isProcessing, 
   file, 
   startFrame,
-  onSubmit 
+  endFrame,
+  onSubmit,
+  onStartFrameUpload,
+  onEndFrameUpload
 }: VideoGenerationFormProps) => {
   return (
     <Form {...form}>
@@ -157,33 +166,124 @@ const VideoGenerationForm = ({
           )}
         />
 
-        <FormField
-          control={form.control}
-          name="use_existing_video"
-          render={({ field }) => (
-            <FormItem className="flex flex-row items-start space-x-3 space-y-0 rounded-md border p-4">
-              <FormControl>
-                <Checkbox
-                  checked={field.value}
-                  onCheckedChange={field.onChange}
-                />
-              </FormControl>
-              <div className="space-y-1 leading-none">
-                <FormLabel>
-                  Use frames from uploaded video
-                </FormLabel>
-                <FormDescription>
-                  {file ? "Your video will be used to extract start and end frames" : "Upload a video first to enable this option"}
-                </FormDescription>
-              </div>
-            </FormItem>
-          )}
-        />
+        <div className="space-y-4">
+          <div className="flex flex-col gap-4">
+            <FormField
+              control={form.control}
+              name="use_existing_video"
+              render={({ field }) => (
+                <FormItem className="flex flex-row items-start space-x-3 space-y-0 rounded-md border p-4">
+                  <FormControl>
+                    <Checkbox
+                      checked={field.value}
+                      onCheckedChange={field.onChange}
+                    />
+                  </FormControl>
+                  <div className="space-y-1 leading-none">
+                    <FormLabel>
+                      Use frames from uploaded video
+                    </FormLabel>
+                    <FormDescription>
+                      {file ? "Your video will be used to extract start and end frames" : "Upload a video first to enable this option"}
+                    </FormDescription>
+                  </div>
+                </FormItem>
+              )}
+            />
+            
+            <FormField
+              control={form.control}
+              name="upload_start_frame"
+              render={({ field }) => (
+                <FormItem className="flex flex-row items-start space-x-3 space-y-0 rounded-md border p-4">
+                  <FormControl>
+                    <Checkbox
+                      checked={field.value}
+                      onCheckedChange={field.onChange}
+                    />
+                  </FormControl>
+                  <div className="flex flex-col space-y-1 w-full">
+                    <FormLabel>
+                      Upload custom start frame
+                    </FormLabel>
+                    <FormDescription className="mb-2">
+                      Upload an image to use as the first frame of your video
+                    </FormDescription>
+                    {field.value && (
+                      <div>
+                        {startFrame ? (
+                          <div className="relative w-full h-32 mb-2">
+                            <img 
+                              src={startFrame} 
+                              alt="Start frame" 
+                              className="w-full h-full object-contain border rounded"
+                            />
+                          </div>
+                        ) : null}
+                        <Input
+                          type="file"
+                          accept="image/*"
+                          onChange={onStartFrameUpload}
+                          className="cursor-pointer"
+                        />
+                      </div>
+                    )}
+                  </div>
+                </FormItem>
+              )}
+            />
+            
+            <FormField
+              control={form.control}
+              name="upload_end_frame"
+              render={({ field }) => (
+                <FormItem className="flex flex-row items-start space-x-3 space-y-0 rounded-md border p-4">
+                  <FormControl>
+                    <Checkbox
+                      checked={field.value}
+                      onCheckedChange={field.onChange}
+                    />
+                  </FormControl>
+                  <div className="flex flex-col space-y-1 w-full">
+                    <FormLabel>
+                      Upload custom end frame
+                    </FormLabel>
+                    <FormDescription className="mb-2">
+                      Upload an image to use as the last frame of your video
+                    </FormDescription>
+                    {field.value && (
+                      <div>
+                        {endFrame ? (
+                          <div className="relative w-full h-32 mb-2">
+                            <img 
+                              src={endFrame} 
+                              alt="End frame" 
+                              className="w-full h-full object-contain border rounded"
+                            />
+                          </div>
+                        ) : null}
+                        <Input
+                          type="file"
+                          accept="image/*"
+                          onChange={onEndFrameUpload}
+                          className="cursor-pointer"
+                        />
+                      </div>
+                    )}
+                  </div>
+                </FormItem>
+              )}
+            />
+          </div>
+        </div>
         
         <div className="pt-4 flex justify-end">
           <Button 
             type="submit" 
-            disabled={isProcessing || (!startFrame && form.watch("use_existing_video") && file !== null)}
+            disabled={isProcessing || 
+              (form.watch("use_existing_video") && file !== null && !startFrame) ||
+              (form.watch("upload_start_frame") && !startFrame) ||
+              (form.watch("upload_end_frame") && !endFrame)}
             className={isProcessing ? "" : "bg-youtube-red hover:bg-youtube-darkred"}
           >
             {isProcessing ? (

@@ -94,14 +94,9 @@ serve(async (req) => {
       input.aspect_ratio = "16:9"; // Default aspect ratio
     }
     
-    // IMPORTANT: The model requires a start_image
-    // If start_image is not provided, use a default image
+    // Add start_image if provided
     if (body.start_image && typeof body.start_image === 'string') {
       input.start_image = body.start_image;
-    } else {
-      // Default image that works with the model
-      input.start_image = "https://replicate.delivery/pbxt/MNRLOqN0ASEzIG3YPuv9R1JSVGsSOQQzE3rgtVD9Qk230Lgt/image_fx_%20%285%29.jpg";
-      console.log("Using default start_image as none was provided");
     }
     
     // Add end_image if provided

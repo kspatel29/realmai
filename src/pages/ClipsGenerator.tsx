@@ -3,6 +3,7 @@ import { useState, useEffect } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
+import { toast } from "sonner";
 
 // Components
 import VideoUploader from "@/features/clips/components/VideoUploader";
@@ -32,8 +33,17 @@ const ClipsGenerator = () => {
       duration: "5",
       cfg_scale: 0.5,
       use_existing_video: false,
+      upload_start_frame: false,
+      upload_end_frame: false,
     },
   });
+
+  useEffect(() => {
+    // Save generated clips to localStorage for history
+    if (generatedClips.length > 0) {
+      localStorage.setItem('generatedVideoClips', JSON.stringify(generatedClips));
+    }
+  }, [generatedClips]);
 
   const handleVideoSelected = (selectedFile: File, url: string) => {
     setFile(selectedFile);
@@ -46,13 +56,40 @@ const ClipsGenerator = () => {
     setCurrentTab("generate");
   };
 
+  const handleStartFrameUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files[0]) {
+      const fileReader = new FileReader();
+      fileReader.onload = (event) => {
+        if (event.target?.result) {
+          setStartFrame(event.target.result as string);
+        }
+      };
+      fileReader.readAsDataURL(e.target.files[0]);
+    }
+  };
+
+  const handleEndFrameUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files[0]) {
+      const fileReader = new FileReader();
+      fileReader.onload = (event) => {
+        if (event.target?.result) {
+          setEndFrame(event.target.result as string);
+        }
+      };
+      fileReader.readAsDataURL(e.target.files[0]);
+    }
+  };
+
   const handleGenerateClips = async (values: VideoGenerationFormValues) => {
     generateVideoClip(
       values,
       startFrame,
       endFrame,
       videoUrl,
-      () => setCurrentTab("preview")
+      () => {
+        setCurrentTab("preview");
+        toast.success("Video has been generated and added to your history");
+      }
     );
   };
 
@@ -88,7 +125,10 @@ const ClipsGenerator = () => {
                 isProcessing={isProcessing}
                 file={file}
                 startFrame={startFrame}
+                endFrame={endFrame}
                 onSubmit={handleGenerateClips}
+                onStartFrameUpload={handleStartFrameUpload}
+                onEndFrameUpload={handleEndFrameUpload}
               />
             </div>
 

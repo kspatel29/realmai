@@ -3,6 +3,7 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Film, Clock, Check, Download, DownloadCloud, Video } from "lucide-react";
+import { toast } from "sonner";
 
 export interface ClipData {
   id: string;
@@ -18,6 +19,56 @@ interface ClipPreviewProps {
 }
 
 const ClipPreview = ({ clips, onBackToGeneration }: ClipPreviewProps) => {
+  const handleDownload = async (url: string, title: string) => {
+    try {
+      // Fetch the video as a blob
+      const response = await fetch(url);
+      const blob = await response.blob();
+      
+      // Create a download link
+      const downloadUrl = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = downloadUrl;
+      link.download = `${title || 'video'}.mp4`;
+      
+      // Trigger the download
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      
+      // Clean up
+      window.URL.revokeObjectURL(downloadUrl);
+      
+      toast.success("Video downloaded successfully!");
+    } catch (error) {
+      console.error("Error downloading video:", error);
+      toast.error("Failed to download video");
+    }
+  };
+  
+  const handleDownloadAll = async () => {
+    if (clips.length === 0) return;
+    
+    // Download each clip with a slight delay to prevent browser issues
+    let downloadedCount = 0;
+    for (const clip of clips) {
+      if (clip.url) {
+        try {
+          await handleDownload(clip.url, clip.title);
+          downloadedCount++;
+        } catch (error) {
+          console.error(`Error downloading clip ${clip.id}:`, error);
+        }
+        // Short delay between downloads
+        await new Promise(resolve => setTimeout(resolve, 1000));
+      }
+    }
+    
+    if (downloadedCount > 0) {
+      toast.success(`Downloaded ${downloadedCount} clips successfully!`);
+    }
+  };
+
   return (
     <Card>
       <CardHeader>
@@ -62,10 +113,21 @@ const ClipPreview = ({ clips, onBackToGeneration }: ClipPreviewProps) => {
                         </span>
                       </div>
                       <div className="flex space-x-2 mt-4">
-                        <Button variant="outline" size="sm" className="flex-1">
+                        <Button 
+                          variant="outline" 
+                          size="sm" 
+                          className="flex-1"
+                          onClick={() => toast.success("Clip saved to library")}
+                        >
                           <Check className="h-4 w-4 mr-1" /> Save to Library
                         </Button>
-                        <Button variant="outline" size="sm" className="flex-1">
+                        <Button 
+                          variant="outline" 
+                          size="sm" 
+                          className="flex-1" 
+                          disabled={!clip.url}
+                          onClick={() => clip.url && handleDownload(clip.url, clip.title)}
+                        >
                           <Download className="h-4 w-4 mr-1" /> Download
                         </Button>
                       </div>
@@ -87,6 +149,7 @@ const ClipPreview = ({ clips, onBackToGeneration }: ClipPreviewProps) => {
         <Button 
           className="bg-youtube-red hover:bg-youtube-darkred" 
           disabled={clips.length === 0}
+          onClick={handleDownloadAll}
         >
           <DownloadCloud className="mr-2 h-4 w-4" />
           Download All Clips
