@@ -1,4 +1,3 @@
-
 export interface YouTubeChannelResponse {
   items: {
     id: string;
@@ -53,7 +52,8 @@ const MOCK_CHANNELS = [
         default: { url: "https://yt3.googleusercontent.com/ytc/AIf8zZTUVa5AeFd3m5-4fdY9Fj9Seb0cjw4Z9SJD0jXAqQ=s88-c-k-c0xffffffff-no-rj-mo" },
         medium: { url: "https://yt3.googleusercontent.com/ytc/AIf8zZTUVa5AeFd3m5-4fdY9Fj9Seb0cjw4Z9SJD0jXAqQ=s240-c-k-c0xffffffff-no-rj-mo" },
         high: { url: "https://yt3.googleusercontent.com/ytc/AIf8zZTUVa5AeFd3m5-4fdY9Fj9Seb0cjw4Z9SJD0jXAqQ=s800-c-k-c0xffffffff-no-rj-mo" }
-      }
+      },
+      publishedAt: "2012-06-24T00:00:00Z"
     },
     statistics: {
       viewCount: "32000000000",
@@ -70,7 +70,8 @@ const MOCK_CHANNELS = [
         default: { url: "https://yt3.googleusercontent.com/ytc/AIf8zZR7VipUCwMmmeT_YZBXzUXiPkO0OOeHRAiXPg_e=s88-c-k-c0xffffffff-no-rj-mo" },
         medium: { url: "https://yt3.googleusercontent.com/ytc/AIf8zZR7VipUCwMmmeT_YZBXzUXiPkO0OOeHRAiXPg_e=s240-c-k-c0xffffffff-no-rj-mo" },
         high: { url: "https://yt3.googleusercontent.com/ytc/AIf8zZR7VipUCwMmmeT_YZBXzUXiPkO0OOeHRAiXPg_e=s800-c-k-c0xffffffff-no-rj-mo" }
-      }
+      },
+      publishedAt: "2010-07-30T00:00:00Z"
     },
     statistics: {
       viewCount: "2500000000",
@@ -87,7 +88,8 @@ const MOCK_CHANNELS = [
         default: { url: "https://yt3.googleusercontent.com/ytc/AIf8zZTmdjQEgEoQl_Y9F7xCGbuV03sRJhcxUEReRYIBCg=s88-c-k-c0xffffffff-no-rj-mo" },
         medium: { url: "https://yt3.googleusercontent.com/ytc/AIf8zZTmdjQEgEoQl_Y9F7xCGbuV03sRJhcxUEReRYIBCg=s240-c-k-c0xffffffff-no-rj-mo" },
         high: { url: "https://yt3.googleusercontent.com/ytc/AIf8zZTmdjQEgEoQl_Y9F7xCGbuV03sRJhcxUEReRYIBCg=s800-c-k-c0xffffffff-no-rj-mo" }
-      }
+      },
+      publishedAt: "2008-10-21T00:00:00Z"
     },
     statistics: {
       viewCount: "3100000000",
@@ -104,7 +106,8 @@ const MOCK_CHANNELS = [
         default: { url: "https://yt3.googleusercontent.com/ytc/AIf8zZTcnR8M83Kh1Gf8KGPWcFBQCc4hyvsxZgNLYH0n=s88-c-k-c0xffffffff-no-rj-mo" },
         medium: { url: "https://yt3.googleusercontent.com/ytc/AIf8zZTcnR8M83Kh1Gf8KGPWcFBQCc4hyvsxZgNLYH0n=s240-c-k-c0xffffffff-no-rj-mo" },
         high: { url: "https://yt3.googleusercontent.com/ytc/AIf8zZTcnR8M83Kh1Gf8KGPWcFBQCc4hyvsxZgNLYH0n=s800-c-k-c0xffffffff-no-rj-mo" }
-      }
+      },
+      publishedAt: "2008-11-24T00:00:00Z"
     },
     statistics: {
       viewCount: "7800000000",
@@ -121,7 +124,8 @@ const MOCK_CHANNELS = [
         default: { url: "https://yt3.googleusercontent.com/ytc/AIf8zZQ8IsSvRSazKu3aVeZC8MRZNBuAD13wVnwWY_Kpsw=s88-c-k-c0xffffffff-no-rj-mo" },
         medium: { url: "https://yt3.googleusercontent.com/ytc/AIf8zZQ8IsSvRSazKu3aVeZC8MRZNBuAD13wVnwWY_Kpsw=s240-c-k-c0xffffffff-no-rj-mo" },
         high: { url: "https://yt3.googleusercontent.com/ytc/AIf8zZQ8IsSvRSazKu3aVeZC8MRZNBuAD13wVnwWY_Kpsw=s800-c-k-c0xffffffff-no-rj-mo" }
-      }
+      },
+      publishedAt: "2010-07-21T00:00:00Z"
     },
     statistics: {
       viewCount: "1900000000",
