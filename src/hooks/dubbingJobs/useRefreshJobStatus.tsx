@@ -86,17 +86,20 @@ export const useRefreshJobStatus = (jobs: DubbingJob[], refetch: () => void) => 
               let newStatus: "queued" | "running" | "succeeded" | "failed" = job.status as "queued" | "running" | "succeeded" | "failed";
               
               // Convert API statuses to our app's allowed status values
-              if (response.status === "processing") {
+              // Use string comparison instead of type comparison
+              const statusStr = response.status as string;
+              
+              if (statusStr === "processing") {
                 newStatus = "running";
               } 
-              else if (response.status === "finished") {
+              else if (statusStr === "finished") {
                 newStatus = "succeeded";
               }
-              else if (response.status === "queued" || 
-                       response.status === "running" || 
-                       response.status === "succeeded" || 
-                       response.status === "failed") {
-                newStatus = response.status as "queued" | "running" | "succeeded" | "failed";
+              else if (statusStr === "queued" || 
+                       statusStr === "running" || 
+                       statusStr === "succeeded" || 
+                       statusStr === "failed") {
+                newStatus = statusStr as "queued" | "running" | "succeeded" | "failed";
               }
               
               return updateJob.mutateAsync({
