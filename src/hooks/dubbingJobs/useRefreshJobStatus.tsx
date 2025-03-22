@@ -4,6 +4,7 @@ import { checkDubbingJobStatus } from '@/services/api';
 import { useUpdateDubbingJob } from './useUpdateDubbingJob';
 import { DubbingJob } from './types';
 import { toast } from 'sonner';
+import { SieveDubbingResponse } from '@/services/api/types';
 
 export const useRefreshJobStatus = (jobs: DubbingJob[], refetch: () => void) => {
   const [isUpdating, setIsUpdating] = useState(false);
@@ -52,7 +53,7 @@ export const useRefreshJobStatus = (jobs: DubbingJob[], refetch: () => void) => 
         activeJobs.map(async (job) => {
           try {
             console.log(`Checking status for job ${job.sieve_job_id}`);
-            const response = await checkDubbingJobStatus(job.sieve_job_id);
+            const response: SieveDubbingResponse = await checkDubbingJobStatus(job.sieve_job_id);
             console.log(`Job ${job.sieve_job_id} API status:`, response.status, 
               "Output URL:", response.outputs?.output_0?.url);
             
@@ -80,22 +81,30 @@ export const useRefreshJobStatus = (jobs: DubbingJob[], refetch: () => void) => 
             // If the status has changed, update it
             if (response.status !== job.status) {
               console.log(`Job ${job.sieve_job_id} status changed from ${job.status} to ${response.status}`);
+              
               // Map API statuses to our app statuses
               let mappedStatus = response.status;
               
+              // Map API statuses to our app statuses using type-safe approach
+              let newStatus: "queued" | "running" | "succeeded" | "failed" = job.status as any;
+              
               // If the API returns "processing", map it to "running" in our app
               if (response.status === "processing") {
-                mappedStatus = "running";
-              }
-              
+                newStatus = "running";
+              } 
               // If the API returns "finished", map it to "succeeded" in our app
-              if (response.status === "finished") {
-                mappedStatus = "succeeded";
+              else if (response.status === "finished") {
+                newStatus = "succeeded";
+              }
+              // For other statuses, use the API status if it matches our allowed types
+              else if (response.status === "queued" || response.status === "running" || 
+                      response.status === "succeeded" || response.status === "failed") {
+                newStatus = response.status;
               }
               
               return updateJob.mutateAsync({
                 id: job.id,
-                status: mappedStatus,
+                status: newStatus,
                 error: null
               });
             }
