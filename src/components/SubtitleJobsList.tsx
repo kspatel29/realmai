@@ -1,17 +1,28 @@
-
-import React from "react";
+import React, { useState, useEffect } from "react";
 import { useSubtitleJobs } from "@/hooks/useSubtitleJobs";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
-import { FileDown, Copy, RefreshCw } from "lucide-react";
+import { Card, CardContent, CardFooter, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Progress } from "@/components/ui/progress";
+import { 
+  FileDown, 
+  Copy, 
+  RefreshCw, 
+  Loader2, 
+  Clock, 
+  CheckCircle2, 
+  XCircle,
+  Globe 
+} from "lucide-react";
 import { format } from "date-fns";
 import { toast } from "sonner";
+import { SubtitleJob } from "@/services/api/subtitlesService";
 
 const SubtitleJobsList = () => {
   const { jobs, isLoading, refreshJobs } = useSubtitleJobs();
+  const [selectedJob, setSelectedJob] = useState<SubtitleJob | null>(null);
 
-  const copyPreviewToClipboard = (text: string | null) => {
+  const copyPreviewToClipboard = (text) => {
     if (!text) {
       toast.error("No preview text available");
       return;
@@ -23,27 +34,62 @@ const SubtitleJobsList = () => {
   };
 
   const handleRefresh = async () => {
+    toast.info("Refreshing subtitle jobs...");
     const success = await refreshJobs();
     if (success) {
       toast.success("Subtitle jobs refreshed");
     }
   };
 
-  const getStatusBadge = (status: string) => {
+  const getStatusBadge = (status) => {
     switch (status.toLowerCase()) {
       case "starting":
       case "processing":
-        return <Badge variant="outline" className="bg-yellow-100 text-yellow-800">Processing</Badge>;
+        return <Badge className="bg-blue-500"><Loader2 className="mr-1 h-3 w-3 animate-spin" /> Processing</Badge>;
       case "succeeded":
       case "completed":
-        return <Badge variant="outline" className="bg-green-100 text-green-800">Completed</Badge>;
+        return <Badge className="bg-green-500"><CheckCircle2 className="mr-1 h-3 w-3" /> Completed</Badge>;
       case "failed":
       case "error":
-        return <Badge variant="outline" className="bg-red-100 text-red-800">Failed</Badge>;
+        return <Badge variant="destructive"><XCircle className="mr-1 h-3 w-3" /> Failed</Badge>;
       default:
-        return <Badge variant="outline">{status}</Badge>;
+        return <Badge variant="outline" className="border-amber-500 text-amber-500"><Clock className="mr-1 h-3 w-3" /> Queued</Badge>;
     }
   };
+
+  const getProgressValue = (status) => {
+    switch (status.toLowerCase()) {
+      case "succeeded":
+      case "completed":
+        return 100;
+      case "failed":
+      case "error":
+        return 100;
+      case "starting":
+      case "processing":
+        return 65;
+      default:
+        return 25;
+    }
+  };
+
+  useEffect(() => {
+    if (!selectedJob && jobs.length > 0) {
+      const completedJob = jobs.find(job => 
+        job.status.toLowerCase() === "succeeded" || 
+        job.status.toLowerCase() === "completed"
+      );
+      if (completedJob) {
+        setSelectedJob(completedJob);
+      } else {
+        setSelectedJob(jobs[0]);
+      }
+    }
+    
+    if (selectedJob && !jobs.find(job => job.id === selectedJob.id) && jobs.length > 0) {
+      setSelectedJob(jobs[0]);
+    }
+  }, [jobs, selectedJob]);
 
   if (isLoading) {
     return (
@@ -55,97 +101,159 @@ const SubtitleJobsList = () => {
 
   if (jobs.length === 0) {
     return (
-      <div className="text-center py-8">
-        <p className="text-muted-foreground">No subtitle jobs found</p>
+      <div className="text-center py-12">
+        <div className="mx-auto w-12 h-12 rounded-full bg-muted flex items-center justify-center mb-4">
+          <Globe className="h-6 w-6 text-muted-foreground" />
+        </div>
+        <h3 className="font-medium">No subtitle jobs yet</h3>
+        <p className="text-sm text-muted-foreground mt-1">
+          Upload an audio file and generate subtitles to see them here
+        </p>
       </div>
     );
   }
 
   return (
-    <div className="space-y-4">
-      <div className="flex justify-end">
+    <div className="space-y-6">
+      <div className="flex justify-between items-center">
+        <h3 className="text-lg font-medium">Your Subtitle Jobs</h3>
         <Button 
           variant="outline" 
           size="sm" 
           onClick={handleRefresh}
-          className="flex items-center gap-1"
+          disabled={isLoading}
+          className="gap-2"
         >
-          <RefreshCw className="h-4 w-4" />
-          Refresh
+          {isLoading ? (
+            <>
+              <Loader2 className="h-4 w-4 animate-spin" />
+              Refreshing...
+            </>
+          ) : (
+            <>
+              <RefreshCw className="h-4 w-4" />
+              Refresh
+            </>
+          )}
         </Button>
       </div>
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-        {jobs.map((job) => (
-          <Card key={job.id} className="overflow-hidden">
-            <CardHeader className="pb-2">
-              <div className="flex justify-between items-start">
-                <CardTitle className="text-sm font-medium truncate">
-                  {job.original_filename || "Audio file"}
+
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <div className="md:col-span-1 space-y-3">
+          {jobs.map((job) => (
+            <Card 
+              key={job.id} 
+              className={`cursor-pointer hover:border-youtube-red/50 transition-colors ${selectedJob?.id === job.id ? 'border-youtube-red' : ''}`}
+              onClick={() => setSelectedJob(job)}
+            >
+              <CardHeader className="p-4">
+                <div className="flex justify-between items-start">
+                  <div>
+                    <CardTitle className="text-base truncate">
+                      {job.original_filename || "Audio file"}
+                    </CardTitle>
+                    <CardDescription className="text-xs">
+                      {format(new Date(job.created_at), "PPp")}
+                    </CardDescription>
+                  </div>
+                  {getStatusBadge(job.status)}
+                </div>
+              </CardHeader>
+              <CardContent className="p-4 pt-0 space-y-3">
+                <div>
+                  <div className="text-xs text-muted-foreground mb-1">
+                    Processing: {getProgressValue(job.status)}%
+                  </div>
+                  <Progress value={getProgressValue(job.status)} className="h-2" />
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-xs text-muted-foreground">Language:</span>
+                  <span className="text-xs font-medium">{job.language || "Auto-detect"}</span>
+                </div>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+
+        <div className="md:col-span-2">
+          {selectedJob && (
+            <Card>
+              <CardHeader className="p-4">
+                <CardTitle className="text-base flex items-center gap-2">
+                  Preview Job {selectedJob.id.substring(0, 8)}
+                  {getStatusBadge(selectedJob.status)}
                 </CardTitle>
-                {getStatusBadge(job.status)}
-              </div>
-              <div className="text-xs text-muted-foreground">
-                {format(new Date(job.created_at), "PPp")}
-              </div>
-            </CardHeader>
-            <CardContent className="pb-2">
-              <div className="space-y-1 text-sm">
-                <div className="flex justify-between">
-                  <span className="font-medium">Model:</span>
-                  <span>{job.model_name}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="font-medium">Language:</span>
-                  <span>{job.language || "Auto-detect"}</span>
-                </div>
-                {job.error && (
-                  <div className="flex justify-between text-red-500">
-                    <span className="font-medium">Error:</span>
-                    <span className="truncate max-w-[70%]">{job.error}</span>
+                <CardDescription>
+                  {(selectedJob.status.toLowerCase() === "succeeded" || selectedJob.status.toLowerCase() === "completed") 
+                    ? "Your subtitles are ready to preview and download"
+                    : selectedJob.status.toLowerCase() === "failed" || selectedJob.status.toLowerCase() === "error"
+                    ? "This job encountered an error during processing"
+                    : "This job is still being processed"}
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="p-4 pt-0 space-y-3">
+                {selectedJob.preview_text && (
+                  <div className="bg-muted p-4 rounded-md text-sm max-h-60 overflow-y-auto">
+                    {selectedJob.preview_text}
                   </div>
                 )}
-                {job.preview_text && (
-                  <div className="mt-2">
-                    <div className="font-medium mb-1">Preview:</div>
-                    <div className="bg-muted p-2 rounded-md text-xs max-h-20 overflow-y-auto">
-                      {job.preview_text.slice(0, 150)}
-                      {job.preview_text.length > 150 ? '...' : ''}
-                    </div>
+                
+                <div>
+                  <h4 className="text-sm font-medium mb-2">Job Details</h4>
+                  <div className="grid grid-cols-2 gap-2 text-sm">
+                    <div className="text-muted-foreground">Model:</div>
+                    <div>{selectedJob.model_name}</div>
+                    <div className="text-muted-foreground">Language:</div>
+                    <div>{selectedJob.language || "Auto-detect"}</div>
+                    <div className="text-muted-foreground">Created:</div>
+                    <div>{format(new Date(selectedJob.created_at), "PPp")}</div>
+                  </div>
+                </div>
+                
+                {selectedJob.error && (
+                  <div className="bg-red-50 dark:bg-red-950/20 border border-red-200 dark:border-red-800 rounded-md p-4">
+                    <h4 className="text-red-800 dark:text-red-400 font-medium mb-2">Processing Error</h4>
+                    <p className="text-red-700 dark:text-red-500 text-sm">
+                      {selectedJob.error}
+                    </p>
                   </div>
                 )}
-              </div>
-            </CardContent>
-            <CardFooter className="flex justify-end gap-2 pt-2">
-              {job.preview_text && (
-                <Button 
-                  variant="outline" 
-                  size="sm" 
-                  onClick={() => copyPreviewToClipboard(job.preview_text)}
-                >
-                  <Copy className="h-4 w-4 mr-1" /> Copy Text
-                </Button>
-              )}
-              {job.srt_url && (
-                <Button 
-                  variant="outline" 
-                  size="sm" 
-                  onClick={() => window.open(job.srt_url, '_blank')}
-                >
-                  <FileDown className="h-4 w-4 mr-1" /> SRT
-                </Button>
-              )}
-              {job.vtt_url && (
-                <Button 
-                  variant="outline" 
-                  size="sm" 
-                  onClick={() => window.open(job.vtt_url, '_blank')}
-                >
-                  <FileDown className="h-4 w-4 mr-1" /> VTT
-                </Button>
-              )}
-            </CardFooter>
-          </Card>
-        ))}
+              </CardContent>
+              <CardFooter className="p-4 pt-0 flex justify-end gap-2">
+                {selectedJob.preview_text && (
+                  <Button 
+                    variant="outline" 
+                    size="sm" 
+                    onClick={() => copyPreviewToClipboard(selectedJob.preview_text)}
+                  >
+                    <Copy className="mr-2 h-4 w-4" />
+                    Copy Text
+                  </Button>
+                )}
+                {selectedJob.srt_url && (
+                  <Button 
+                    variant="outline" 
+                    size="sm" 
+                    onClick={() => window.open(selectedJob.srt_url, '_blank')}
+                  >
+                    <FileDown className="mr-2 h-4 w-4" />
+                    Download SRT
+                  </Button>
+                )}
+                {selectedJob.vtt_url && (
+                  <Button 
+                    variant="outline" 
+                    size="sm" 
+                    onClick={() => window.open(selectedJob.vtt_url, '_blank')}
+                  >
+                    <FileDown className="mr-2 h-4 w-4" />
+                    Download VTT
+                  </Button>
+                )}
+              </CardFooter>
+            </Card>
+          )}
+        </div>
       </div>
     </div>
   );

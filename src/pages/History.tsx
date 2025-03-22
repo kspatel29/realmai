@@ -3,9 +3,11 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import DubbingJobsList from "@/components/DubbingJobsList";
 import SubtitleJobsList from "@/components/SubtitleJobsList";
 import { useDubbingJobs } from "@/hooks/dubbingJobs";
+import { useSubtitleJobs } from "@/hooks/useSubtitleJobs";
 
 const History = () => {
   const { jobs, isLoading, refetch } = useDubbingJobs();
+  const { jobs: subtitleJobs, isLoading: isSubtitlesLoading, refreshJobs } = useSubtitleJobs();
 
   return (
     <div className="space-y-8 animate-fade-in">
