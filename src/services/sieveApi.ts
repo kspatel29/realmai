@@ -175,9 +175,15 @@ export const checkDubbingJobStatus = async (jobId: string): Promise<SieveDubbing
     }
 
     const data = await response.json();
+    console.log(`Raw API response for job ${jobId}:`, data);
     
-    if (data.error && data.error.traceback && data.status !== "failed") {
-      console.warn(`Job ${jobId} has an error but status is ${data.status}, correcting to failed`);
+    if (data.outputs?.output_0?.url && data.status !== "succeeded") {
+      console.log(`Job ${jobId} has output URL but status is ${data.status}, correcting to succeeded`);
+      data.status = "succeeded";
+    }
+    
+    if ((data.error && data.error.message) && data.status !== "failed") {
+      console.log(`Job ${jobId} has an error but status is ${data.status}, correcting to failed`);
       data.status = "failed";
     }
     

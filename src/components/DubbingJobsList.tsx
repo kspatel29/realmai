@@ -19,10 +19,12 @@ import {
   XCircle, 
   Clock, 
   Loader2, 
-  Globe 
+  Globe,
+  RefreshCw 
 } from "lucide-react";
 import { SieveLanguage, SUPPORTED_LANGUAGES } from "@/services/sieveApi";
 import { DubbingJob } from "@/hooks/useDubbingJobs";
+import { toast } from "sonner";
 
 interface DubbingJobsListProps {
   jobs: DubbingJob[];
@@ -58,7 +60,13 @@ export default function DubbingJobsList({ jobs, onRefresh, isLoading }: DubbingJ
     if (video) {
       setVideoElement(video);
     }
-  }, [selectedJob]);
+    
+    // Auto-refresh active jobs on component mount or when selected job changes
+    const hasActiveJobs = jobs.some(job => job.status === "queued" || job.status === "running");
+    if (hasActiveJobs && !isLoading) {
+      onRefresh();
+    }
+  }, [selectedJob, isLoading, onRefresh, jobs]);
 
   const togglePlayPause = () => {
     if (videoElement) {
@@ -105,6 +113,11 @@ export default function DubbingJobsList({ jobs, onRefresh, isLoading }: DubbingJ
     }
   };
 
+  const handleRefresh = () => {
+    toast.info("Refreshing job statuses...");
+    onRefresh();
+  };
+
   if (jobs.length === 0) {
     return (
       <div className="text-center py-12">
@@ -126,15 +139,21 @@ export default function DubbingJobsList({ jobs, onRefresh, isLoading }: DubbingJ
         <Button 
           variant="outline" 
           size="sm" 
-          onClick={onRefresh}
+          onClick={handleRefresh}
           disabled={isLoading}
+          className="gap-2"
         >
           {isLoading ? (
             <>
-              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              <Loader2 className="h-4 w-4 animate-spin" />
               Refreshing...
             </>
-          ) : "Refresh"}
+          ) : (
+            <>
+              <RefreshCw className="h-4 w-4" />
+              Refresh
+            </>
+          )}
         </Button>
       </div>
 

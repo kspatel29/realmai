@@ -132,15 +132,32 @@ export const useDubbingJobs = () => {
         return;
       }
       
+      console.log("Refreshing statuses for active jobs:", activeJobs.length);
+      
       const updatedJobs = await Promise.all(
         activeJobs.map(async (job) => {
           try {
+            console.log(`Checking status for job ${job.sieve_job_id}`);
             const response = await checkDubbingJobStatus(job.sieve_job_id);
+            console.log(`Job ${job.sieve_job_id} status:`, response.status, "Output URL:", response.outputs?.output_0?.url);
+            
+            // If the API returns an output URL, the job should be considered successful
+            // regardless of what the status field says
+            if (response.outputs?.output_0?.url && !job.output_url) {
+              console.log(`Job ${job.sieve_job_id} has output but status is ${response.status}, marking as succeeded`);
+              return updateJob.mutateAsync({
+                id: job.id,
+                status: "succeeded",
+                output_url: response.outputs.output_0.url,
+                error: null
+              });
+            }
             
             // Check if the job failed with an error response
             if (response.status === "failed" || 
                 (response.error && response.error.message) || 
                 (response.status === "queued" && job.status === "running")) {
+              
               // If the job is in a failed state, update it accordingly
               return updateJob.mutateAsync({
                 id: job.id,

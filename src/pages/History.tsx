@@ -6,6 +6,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { RefreshCw, Clock, Download, AlertTriangle, CheckCircle, Video, Play, Pause } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { format } from "date-fns";
+import { toast } from "sonner";
 
 const History = () => {
   const { jobs, isLoading, error, refreshJobStatus, isUpdating } = useDubbingJobs();
@@ -27,7 +28,18 @@ const History = () => {
     if (!isLoading && !isUpdating) {
       refreshJobStatus();
     }
-  }, [isLoading, isUpdating, refreshJobStatus]);
+    
+    // Set up interval to refresh active jobs
+    const intervalId = setInterval(() => {
+      const hasActiveJobs = jobs.some(job => job.status === "queued" || job.status === "running");
+      if (hasActiveJobs && !isUpdating) {
+        console.log("Auto-refreshing job statuses for active jobs");
+        refreshJobStatus();
+      }
+    }, 15000); // Check every 15 seconds
+    
+    return () => clearInterval(intervalId);
+  }, [isLoading, isUpdating, refreshJobStatus, jobs]);
 
   // Set selected job when jobs load
   useEffect(() => {
@@ -35,6 +47,21 @@ const History = () => {
       // Prefer completed jobs when selecting
       const completedJob = jobs.find(job => job.status === "succeeded");
       setSelectedJob(completedJob || jobs[0]);
+    }
+    
+    // If selected job updated in the jobs array, update the selected job
+    if (selectedJob) {
+      const updatedJob = jobs.find(job => job.id === selectedJob.id);
+      if (updatedJob && updatedJob.status !== selectedJob.status) {
+        setSelectedJob(updatedJob);
+        
+        // Show toast for job status changes
+        if (updatedJob.status === "succeeded" && selectedJob.status !== "succeeded") {
+          toast.success("Your video has been successfully dubbed!");
+        } else if (updatedJob.status === "failed" && selectedJob.status !== "failed") {
+          toast.error("An error occurred while processing your video");
+        }
+      }
     }
   }, [jobs, selectedJob]);
 
@@ -92,6 +119,11 @@ const History = () => {
     }
   };
 
+  const handleRefresh = () => {
+    toast.info("Refreshing job statuses...");
+    refreshJobStatus();
+  };
+
   return (
     <div className={`space-y-8 transition-opacity duration-500 ${isLoaded ? "opacity-100" : "opacity-0"}`}>
       <div className="flex items-center justify-between">
@@ -105,7 +137,7 @@ const History = () => {
           variant="outline"
           size="sm"
           className="gap-2"
-          onClick={refreshJobStatus}
+          onClick={handleRefresh}
           disabled={isUpdating}
         >
           <RefreshCw className={`h-4 w-4 ${isUpdating ? "animate-spin" : ""}`} />
