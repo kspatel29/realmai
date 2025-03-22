@@ -26,6 +26,22 @@ export const generateSubtitles = async (params: GenerateSubtitlesParams) => {
   return data.output as SubtitlesResult;
 };
 
+export const extractAudioFromVideo = async (videoPath: string): Promise<string> => {
+  const { data, error } = await supabase.functions.invoke("generate-subtitles", {
+    body: { extractAudio: true, videoPath },
+  });
+
+  if (error) {
+    throw new Error(error.message);
+  }
+
+  if (!data.audioUrl) {
+    throw new Error("Failed to extract audio from video");
+  }
+
+  return data.audioUrl;
+};
+
 export const checkSubtitlesStatus = async (predictionId: string) => {
   const { data, error } = await supabase.functions.invoke("generate-subtitles", {
     body: { predictionId },
@@ -59,4 +75,18 @@ export const uploadAudioFile = async (file: File): Promise<string> => {
     .getPublicUrl(filePath);
 
   return urlData.publicUrl;
+};
+
+// Determine if a file is a video file based on its extension
+export const isVideoFile = (file: File): boolean => {
+  const videoExtensions = ['mp4', 'mov', 'avi', 'webm', 'mkv', 'flv', 'wmv'];
+  const extension = file.name.split('.').pop()?.toLowerCase() || '';
+  return videoExtensions.includes(extension);
+};
+
+// Determine if a file is an audio file based on its extension
+export const isAudioFile = (file: File): boolean => {
+  const audioExtensions = ['mp3', 'wav', 'ogg', 'aac', 'm4a', 'flac'];
+  const extension = file.name.split('.').pop()?.toLowerCase() || '';
+  return audioExtensions.includes(extension);
 };

@@ -1,9 +1,7 @@
-
 import { useState } from "react";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -20,8 +18,10 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import AudioVideoFileUploader from "@/components/AudioVideoFileUploader";
+import { generateSubtitles, checkSubtitlesStatus } from "@/services/api/subtitlesService";
+import { useQuery } from "@tanstack/react-query";
 
-// Model sizes according to Whisper schema
 const MODEL_SIZES = [
   { id: "tiny.en", name: "Tiny (English only)" },
   { id: "tiny", name: "Tiny (Multilingual)" },
@@ -35,7 +35,6 @@ const MODEL_SIZES = [
   { id: "large-v2", name: "Large v2" },
 ];
 
-// Supported languages from the schema
 const languages = [
   { code: "en", name: "English" },
   { code: "zh", name: "Chinese" },
@@ -53,8 +52,6 @@ const languages = [
   { code: "hi", name: "Hindi" },
   { code: "id", name: "Indonesian" },
   { code: "vi", name: "Vietnamese" },
-  // Adding a subset of common languages for simplicity
-  // More can be added from the schema as needed
 ];
 
 const formats = [
@@ -70,7 +67,6 @@ const CREDIT_COSTS = {
   TINY_MODEL: 2,
 };
 
-// Form schema for subtitles generation
 const subtitlesFormSchema = z.object({
   language: z.string().default("en"),
   model_name: z.string().default("small"),
@@ -80,7 +76,6 @@ const subtitlesFormSchema = z.object({
 type SubtitlesFormValues = z.infer<typeof subtitlesFormSchema>;
 
 const Subtitles = () => {
-  const [file, setFile] = useState<File | null>(null);
   const [isUploading, setIsUploading] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
   const [selectedLanguages, setSelectedLanguages] = useState<string[]>([]);
@@ -91,11 +86,12 @@ const Subtitles = () => {
   const [uploadedFileUrl, setUploadedFileUrl] = useState<string | null>(null);
   const [srtFileUrl, setSrtFileUrl] = useState<string | null>(null);
   const [vttFileUrl, setVttFileUrl] = useState<string | null>(null);
+  const [predictionId, setPredictionId] = useState<string | null>(null);
+  const [isFromVideo, setIsFromVideo] = useState(false);
   const { credits, useCredits: spendCredits, hasEnoughCredits } = useCredits();
   
   const { toast } = useToast();
 
-  // Initialize the form
   const form = useForm<SubtitlesFormValues>({
     resolver: zodResolver(subtitlesFormSchema),
     defaultValues: {
@@ -107,58 +103,45 @@ const Subtitles = () => {
 
   const watchModelName = form.watch("model_name");
 
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files && e.target.files[0]) {
-      setFile(e.target.files[0]);
-    }
-  };
-
-  const handleUpload = async () => {
-    if (!file) {
-      toast({
-        title: "No file selected",
-        description: "Please select an audio or video file to upload.",
-        variant: "destructive"
-      });
-      return;
-    }
-    
-    setIsUploading(true);
-    
-    try {
-      // Simulate file upload progress
-      let progress = 0;
-      const interval = setInterval(() => {
-        progress += 5;
-        setProgress(progress);
+  const { data: predictionStatus } = useQuery({
+    queryKey: ['subtitles-status', predictionId],
+    queryFn: async () => {
+      if (!predictionId) return null;
+      return await checkSubtitlesStatus(predictionId);
+    },
+    enabled: !!predictionId && isProcessing,
+    refetchInterval: 3000,
+    onSuccess: (data) => {
+      if (!data) return;
+      
+      if (data.status === "succeeded") {
+        setIsProcessing(false);
+        setPredictionId(null);
         
-        if (progress >= 100) {
-          clearInterval(interval);
-          // Simulate a successful upload with a sample URL
-          setUploadedFileUrl("https://example.com/uploads/" + file.name);
-          setIsUploading(false);
-          toast({
-            title: "Upload complete",
-            description: "Your file has been uploaded successfully."
-          });
+        if (data.output) {
+          setSrtFileUrl(data.output.srt_file);
+          setVttFileUrl(data.output.vtt_file);
+          setEditableText(data.output.preview || "");
+          sonnerToast.success("Subtitles have been generated successfully.");
         }
-      }, 300);
-    } catch (error) {
-      setIsUploading(false);
-      toast({
-        title: "Upload failed",
-        description: error instanceof Error ? error.message : "An error occurred during upload",
-        variant: "destructive"
-      });
+      } else if (data.status === "failed") {
+        setIsProcessing(false);
+        setPredictionId(null);
+        sonnerToast.error("Failed to generate subtitles: " + (data.error || "Unknown error"));
+      }
     }
+  });
+
+  const handleFileUploaded = (url: string, fromVideo: boolean) => {
+    setUploadedFileUrl(url);
+    setIsFromVideo(fromVideo);
   };
 
   const calculateCost = (): number => {
-    if (!file) return 0;
+    if (!uploadedFileUrl) return 0;
     
     let totalCost = CREDIT_COSTS.BASE_COST;
     
-    // Add cost based on model size
     if (watchModelName?.includes('large')) {
       totalCost += CREDIT_COSTS.LARGE_MODEL;
     } else if (watchModelName?.includes('medium')) {
@@ -167,6 +150,10 @@ const Subtitles = () => {
       totalCost += CREDIT_COSTS.SMALL_MODEL;
     } else if (watchModelName?.includes('tiny')) {
       totalCost += CREDIT_COSTS.TINY_MODEL;
+    }
+    
+    if (isFromVideo) {
+      totalCost += 1;
     }
     
     return totalCost;
@@ -190,27 +177,44 @@ const Subtitles = () => {
     spendCredits.mutate({
       amount: cost,
       service: "Subtitle Generator",
-      description: `Generated subtitles using ${formValues.model_name} model`
+      description: `Generated subtitles using ${formValues.model_name} model${isFromVideo ? ' from video' : ''}`
     }, {
       onSuccess: async () => {
         setIsProcessing(true);
         
         try {
-          // In a real app, we would make an API call to generate subtitles
-          // Simulate processing
-          setTimeout(() => {
-            // Simulate successful generation
-            setSrtFileUrl("https://example.com/subtitles/sample.srt");
-            setVttFileUrl("https://example.com/subtitles/sample.vtt");
-            setEditableText(
-              "00:00:01,000 --> 00:00:05,000\nWelcome to this video about RealmAI.\n\n00:00:05,500 --> 00:00:10,000\nToday we'll discuss how to expand your global reach.\n\n00:00:10,500 --> 00:00:15,000\nWith our AI-powered tools, you can reach audiences worldwide."
-            );
+          const response = await generateSubtitles({
+            audioPath: uploadedFileUrl,
+            modelName: formValues.model_name,
+            language: formValues.language,
+            vadFilter: formValues.vad_filter
+          });
+          
+          if (response) {
+            setSrtFileUrl(response.srt_file);
+            setVttFileUrl(response.vtt_file);
+            setEditableText(response.preview || "");
             setIsProcessing(false);
             sonnerToast.success("Subtitles have been generated successfully.");
-          }, 3000);
+          }
         } catch (error) {
-          setIsProcessing(false);
-          sonnerToast.error(`Failed to process: ${error instanceof Error ? error.message : "An error occurred"}`);
+          if (error instanceof Error && error.message.includes("id:")) {
+            try {
+              const idMatch = error.message.match(/id: ([a-zA-Z0-9]+)/);
+              if (idMatch && idMatch[1]) {
+                setPredictionId(idMatch[1]);
+                sonnerToast.info("Subtitle generation has started. This may take a few minutes.");
+              } else {
+                throw new Error("Failed to extract prediction ID");
+              }
+            } catch (extractError) {
+              setIsProcessing(false);
+              sonnerToast.error(`Failed to process: ${extractError instanceof Error ? extractError.message : "An error occurred"}`);
+            }
+          } else {
+            setIsProcessing(false);
+            sonnerToast.error(`Failed to process: ${error instanceof Error ? error.message : "An error occurred"}`);
+          }
         }
       },
       onError: (error) => {
@@ -249,7 +253,7 @@ const Subtitles = () => {
         serviceName="Subtitle Generator"
         creditCost={totalCost}
         onConfirm={confirmAndProcess}
-        description={`This will use ${totalCost} credits to generate subtitles using the ${watchModelName} model.`}
+        description={`This will use ${totalCost} credits to generate subtitles using the ${watchModelName} model${isFromVideo ? ' (including video processing)' : ''}.`}
       />
 
       <Tabs defaultValue="upload" className="w-full">
@@ -268,68 +272,13 @@ const Subtitles = () => {
                 Upload the audio or video file you want to generate subtitles for.
               </CardDescription>
             </CardHeader>
-            <CardContent className="space-y-6">
-              <div className="border-2 border-dashed border-gray-200 dark:border-gray-800 rounded-lg p-8 text-center">
-                {file ? (
-                  <div className="space-y-2">
-                    <div className="bg-muted rounded h-48 flex items-center justify-center">
-                      <FileText className="h-12 w-12 text-muted-foreground" />
-                    </div>
-                    <p className="font-medium">{file.name}</p>
-                    <p className="text-sm text-muted-foreground">
-                      {(file.size / (1024 * 1024)).toFixed(2)} MB
-                    </p>
-                  </div>
-                ) : (
-                  <div className="space-y-4">
-                    <div className="mx-auto w-12 h-12 rounded-full bg-muted flex items-center justify-center">
-                      <Upload className="h-6 w-6 text-muted-foreground" />
-                    </div>
-                    <div>
-                      <p className="font-medium">Drag and drop or click to upload</p>
-                      <p className="text-sm text-muted-foreground mt-1">
-                        Supports MP3, WAV, MP4, MOV, or existing subtitle files
-                      </p>
-                    </div>
-                    <Input 
-                      id="subtitle-upload" 
-                      type="file" 
-                      accept="audio/*,video/*,.srt,.vtt" 
-                      className="hidden" 
-                      onChange={handleFileChange}
-                    />
-                    <Button 
-                      variant="outline" 
-                      onClick={() => document.getElementById('subtitle-upload')?.click()}
-                    >
-                      Select File
-                    </Button>
-                  </div>
-                )}
-              </div>
-
-              <div className="space-y-4">
-                <div className="flex items-center space-x-2">
-                  <Checkbox id="auto-transcribe" defaultChecked />
-                  <label htmlFor="auto-transcribe" className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
-                    Auto-detect language (if not selected below)
-                  </label>
-                </div>
-              </div>
+            <CardContent>
+              <AudioVideoFileUploader 
+                onFileUploaded={handleFileUploaded}
+                isUploading={isUploading}
+                setIsUploading={setIsUploading}
+              />
             </CardContent>
-            <CardFooter className="flex justify-between">
-              <Button variant="outline" onClick={() => setFile(null)} disabled={!file || isUploading}>
-                Cancel
-              </Button>
-              <Button 
-                onClick={handleUpload} 
-                disabled={!file || isUploading}
-                className={isUploading ? "" : "bg-youtube-red hover:bg-youtube-darkred"}
-              >
-                {isUploading ? `Uploading ${progress}%` : "Upload File"}
-                <Upload className="ml-2 h-4 w-4" />
-              </Button>
-            </CardFooter>
           </Card>
         </TabsContent>
         

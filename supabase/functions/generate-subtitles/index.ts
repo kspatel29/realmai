@@ -8,6 +8,40 @@ const corsHeaders = {
     "authorization, x-client-info, apikey, content-type",
 };
 
+// Helper to extract audio from a video URL
+async function extractAudioFromVideo(videoUrl) {
+  try {
+    console.log("Extracting audio from video:", videoUrl);
+    
+    // Use Replicate to extract audio using the audio-extractor model
+    const REPLICATE_API_TOKEN = Deno.env.get('REPLICATE_API_TOKEN');
+    if (!REPLICATE_API_TOKEN) {
+      throw new Error('REPLICATE_API_TOKEN is not set');
+    }
+
+    const replicate = new Replicate({
+      auth: REPLICATE_API_TOKEN,
+    });
+    
+    // Call the audio extractor model
+    const extractionOutput = await replicate.run(
+      "vaibhavs10/audio-extractor:3d86abe461f9d7d75da6a205bac8765063b9dbe44d94a511189c28dcdac3e68c",
+      {
+        input: {
+          audio_source: videoUrl,
+          audio_format: "wav"
+        }
+      }
+    );
+    
+    console.log("Audio extraction result:", extractionOutput);
+    return extractionOutput;
+  } catch (error) {
+    console.error("Error extracting audio:", error);
+    throw error;
+  }
+}
+
 serve(async (req) => {
   // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
@@ -34,6 +68,23 @@ serve(async (req) => {
       return new Response(JSON.stringify(prediction), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       })
+    }
+
+    // If it's an audio extraction request
+    if (body.extractAudio && body.videoPath) {
+      console.log("Audio extraction requested for:", body.videoPath);
+      try {
+        const audioUrl = await extractAudioFromVideo(body.videoPath);
+        return new Response(JSON.stringify({ audioUrl }), {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      } catch (error) {
+        console.error("Audio extraction failed:", error);
+        return new Response(JSON.stringify({ error: error.message }), {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          status: 500,
+        });
+      }
     }
 
     // If it's a generation request
