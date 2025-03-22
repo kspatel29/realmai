@@ -1,1 +1,7 @@
+
 project_id = "ptihuoxqjymxvvaotzaw"
+[edge_functions]
+[edge_functions.create-payment-intent]
+[edge_functions.confirm-credit-purchase]
+[edge_functions.get-payment-history]
+

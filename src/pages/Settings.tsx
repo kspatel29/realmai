@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
@@ -11,10 +12,7 @@ import { Switch } from "@/components/ui/switch";
 import { useToast } from "@/hooks/use-toast";
 import { toast as sonnerToast } from "sonner";
 import { useAuth } from "@/hooks/useAuth";
-import { User, CreditCard, Bell, Lock, Languages, Monitor, Coins, Check } from "lucide-react";
-import { useCredits } from "@/hooks/useCredits";
-import { SUBSCRIPTION_PLANS, CREDIT_PACKAGES } from "@/constants/pricing";
-import ServiceCostDisplay from "@/components/ServiceCostDisplay";
+import { User, Bell, Lock, Languages, Monitor } from "lucide-react";
 
 const Settings = () => {
   const location = useLocation();
@@ -24,23 +22,20 @@ const Settings = () => {
   
   const { user } = useAuth();
   const { toast } = useToast();
-  const { credits, isLoading: isLoadingCredits, addCredits } = useCredits();
   const [nameInput, setNameInput] = useState(user?.name || "");
   const [emailInput, setEmailInput] = useState(user?.email || "");
   const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
-  const [selectedPlan, setSelectedPlan] = useState("pro");
-  const [isProcessingPurchase, setIsProcessingPurchase] = useState(false);
 
   useEffect(() => {
-    if (tabFromUrl && ['profile', 'billing', 'notifications', 'appearance'].includes(tabFromUrl)) {
+    if (tabFromUrl && ['profile', 'notifications', 'appearance'].includes(tabFromUrl)) {
       setActiveTab(tabFromUrl);
     }
   }, [tabFromUrl]);
 
   const [activeTab, setActiveTab] = useState(
-    tabFromUrl && ['profile', 'billing', 'notifications', 'appearance'].includes(tabFromUrl) 
+    tabFromUrl && ['profile', 'notifications', 'appearance'].includes(tabFromUrl) 
       ? tabFromUrl 
       : 'profile'
   );
@@ -74,40 +69,6 @@ const Settings = () => {
     });
   };
 
-  const handlePlanSelection = (plan: string) => {
-    setSelectedPlan(plan);
-  };
-
-  const handleChangePlan = () => {
-    sonnerToast.success("Your plan will be updated at the start of the next billing cycle");
-  };
-
-  const handlePurchaseCredits = (packageId: string, credits: number) => {
-    setIsProcessingPurchase(true);
-    
-    setTimeout(() => {
-      addCredits.mutate(
-        { amount: credits, description: `Purchased ${credits} credits package` },
-        {
-          onSuccess: () => {
-            sonnerToast.success(`Successfully added ${credits} credits to your account!`);
-            setIsProcessingPurchase(false);
-          },
-          onError: (error) => {
-            sonnerToast.error(`Failed to purchase credits: ${error.message}`);
-            setIsProcessingPurchase(false);
-          }
-        }
-      );
-    }, 1500);
-  };
-
-  const formatCredits = (num: number): string => {
-    return num.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",");
-  };
-
-  const currentPlan = SUBSCRIPTION_PLANS.find(plan => plan.id === selectedPlan) || SUBSCRIPTION_PLANS[0];
-
   return (
     <div className="space-y-8 animate-fade-in">
       <div>
@@ -122,10 +83,6 @@ const Settings = () => {
           <TabsTrigger value="profile" className="flex items-center gap-2">
             <User className="h-4 w-4" />
             <span>Profile</span>
-          </TabsTrigger>
-          <TabsTrigger value="billing" className="flex items-center gap-2">
-            <CreditCard className="h-4 w-4" />
-            <span>Billing</span>
           </TabsTrigger>
           <TabsTrigger value="notifications" className="flex items-center gap-2">
             <Bell className="h-4 w-4" />
@@ -237,206 +194,6 @@ const Settings = () => {
                   <Button type="submit" variant="outline">Update Password</Button>
                 </div>
               </form>
-            </CardContent>
-          </Card>
-        </TabsContent>
-        
-        <TabsContent value="billing" className="mt-6">
-          <Card className="mb-6">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Coins className="h-5 w-5 text-yellow-500" />
-                Your Credits
-              </CardTitle>
-              <CardDescription>
-                Purchase additional credits to use across all services
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="bg-muted/30 p-4 rounded-lg mb-6">
-                <div className="flex items-center justify-between mb-2">
-                  <h3 className="font-medium">Current Balance</h3>
-                  <div className="text-2xl font-bold flex items-center gap-2">
-                    <Coins className="h-5 w-5 text-yellow-500" />
-                    {isLoadingCredits ? "..." : formatCredits(credits)}
-                  </div>
-                </div>
-                <p className="text-sm text-muted-foreground">
-                  Credits can be used for all services: dubbing, subtitles, and video generation
-                </p>
-              </div>
-              
-              <h3 className="font-medium mb-3">Purchase Credit Packages</h3>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                {CREDIT_PACKAGES.map(pkg => (
-                  <Card key={pkg.id} className="overflow-hidden">
-                    <CardHeader className="bg-muted/20 pb-3">
-                      <CardTitle className="text-lg">{pkg.name}</CardTitle>
-                      <CardDescription>{pkg.description}</CardDescription>
-                    </CardHeader>
-                    <CardContent className="pt-4">
-                      <div className="flex items-end gap-1 mb-2">
-                        <span className="text-2xl font-bold">{formatCredits(pkg.credits)}</span>
-                        <span className="text-muted-foreground">credits</span>
-                      </div>
-                      <div className="flex items-center text-sm text-muted-foreground mb-4">
-                        <Coins className="h-4 w-4 text-yellow-500 mr-1" />
-                        <span>${pkg.price}</span>
-                      </div>
-                      <Button 
-                        className="w-full bg-youtube-red hover:bg-youtube-darkred"
-                        onClick={() => handlePurchaseCredits(pkg.id, pkg.credits)}
-                        disabled={isProcessingPurchase}
-                      >
-                        {isProcessingPurchase ? "Processing..." : "Purchase"}
-                      </Button>
-                    </CardContent>
-                  </Card>
-                ))}
-              </div>
-            </CardContent>
-          </Card>
-          
-          <Card>
-            <CardHeader>
-              <CardTitle>Subscription Plan</CardTitle>
-              <CardDescription>
-                Manage your subscription and billing information.
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-6">
-              <div className="rounded-lg border p-4">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <h3 className="font-medium">{currentPlan.name} Plan</h3>
-                    <p className="text-sm text-muted-foreground">
-                      {currentPlan.creditsPerMonth 
-                        ? `${formatCredits(currentPlan.creditsPerMonth)} credits per month` 
-                        : "Custom credit allocation"}
-                    </p>
-                  </div>
-                  <div className="text-right">
-                    <p className="text-lg font-bold">
-                      {currentPlan.price !== null ? `$${currentPlan.price}` : "Custom"}
-                    </p>
-                    <p className="text-xs text-muted-foreground">
-                      {currentPlan.price !== null ? "per month" : "Contact sales"}
-                    </p>
-                  </div>
-                </div>
-                {currentPlan.creditsPerMonth && (
-                  <>
-                    <Separator className="my-4" />
-                    <div className="space-y-2">
-                      <div className="flex items-center justify-between">
-                        <span className="text-sm">Credits used this month</span>
-                        <span className="text-sm font-medium">
-                          {isLoadingCredits 
-                            ? "Loading..." 
-                            : `${formatCredits(currentPlan.creditsPerMonth - credits)} / ${formatCredits(currentPlan.creditsPerMonth)}`}
-                        </span>
-                      </div>
-                      <div className="h-2 rounded-full bg-muted overflow-hidden">
-                        <div 
-                          className="h-full bg-youtube-red" 
-                          style={{ 
-                            width: `${isLoadingCredits || !currentPlan.creditsPerMonth 
-                              ? 0 
-                              : ((currentPlan.creditsPerMonth - credits) / currentPlan.creditsPerMonth * 100)}%` 
-                          }}
-                        ></div>
-                      </div>
-                    </div>
-                  </>
-                )}
-              </div>
-              
-              <div className="grid gap-4 sm:grid-cols-4">
-                {SUBSCRIPTION_PLANS.map(plan => (
-                  <Card 
-                    key={plan.id}
-                    className={`hover:shadow-md transition-shadow cursor-pointer ${
-                      plan.id === selectedPlan ? 'border-2 border-youtube-red' : ''
-                    }`}
-                    onClick={() => handlePlanSelection(plan.id)}
-                  >
-                    <CardHeader className="p-4">
-                      <CardTitle className="text-base">{plan.name}</CardTitle>
-                      {plan.id === selectedPlan && (
-                        <div className="absolute top-0 right-0 bg-youtube-red text-white text-xs px-2 py-1 rounded-bl-md">
-                          Current
-                        </div>
-                      )}
-                    </CardHeader>
-                    <CardContent className="p-4 pt-0">
-                      <div className="text-2xl font-bold">
-                        {plan.price !== null 
-                          ? `$${plan.price}` 
-                          : <span className="text-sm">Contact Sales</span>}
-                        {plan.price !== null && <span className="text-sm font-normal text-muted-foreground">/mo</span>}
-                      </div>
-                      {plan.creditsPerMonth ? (
-                        <p className="text-sm text-muted-foreground mt-2">
-                          {formatCredits(plan.creditsPerMonth)} credits per month
-                        </p>
-                      ) : (
-                        <p className="text-sm text-muted-foreground mt-2">
-                          Custom pricing
-                        </p>
-                      )}
-                      
-                      <div className="mt-4 space-y-2">
-                        {plan.features.map((feature, i) => (
-                          <div key={i} className="flex items-start gap-2">
-                            <Check className="h-4 w-4 text-green-600 mt-0.5" />
-                            <span className="text-sm">{feature}</span>
-                          </div>
-                        ))}
-                      </div>
-                    </CardContent>
-                  </Card>
-                ))}
-              </div>
-
-              <div className="flex flex-col gap-4 sm:flex-row">
-                <Button 
-                  className="w-full sm:w-auto"
-                  onClick={handleChangePlan}
-                  disabled={selectedPlan === "pro"}
-                >
-                  {selectedPlan === "pro" ? "Current Plan" : "Change Plan"}
-                </Button>
-                
-                {selectedPlan === "enterprise" && (
-                  <Button 
-                    variant="outline" 
-                    className="w-full sm:w-auto"
-                  >
-                    Contact Sales
-                  </Button>
-                )}
-              </div>
-            </CardContent>
-          </Card>
-          
-          <Card className="mt-6">
-            <CardHeader>
-              <CardTitle>Payment Method</CardTitle>
-              <CardDescription>
-                Update your billing information and payment method.
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="rounded-lg border p-4 flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <CreditCard className="h-8 w-8 text-muted-foreground" />
-                  <div>
-                    <p className="font-medium">Visa ending in 4242</p>
-                    <p className="text-sm text-muted-foreground">Expires 04/2025</p>
-                  </div>
-                </div>
-                <Button variant="outline" size="sm">Change</Button>
-              </div>
             </CardContent>
           </Card>
         </TabsContent>
