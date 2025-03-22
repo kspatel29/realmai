@@ -36,7 +36,7 @@ export const useRefreshJobStatus = (jobs: DubbingJob[], refetch: () => void) => 
       
       // Then check for active jobs (queued or running)
       const activeJobs = jobs.filter(job => 
-        (job.status === "queued" || job.status === "running" || job.status === "processing") && !job.output_url
+        (job.status === "queued" || job.status === "running") && !job.output_url
       );
       
       if (activeJobs.length === 0) {
@@ -80,8 +80,19 @@ export const useRefreshJobStatus = (jobs: DubbingJob[], refetch: () => void) => 
             // If the status has changed, update it
             if (response.status !== job.status) {
               console.log(`Job ${job.sieve_job_id} status changed from ${job.status} to ${response.status}`);
-              // Map processing status from the API to running in our app
-              const mappedStatus = response.status === "processing" ? "running" : response.status;
+              // Map API statuses to our app statuses
+              let mappedStatus = response.status;
+              
+              // If the API returns "processing", map it to "running" in our app
+              if (response.status === "processing") {
+                mappedStatus = "running";
+              }
+              
+              // If the API returns "finished", map it to "succeeded" in our app
+              if (response.status === "finished") {
+                mappedStatus = "succeeded";
+              }
+              
               return updateJob.mutateAsync({
                 id: job.id,
                 status: mappedStatus,
