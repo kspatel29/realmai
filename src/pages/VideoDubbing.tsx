@@ -55,6 +55,7 @@ const VideoDubbing = () => {
   } = useDubbingJobs();
   
   const hasAddedCreditsRef = useRef(false);
+  const hasCleanedUpRef = useRef(false);
 
   useEffect(() => {
     const developmentUserId = 'a73c1162-06ee-42b5-a50e-77f268419d4f';
@@ -73,9 +74,10 @@ const VideoDubbing = () => {
 
   useEffect(() => {
     return () => {
-      if (videos && videos.length > 0) {
+      if (!hasCleanedUpRef.current && videos && videos.length > 0) {
         const unusedVideos = videos.filter(v => v.used_in_job === null);
         if (unusedVideos.length > 0) {
+          hasCleanedUpRef.current = true;
           cleanupUnusedVideos.mutate();
         }
       }
@@ -223,7 +225,6 @@ const VideoDubbing = () => {
             languages: currentForm.target_languages,
           });
           
-          // Mark the video as used in a job
           if (selectedVideo) {
             markVideoAsUsed.mutate({
               videoId: selectedVideo.id,

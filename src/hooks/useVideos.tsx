@@ -1,4 +1,3 @@
-
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
@@ -122,43 +121,52 @@ export const useVideos = () => {
     mutationFn: async (videoId: string) => {
       if (!user) throw new Error('User not authenticated');
 
-      // First get the video record to get the filename
-      const { data: videoRecord, error: fetchError } = await supabase
-        .from('videos')
-        .select('*')
-        .eq('id', videoId)
-        .single();
-      
-      if (fetchError) {
-        console.error('Error fetching video to delete:', fetchError);
-        throw fetchError;
-      }
-      
-      // Delete the file from storage if it exists
-      if (videoRecord.filename) {
-        const filePath = `${user.id}/${videoId}/${videoRecord.filename}`;
-        const { error: storageError } = await supabase.storage
+      try {
+        // First get the video record to get the filename
+        const { data: videoRecord, error: fetchError } = await supabase
           .from('videos')
-          .remove([filePath]);
+          .select('*')
+          .eq('id', videoId)
+          .single();
         
-        if (storageError) {
-          console.error('Error deleting video file from storage:', storageError);
-          // Continue with deletion of database record even if storage deletion fails
+        if (fetchError) {
+          console.error('Error fetching video to delete:', fetchError);
+          throw fetchError;
         }
+        
+        // Delete the file from storage if it exists
+        if (videoRecord.filename) {
+          const filePath = `${user.id}/${videoId}/${videoRecord.filename}`;
+          const { error: storageError } = await supabase.storage
+            .from('videos')
+            .remove([filePath]);
+          
+          if (storageError) {
+            console.error('Error deleting video file from storage:', storageError);
+            // Continue with deletion of database record even if storage deletion fails
+          }
+        }
+        
+        // Delete the database record
+        const { error: deleteError } = await supabase
+          .from('videos')
+          .delete()
+          .eq('id', videoId);
+        
+        if (deleteError) {
+          console.error('Error deleting video record:', deleteError);
+          throw deleteError;
+        }
+        
+        return videoId;
+      } catch (error) {
+        console.error('Error in deleteVideo mutation:', error);
+        // If the video doesn't exist, treat it as a successful deletion
+        if (error && typeof error === 'object' && 'code' in error && error.code === 'PGRST116') {
+          return videoId;
+        }
+        throw error;
       }
-      
-      // Delete the database record
-      const { error: deleteError } = await supabase
-        .from('videos')
-        .delete()
-        .eq('id', videoId);
-      
-      if (deleteError) {
-        console.error('Error deleting video record:', deleteError);
-        throw deleteError;
-      }
-      
-      return videoId;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['videos', user?.id] });
@@ -169,33 +177,36 @@ export const useVideos = () => {
     }
   });
 
-  // Add a new function to mark videos as unused (to be called when navigating away or component unmount)
   const cleanupUnusedVideos = useMutation({
     mutationFn: async () => {
-      if (!user) return;
+      if (!user) return 0;
       
-      // Get videos that are in the 'ready' state but haven't been used
-      const { data: unusedVideos, error } = await supabase
-        .from('videos')
-        .select('*')
-        .eq('user_id', user.id)
-        .eq('status', 'ready')
-        .is('used_in_job', null);
+      try {
+        // Get videos that are in the 'ready' state but haven't been used
+        const { data: unusedVideos, error } = await supabase
+          .from('videos')
+          .select('*')
+          .eq('user_id', user.id)
+          .eq('status', 'ready')
+          .is('used_in_job', null);
+          
+        if (error) {
+          console.error('Error fetching unused videos:', error);
+          throw error;
+        }
         
-      if (error) {
-        console.error('Error fetching unused videos:', error);
-        throw error;
+        // Delete each unused video
+        const deletePromises = unusedVideos?.map(video => deleteVideo.mutateAsync(video.id)) || [];
+        await Promise.all(deletePromises);
+        
+        return unusedVideos?.length || 0;
+      } catch (error) {
+        console.error('Error cleaning up unused videos:', error);
+        return 0;
       }
-      
-      // Delete each unused video
-      const deletePromises = unusedVideos?.map(video => deleteVideo.mutateAsync(video.id)) || [];
-      await Promise.all(deletePromises);
-      
-      return unusedVideos?.length || 0;
     }
   });
 
-  // Mark a video as used in a job
   const markVideoAsUsed = useMutation({
     mutationFn: async ({ videoId, jobId }: { videoId: string; jobId: string }) => {
       if (!user) throw new Error('User not authenticated');
