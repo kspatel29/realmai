@@ -3,7 +3,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { toast } from 'sonner';
-import { checkDubbingJobStatus, verifyOutputUrl } from '@/services/sieveApi';
+import { checkDubbingJobStatus, verifyOutputUrl } from '@/services/api';
 
 export interface DubbingJob {
   id: string;

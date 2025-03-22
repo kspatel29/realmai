@@ -1,3 +1,4 @@
+
 import { useState, useEffect, useRef } from "react";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -15,7 +16,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import VideoDubbingForm from "@/components/VideoDubbingForm";
 import DubbingJobsList from "@/components/DubbingJobsList";
-import { submitVideoDubbing } from "@/services/sieveApi";
+import { submitVideoDubbing } from "@/services/api";
 import { useInterval } from "@/hooks/useInterval";
 
 const CREDIT_COSTS = {
