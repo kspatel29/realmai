@@ -1,6 +1,5 @@
-
 import { useState, useEffect, useRef } from "react";
-import { useDubbingJobs } from "@/hooks/useDubbingJobs";
+import { useDubbingJobs } from "@/hooks/dubbingJobs";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { RefreshCw, Clock, Download, AlertTriangle, CheckCircle, Video, Play, Pause, Link2 } from "lucide-react";
@@ -29,7 +28,6 @@ const History = () => {
   
   const videoRef = useRef<HTMLVideoElement>(null);
 
-  // Animation on component load
   useEffect(() => {
     const timer = setTimeout(() => {
       setIsLoaded(true);
@@ -38,40 +36,34 @@ const History = () => {
     return () => clearTimeout(timer);
   }, []);
 
-  // Refresh job statuses on component load
   useEffect(() => {
     if (!isLoading && !isUpdating) {
       console.log("Initial refresh of job statuses");
       refreshJobStatus();
     }
     
-    // Set up interval to refresh active jobs
     const intervalId = setInterval(() => {
       const hasActiveJobs = jobs.some(job => job.status === "queued" || job.status === "running");
       if (hasActiveJobs && !isUpdating) {
         console.log("Auto-refreshing job statuses for active jobs");
         refreshJobStatus();
       }
-    }, 15000); // Check every 15 seconds
+    }, 15000);
     
     return () => clearInterval(intervalId);
   }, [isLoading, isUpdating, refreshJobStatus, jobs]);
 
-  // Set selected job when jobs load
   useEffect(() => {
     if (jobs.length > 0 && !selectedJob) {
-      // Prefer completed jobs when selecting
       const completedJob = jobs.find(job => job.status === "succeeded");
       setSelectedJob(completedJob || jobs[0]);
     }
     
-    // If selected job updated in the jobs array, update the selected job
     if (selectedJob) {
       const updatedJob = jobs.find(job => job.id === selectedJob.id);
       if (updatedJob && updatedJob !== selectedJob) {
         setSelectedJob(updatedJob);
         
-        // Show toast for job status changes
         if (updatedJob.status === "succeeded" && selectedJob.status !== "succeeded") {
           toast.success("Your video has been successfully dubbed!");
         } else if (updatedJob.status === "failed" && selectedJob.status !== "failed") {
@@ -81,7 +73,6 @@ const History = () => {
     }
   }, [jobs, selectedJob]);
 
-  // Function to format date
   const formatDate = (dateString: string) => {
     try {
       return format(new Date(dateString), 'MMM d, yyyy h:mm a');
@@ -90,7 +81,6 @@ const History = () => {
     }
   };
 
-  // Function to get status badge color
   const getStatusColor = (status: string) => {
     switch (status) {
       case "succeeded":
@@ -106,7 +96,6 @@ const History = () => {
     }
   };
 
-  // Function to get status icon
   const getStatusIcon = (status: string) => {
     switch (status) {
       case "succeeded":
@@ -122,7 +111,6 @@ const History = () => {
     }
   };
 
-  // Play/Pause video
   const togglePlayPause = () => {
     if (videoRef.current) {
       if (isPlaying) {

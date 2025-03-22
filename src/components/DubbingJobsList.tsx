@@ -1,4 +1,3 @@
-
 import { useState, useEffect, useRef } from "react";
 import { 
   Card, 
@@ -24,7 +23,7 @@ import {
   Link2
 } from "lucide-react";
 import { SieveLanguage, SUPPORTED_LANGUAGES } from "@/services/sieveApi";
-import { DubbingJob, useDubbingJobs } from "@/hooks/useDubbingJobs";
+import { DubbingJob, useDubbingJobs } from "@/hooks/dubbingJobs";
 import { toast } from "sonner";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
