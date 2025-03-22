@@ -12,12 +12,12 @@ const VIDEO_GENERATION_COST = 10;
 // Define an interface for the video generation input
 interface VideoGenerationRequestInput {
   prompt: string;
+  negative_prompt?: string;
   aspect_ratio: string;
   duration: number;
-  loop?: boolean;
-  start_image_url?: string;
-  end_image_url?: string;
-  cfg_scale?: number;
+  cfg_scale: number;
+  start_image?: string;
+  end_image?: string;
 }
 
 export const useVideoGeneration = () => {
@@ -49,23 +49,19 @@ export const useVideoGeneration = () => {
       // Make sure values are properly structured before sending to the API
       const input: VideoGenerationRequestInput = {
         prompt: values.prompt,
+        negative_prompt: values.negative_prompt || "",
         aspect_ratio: values.aspect_ratio,
         duration: parseInt(values.duration),
-        loop: values.loop,
+        cfg_scale: values.cfg_scale,
       };
-      
-      // Add optional cfg_scale if present
-      if (values.cfg_scale !== undefined) {
-        input.cfg_scale = values.cfg_scale;
-      }
       
       // Only add valid start and end frames
       if (startFrame && typeof startFrame === 'string') {
-        input.start_image_url = startFrame;
+        input.start_image = startFrame;
       }
       
       if (endFrame && typeof endFrame === 'string') {
-        input.end_image_url = endFrame;
+        input.end_image = endFrame;
       }
       
       console.log("Generating video with inputs:", input);

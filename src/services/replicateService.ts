@@ -3,12 +3,12 @@ import { supabase } from "@/integrations/supabase/client";
 
 interface VideoGenerationInput {
   prompt: string;
+  negative_prompt?: string;
   aspect_ratio: string;
   duration: number;
-  loop?: boolean;
-  start_image_url?: string;
-  end_image_url?: string;
-  cfg_scale?: number;
+  cfg_scale: number;
+  start_image?: string;
+  end_image?: string;
 }
 
 export const createReplicateVideoClip = async (input: VideoGenerationInput): Promise<any> => {
@@ -40,16 +40,10 @@ export const createReplicateVideoClip = async (input: VideoGenerationInput): Pro
       // Poll for the prediction status
       let prediction = await checkReplicatePredictionStatus(data.id);
       let attempts = 0;
-      const maxAttempts = 120; // Polling for up to 10 minutes (120 * 5s = 600s)
+      const maxAttempts = 120; // Increased for potentially longer processing time
       
       // Poll until the prediction is complete or failed (or timeout)
-      while (
-        (prediction.status === "starting" || 
-         prediction.status === "processing" || 
-         prediction.status === "waiting" || 
-         prediction.status === "in-progress") && 
-        attempts < maxAttempts
-      ) {
+      while (prediction.status !== "succeeded" && prediction.status !== "failed" && attempts < maxAttempts) {
         await new Promise(resolve => setTimeout(resolve, 5000)); // Wait 5 seconds between checks
         prediction = await checkReplicatePredictionStatus(data.id);
         attempts++;

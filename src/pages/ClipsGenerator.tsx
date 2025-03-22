@@ -27,10 +27,10 @@ const ClipsGenerator = () => {
   const form = useForm<VideoGenerationFormValues>({
     defaultValues: {
       prompt: "",
+      negative_prompt: "",
       aspect_ratio: "16:9",
       duration: "5",
       cfg_scale: 0.5,
-      loop: false,
       use_existing_video: false,
     },
   });

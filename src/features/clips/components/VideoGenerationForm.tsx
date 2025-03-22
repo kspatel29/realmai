@@ -11,11 +11,11 @@ import { z } from "zod";
 
 const videoGenerationSchema = z.object({
   prompt: z.string().min(3, "Prompt must be at least 3 characters"),
-  aspect_ratio: z.enum(["16:9", "9:16", "1:1", "3:4", "4:3", "9:21", "21:9"]).default("16:9"),
-  duration: z.enum(["5", "9"]).default("5"),
-  loop: z.boolean().default(false),
+  negative_prompt: z.string().optional(),
+  aspect_ratio: z.enum(["16:9", "9:16", "1:1"]).default("16:9"),
+  duration: z.enum(["5", "10"]).default("5"),
+  cfg_scale: z.number().min(0).max(1).default(0.5),
   use_existing_video: z.boolean().default(false),
-  cfg_scale: z.number().optional().default(0.5),
 });
 
 export type VideoGenerationFormValues = z.infer<typeof videoGenerationSchema>;
@@ -59,6 +59,27 @@ const VideoGenerationForm = ({
           )}
         />
 
+        <FormField
+          control={form.control}
+          name="negative_prompt"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Negative Prompt</FormLabel>
+              <FormControl>
+                <Textarea 
+                  placeholder="Describe what you DON'T want to see..." 
+                  className="min-h-16 resize-none"
+                  {...field} 
+                />
+              </FormControl>
+              <FormDescription>
+                Optional: Specify elements to exclude
+              </FormDescription>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <FormField
             control={form.control}
@@ -79,10 +100,6 @@ const VideoGenerationForm = ({
                     <SelectItem value="16:9">Landscape (16:9)</SelectItem>
                     <SelectItem value="9:16">Portrait (9:16)</SelectItem>
                     <SelectItem value="1:1">Square (1:1)</SelectItem>
-                    <SelectItem value="3:4">3:4</SelectItem>
-                    <SelectItem value="4:3">4:3</SelectItem>
-                    <SelectItem value="9:21">Ultra-wide (9:21)</SelectItem>
-                    <SelectItem value="21:9">Cinema (21:9)</SelectItem>
                   </SelectContent>
                 </Select>
                 <FormMessage />
@@ -107,7 +124,7 @@ const VideoGenerationForm = ({
                   </FormControl>
                   <SelectContent>
                     <SelectItem value="5">5 seconds</SelectItem>
-                    <SelectItem value="9">9 seconds</SelectItem>
+                    <SelectItem value="10">10 seconds</SelectItem>
                   </SelectContent>
                 </Select>
                 <FormMessage />
@@ -118,23 +135,24 @@ const VideoGenerationForm = ({
 
         <FormField
           control={form.control}
-          name="loop"
-          render={({ field }) => (
-            <FormItem className="flex flex-row items-start space-x-3 space-y-0 rounded-md border p-4">
+          name="cfg_scale"
+          render={({ field: { value, onChange } }) => (
+            <FormItem>
+              <FormLabel>Creativity Level: {(value * 100).toFixed(0)}%</FormLabel>
               <FormControl>
-                <Checkbox
-                  checked={field.value}
-                  onCheckedChange={field.onChange}
+                <Slider 
+                  value={[value]} 
+                  min={0} 
+                  max={1} 
+                  step={0.01} 
+                  onValueChange={([val]) => onChange(val)} 
                 />
               </FormControl>
-              <div className="space-y-1 leading-none">
-                <FormLabel>
-                  Loop video
-                </FormLabel>
-                <FormDescription>
-                  Create a seamless loop where the last frame matches the first
-                </FormDescription>
-              </div>
+              <FormDescription className="flex justify-between text-xs">
+                <span>More creative</span>
+                <span>More precise</span>
+              </FormDescription>
+              <FormMessage />
             </FormItem>
           )}
         />

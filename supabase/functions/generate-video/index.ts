@@ -2,6 +2,7 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 import Replicate from "https://esm.sh/replicate@0.25.2"
 
+// CORS headers for cross-origin requests
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers":
@@ -11,144 +12,160 @@ const corsHeaders = {
 serve(async (req) => {
   // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
-    return new Response('ok', { headers: corsHeaders })
+    return new Response('ok', { headers: corsHeaders });
   }
 
   try {
-    // Get the API token
-    const REPLICATE_API_TOKEN = Deno.env.get('REPLICATE_API_TOKEN')
+    // Get the API token from environment variables
+    const REPLICATE_API_TOKEN = Deno.env.get('REPLICATE_API_TOKEN');
     if (!REPLICATE_API_TOKEN) {
-      console.error("REPLICATE_API_TOKEN is not set")
-      throw new Error("API configuration error: REPLICATE_API_TOKEN is not set")
+      console.error("REPLICATE_API_TOKEN is not set");
+      throw new Error("API configuration error: REPLICATE_API_TOKEN is not set");
     }
 
-    // Initialize Replicate client
+    // Initialize the Replicate client
     const replicate = new Replicate({
       auth: REPLICATE_API_TOKEN,
-    })
+    });
 
     // Parse the request body
-    const requestBody = await req.text();
-    console.log("Raw request body:", requestBody);
-    
-    let body;
-    try {
-      body = JSON.parse(requestBody);
-    } catch (parseError) {
-      console.error("Error parsing request body:", parseError);
-      return new Response(JSON.stringify({ error: `Invalid JSON in request: ${parseError.message}` }), {
-        status: 400,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      });
-    }
-    
-    console.log("Parsed request body:", JSON.stringify(body));
+    const body = await req.json();
+    console.log("Request body:", JSON.stringify(body));
 
     // If it's a status check request
     if (body.predictionId) {
-      console.log("Checking status for prediction:", body.predictionId)
+      console.log("Checking status for prediction:", body.predictionId);
       try {
-        const prediction = await replicate.predictions.get(body.predictionId)
-        console.log("Status check response:", JSON.stringify(prediction))
-        
-        // If prediction has succeeded and has output, return it directly
-        if (prediction.status === "succeeded" && prediction.output) {
-          console.log("Prediction succeeded with output:", prediction.output);
-          return new Response(JSON.stringify({ 
-            status: "succeeded",
-            output: prediction.output 
-          }), {
-            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-          })
-        }
+        const prediction = await replicate.predictions.get(body.predictionId);
+        console.log("Status check response:", JSON.stringify(prediction));
         
         return new Response(JSON.stringify(prediction), {
           headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        })
-      } catch (error) {
-        console.error("Error checking prediction status:", error);
-        return new Response(JSON.stringify({ 
-          error: `Error checking prediction status: ${error.message}` 
-        }), {
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-          status: 500,
         });
+      } catch (error) {
+        console.error("Error checking prediction status:", error.message, error.stack);
+        throw error;
       }
     }
 
-    // Process input for video generation
+    // Validate input for video generation
     if (!body.prompt) {
-      console.error("Missing required field: prompt");
-      return new Response(JSON.stringify({ 
-        error: "Missing required field: prompt is required" 
-      }), {
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        status: 400,
-      })
+      throw new Error("Missing required field: prompt is required");
     }
 
-    console.log("Processing input for video generation:", JSON.stringify(body))
+    console.log("Processing input for video generation:", JSON.stringify(body));
     
-    // Define model input based on the Luma Ray Flash 2 720p model requirements
-    const input = {
+    // Process input based on schema
+    const input: Record<string, any> = {
       prompt: body.prompt,
-      aspect_ratio: body.aspect_ratio || "16:9",
-      duration: body.duration ? parseInt(String(body.duration), 10) : 5
+      negative_prompt: body.negative_prompt || "",
     };
     
-    // Add optional parameters if provided
-    if (body.start_image_url && typeof body.start_image_url === 'string') {
-      input.start_image_url = body.start_image_url;
+    // Add aspect ratio if provided
+    if (body.aspect_ratio) {
+      input.aspect_ratio = body.aspect_ratio;
     }
     
-    if (body.end_image_url && typeof body.end_image_url === 'string') {
-      input.end_image_url = body.end_image_url;
-    }
-
-    if (body.loop !== undefined) {
-      input.loop = Boolean(body.loop);
+    // Add duration if provided
+    if (body.duration) {
+      input.duration = parseInt(String(body.duration), 10);
     }
     
-    console.log("Using Luma Ray Flash 2 720p model");
+    // Add cfg_scale if provided
+    if (typeof body.cfg_scale === 'number') {
+      input.cfg_scale = body.cfg_scale;
+    }
+    
+    // Add start_image if provided
+    if (body.start_image && typeof body.start_image === 'string') {
+      input.start_image = body.start_image;
+    }
+    
+    // Add end_image if provided
+    if (body.end_image && typeof body.end_image === 'string') {
+      input.end_image = body.end_image;
+    }
+    
+    console.log("Using Replicate model: kwaivgi/kling-v1.6-pro");
     console.log("With input:", JSON.stringify(input));
-    
-    // Create prediction with the Luma Ray Flash 2 720p model
+
+    // Try the direct model run method first
     try {
-      console.log("Creating prediction...");
-      const prediction = await replicate.predictions.create({
-        // Luma Ray Flash 2 720p model
-        version: "c9f630c1a6c36e4af6a1d5a4c46ffa6ec4666c03bee6ca5d4e6d94b77aef8170",
-        input
-      });
+      console.log("Attempting direct model run...");
+      const output = await replicate.run(
+        "kwaivgi/kling-v1.6-pro",
+        { input }
+      );
       
-      console.log("Prediction created successfully:", JSON.stringify(prediction));
+      console.log("Direct run successful, output:", output);
       
-      return new Response(JSON.stringify({ 
-        id: prediction.id,
-        status: prediction.status
+      // If we have direct output, return it
+      return new Response(JSON.stringify({
+        status: "succeeded",
+        output
       }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        status: 202,
       });
-    } catch (error) {
-      console.error("Prediction error:", error);
-      return new Response(JSON.stringify({ 
-        error: `Video generation failed: ${error.message}` 
-      }), {
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        status: 500,
-      });
+    } catch (runError) {
+      console.warn("Direct run failed, falling back to predictions API:", runError.message);
+      
+      // Fall back to the predictions API
+      try {
+        console.log("Creating prediction via API...");
+        const prediction = await replicate.predictions.create({
+          version: "33e7a37e190af7e87a32c84ce060872a3ea1675adcab41571a2694e73a4cbefb",
+          input
+        });
+        
+        console.log("Prediction created successfully:", JSON.stringify(prediction));
+        
+        // Return the prediction ID for status polling
+        return new Response(JSON.stringify({ 
+          id: prediction.id,
+          status: prediction.status
+        }), {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          status: 202,
+        });
+      } catch (predictionError) {
+        console.error("Prediction API error:", predictionError);
+        throw predictionError;
+      }
     }
   } catch (error) {
-    console.error("Error in video generation function:", JSON.stringify({
+    console.error("Error details:", JSON.stringify({
       message: error.message || "Unknown error",
       stack: error.stack,
       name: error.name
     }));
     
+    // Extract response information if available
+    let errorDetails: any = {
+      message: error.message || "Unknown error",
+      stack: error.stack,
+      name: error.name
+    };
+    
+    if (error.response) {
+      try {
+        errorDetails.status = error.response.status;
+        errorDetails.statusText = error.response.statusText;
+        
+        // Try to get more details from response body
+        const responseText = await error.response.text();
+        try {
+          errorDetails.responseBody = JSON.parse(responseText);
+        } catch (e) {
+          errorDetails.responseText = responseText;
+        }
+      } catch (e) {
+        console.error("Error extracting response details:", e);
+      }
+    }
+    
     return new Response(JSON.stringify({ 
       error: "Video generation failed",
-      details: error.message
+      details: errorDetails
     }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       status: 500,
