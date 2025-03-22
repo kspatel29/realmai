@@ -18,7 +18,7 @@ export const useSubtitlesProcess = () => {
   const [uploadedFileName, setUploadedFileName] = useState<string | null>(null);
   const [editableText, setEditableText] = useState("");
   const { toast } = useToast();
-  const { spendCredits } = useCredits();
+  const { useCredits } = useCredits();
 
   // Query for checking job status
   const { data: predictionStatus } = useQuery({
@@ -68,7 +68,7 @@ export const useSubtitlesProcess = () => {
 
     setIsProcessing(true);
     
-    spendCredits.mutate({
+    useCredits.mutate({
       amount: creditCost,
       service: "Subtitle Generator",
       description: `Generated subtitles using ${formValues.model_name} model${isFromVideo ? ' from video' : ''}`
