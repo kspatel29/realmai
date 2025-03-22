@@ -111,40 +111,32 @@ serve(async (req) => {
     console.log("Cleaned input for Replicate:", JSON.stringify(input));
     
     try {
-      // For Kling model, use the verified version ID
-      // This is a known working version from the official Replicate model registry
-      const MODEL_OWNER = "cjwbw";
-      const MODEL_NAME = "klingv1";
-      const MODEL_VERSION = "e55d19c6b2e49d05e7888e7a5b4e6b4f5f1ee68b1bc33adb9c04afecf6ab80f4";
+      // Using kwaivgi/kling-v1.6-pro as specified by the user
+      console.log("Using model: kwaivgi/kling-v1.6-pro");
       
-      console.log(`Using model: ${MODEL_OWNER}/${MODEL_NAME} with version: ${MODEL_VERSION}`);
+      // Run the model directly
+      const output = await replicate.run(
+        "kwaivgi/kling-v1.6-pro",
+        { input }
+      );
       
-      // Create the prediction using the verified model and version
-      const prediction = await replicate.predictions.create({
-        version: MODEL_VERSION,
-        input: input,
-      });
+      console.log("Model output:", JSON.stringify(output));
       
-      console.log("Prediction created:", JSON.stringify(prediction));
-      
-      // Return the prediction ID for client polling
       return new Response(JSON.stringify({ 
-        id: prediction.id,
-        status: prediction.status
+        status: "succeeded", 
+        output 
       }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        status: 202,
       });
-    } catch (predictionsError) {
-      console.error("Predictions API error:", predictionsError);
+    } catch (runError) {
+      console.error("Run API error:", runError);
       
-      // Log detailed error information but handle response body consumption carefully
-      if (predictionsError.response) {
+      // Log detailed error information
+      if (runError.response) {
         try {
-          console.error("Response status:", predictionsError.response.status);
-          // Only try to get the response text if the body hasn't been consumed
-          if (!predictionsError.response.bodyUsed) {
-            const respText = await predictionsError.response.text();
+          console.error("Response status:", runError.response.status);
+          if (!runError.response.bodyUsed) {
+            const respText = await runError.response.text();
             console.error("Response body:", respText);
           } else {
             console.error("Response body already consumed");
@@ -154,14 +146,52 @@ serve(async (req) => {
         }
       }
       
-      return new Response(JSON.stringify({ 
-        error: "Video generation failed",
-        message: predictionsError.message,
-        stack: predictionsError.stack,
-      }), {
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        status: 500,
-      });
+      // Fall back to predictions.create if run method fails
+      try {
+        console.log("Falling back to predictions.create method");
+        
+        const prediction = await replicate.predictions.create({
+          version: "af402f7f7aebb76684d704a5165fae5ca0a9e4c6b32dabe5d10abf14b63b4485", // Latest stable version for kwaivgi/kling-v1.6-pro
+          input,
+        });
+        
+        console.log("Prediction created:", JSON.stringify(prediction));
+        
+        return new Response(JSON.stringify({ 
+          id: prediction.id,
+          status: prediction.status
+        }), {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          status: 202,
+        });
+      } catch (predictionsError) {
+        console.error("Predictions API error:", predictionsError);
+        
+        // Log detailed error information but handle response body consumption carefully
+        if (predictionsError.response) {
+          try {
+            console.error("Response status:", predictionsError.response.status);
+            // Only try to get the response text if the body hasn't been consumed
+            if (!predictionsError.response.bodyUsed) {
+              const respText = await predictionsError.response.text();
+              console.error("Response body:", respText);
+            } else {
+              console.error("Response body already consumed");
+            }
+          } catch (e) {
+            console.error("Could not parse response body:", e);
+          }
+        }
+        
+        return new Response(JSON.stringify({ 
+          error: "Video generation failed",
+          message: predictionsError.message,
+          stack: predictionsError.stack,
+        }), {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          status: 500,
+        });
+      }
     }
   } catch (error) {
     console.error("Unhandled error in video generation function:", error.message, error.stack);

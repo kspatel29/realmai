@@ -27,9 +27,12 @@ export const createReplicateVideoClip = async (input: VideoGenerationInput): Pro
     
     console.log("Edge function response:", data);
     
-    // With the direct run approach, we should have the output directly
+    // If we have direct output, return it immediately
     if (data && data.output) {
-      return data;
+      return {
+        status: "succeeded",
+        output: data.output
+      };
     }
     
     // If we have a prediction ID, we'll need to check its status
