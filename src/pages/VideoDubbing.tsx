@@ -10,7 +10,7 @@ import ServiceCostDisplay from "@/components/ServiceCostDisplay";
 import CreditConfirmDialog from "@/components/CreditConfirmDialog";
 import { useCredits } from "@/hooks/useCredits";
 import { useVideos, type Video as VideoType } from "@/hooks/useVideos";
-import { useDubbingJobs } from "@/hooks/useDubbingJobs";
+import { useDubbingJobs } from "@/hooks/dubbingJobs";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
