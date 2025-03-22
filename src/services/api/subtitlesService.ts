@@ -1,5 +1,5 @@
 
-import { supabaseClient } from "@/integrations/supabase/client";
+import { supabase } from "@/integrations/supabase/client";
 
 export interface GenerateSubtitlesParams {
   audioPath: string;
@@ -15,7 +15,7 @@ export interface SubtitlesResult {
 }
 
 export const generateSubtitles = async (params: GenerateSubtitlesParams) => {
-  const { data, error } = await supabaseClient.functions.invoke("generate-subtitles", {
+  const { data, error } = await supabase.functions.invoke("generate-subtitles", {
     body: params,
   });
 
@@ -27,7 +27,7 @@ export const generateSubtitles = async (params: GenerateSubtitlesParams) => {
 };
 
 export const checkSubtitlesStatus = async (predictionId: string) => {
-  const { data, error } = await supabaseClient.functions.invoke("generate-subtitles", {
+  const { data, error } = await supabase.functions.invoke("generate-subtitles", {
     body: { predictionId },
   });
 
@@ -43,7 +43,7 @@ export const uploadAudioFile = async (file: File): Promise<string> => {
   const fileName = `${crypto.randomUUID()}.${fileExt}`;
   const filePath = `subtitles/${fileName}`;
 
-  const { data, error } = await supabaseClient.storage
+  const { data, error } = await supabase.storage
     .from('uploads')
     .upload(filePath, file, {
       cacheControl: '3600',
@@ -54,7 +54,7 @@ export const uploadAudioFile = async (file: File): Promise<string> => {
     throw new Error(`Error uploading file: ${error.message}`);
   }
 
-  const { data: urlData } = supabaseClient.storage
+  const { data: urlData } = supabase.storage
     .from('uploads')
     .getPublicUrl(filePath);
 

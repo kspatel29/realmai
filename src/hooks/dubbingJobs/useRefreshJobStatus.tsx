@@ -83,7 +83,7 @@ export const useRefreshJobStatus = (jobs: DubbingJob[], refetch: () => void) => 
               console.log(`Job ${job.sieve_job_id} status changed from ${job.status} to ${response.status}`);
               
               // Map API statuses to our app statuses using type-safe approach
-              let newStatus: "queued" | "running" | "succeeded" | "failed" = job.status;
+              let newStatus: "queued" | "running" | "succeeded" | "failed" = job.status as "queued" | "running" | "succeeded" | "failed";
               
               // Convert API statuses to our app's allowed status values
               if (response.status === "processing") {
@@ -96,7 +96,7 @@ export const useRefreshJobStatus = (jobs: DubbingJob[], refetch: () => void) => 
                        response.status === "running" || 
                        response.status === "succeeded" || 
                        response.status === "failed") {
-                newStatus = response.status;
+                newStatus = response.status as "queued" | "running" | "succeeded" | "failed";
               }
               
               return updateJob.mutateAsync({
