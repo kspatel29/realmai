@@ -56,15 +56,20 @@ export const submitVideoDubbing = async (videoUrl: string, options: DubbingOptio
 
 export const checkDubbingJobStatus = async (jobId: string): Promise<SieveDubbingResponse> => {
   try {
-    console.log(`Checking status for job ${jobId}`);
+    console.log(`Making API request to check status for job ${jobId}`);
+    const url = `${API_BASE_URL}/jobs/${jobId}`;
+    console.log(`Request URL: ${url}`);
     
-    const response = await fetch(`${API_BASE_URL}/jobs/${jobId}`, {
+    const response = await fetch(url, {
       method: 'GET',
       headers: {
-        'X-API-Key': API_KEY
+        'X-API-Key': API_KEY,
+        'Content-Type': 'application/json'
       }
     });
 
+    console.log(`API response status: ${response.status}`);
+    
     if (!response.ok) {
       const errorData = await response.json();
       console.error(`Error response from API for job ${jobId}:`, errorData);

@@ -104,4 +104,3 @@ export const useRefreshJobStatus = (jobs: DubbingJob[], refetch: () => void) => 
 
   return { refreshJobStatus, isUpdating };
 };
-

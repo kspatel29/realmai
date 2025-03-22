@@ -46,7 +46,6 @@ export default function DubbingJobsList({ jobs, onRefresh, isLoading }: DubbingJ
   const { updateJobWithUrl } = useDubbingJobs();
 
   useEffect(() => {
-    // Set the first completed job as selected if none is selected
     if (!selectedJob && jobs.length > 0) {
       const completedJob = jobs.find(job => job.status === "succeeded");
       if (completedJob) {
@@ -56,12 +55,10 @@ export default function DubbingJobsList({ jobs, onRefresh, isLoading }: DubbingJ
       }
     }
     
-    // If the selected job is no longer in the list, select the first job
     if (selectedJob && !jobs.find(job => job.id === selectedJob.id) && jobs.length > 0) {
       setSelectedJob(jobs[0]);
     }
     
-    // Update selected job if its data changed
     if (selectedJob) {
       const updatedJob = jobs.find(job => job.id === selectedJob.id);
       if (updatedJob && JSON.stringify(updatedJob) !== JSON.stringify(selectedJob)) {
@@ -71,12 +68,16 @@ export default function DubbingJobsList({ jobs, onRefresh, isLoading }: DubbingJ
   }, [jobs, selectedJob]);
 
   useEffect(() => {
-    // Initialize video element reference when selected job changes
     videoRef.current = document.getElementById("preview-video") as HTMLVideoElement;
     
-    // Auto-refresh active jobs on component mount or when selected job changes
     const hasActiveJobs = jobs.some(job => job.status === "queued" || job.status === "running");
     if (hasActiveJobs && !isLoading) {
+      console.log("Automatically refreshing job statuses due to active jobs");
+      onRefresh();
+    }
+    
+    if (selectedJob && (selectedJob.status === "queued" || selectedJob.status === "running") && !isLoading) {
+      console.log(`Selected job ${selectedJob.sieve_job_id} is active, refreshing status`);
       onRefresh();
     }
   }, [selectedJob, isLoading, onRefresh, jobs]);
@@ -96,7 +97,6 @@ export default function DubbingJobsList({ jobs, onRefresh, isLoading }: DubbingJ
     return SUPPORTED_LANGUAGES.find(lang => lang.code === code);
   };
 
-  // Function to get job status styling
   const getStatusBadge = (status: string) => {
     switch (status) {
       case "succeeded":
@@ -111,7 +111,6 @@ export default function DubbingJobsList({ jobs, onRefresh, isLoading }: DubbingJ
     }
   };
 
-  // Function to estimate progress based on status
   const getProgressValue = (status: string): number => {
     switch (status) {
       case "succeeded":
@@ -127,6 +126,7 @@ export default function DubbingJobsList({ jobs, onRefresh, isLoading }: DubbingJ
   };
 
   const handleRefresh = () => {
+    console.log("Manual refresh requested by user");
     toast.info("Refreshing job statuses...");
     onRefresh();
   };

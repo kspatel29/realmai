@@ -1,4 +1,3 @@
-
 import { useState, useEffect, useRef } from "react";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -95,9 +94,17 @@ const VideoDubbing = () => {
 
   useInterval(() => {
     if (dubbingJobs.some(job => job.status === "queued" || job.status === "running")) {
+      console.log("Interval triggered: Refreshing active job statuses");
       refreshJobStatus();
     }
-  }, 10000);
+  }, 5000);
+
+  useEffect(() => {
+    if (dubbingJobs.length > 0) {
+      console.log("Initial refresh of job statuses");
+      refreshJobStatus();
+    }
+  }, [dubbingJobs.length]);
 
   const loadVideoURL = async (video: VideoType) => {
     try {
@@ -209,6 +216,7 @@ const VideoDubbing = () => {
         try {
           const languages = currentForm.target_languages.join(',');
           
+          console.log("Submitting dubbing job with languages:", languages);
           const response = await submitVideoDubbing(videoURL, {
             target_language: languages,
             enable_voice_cloning: currentForm.enable_voice_cloning,
@@ -220,11 +228,15 @@ const VideoDubbing = () => {
             end_time: currentForm.end_time,
           });
           
+          console.log("Dubbing job submitted successfully, Sieve job ID:", response.id);
+          
           const newJob = await createJob.mutateAsync({
             sieve_job_id: response.id,
             status: response.status,
             languages: currentForm.target_languages,
           });
+          
+          console.log("Job created in database:", newJob);
           
           if (selectedVideo) {
             markVideoAsUsed.mutate({
@@ -235,6 +247,12 @@ const VideoDubbing = () => {
           
           toast.success(`Dubbing job submitted successfully!`);
           setIsProcessing(false);
+          
+          setTimeout(() => {
+            console.log("Initial status check after job creation");
+            refreshJobStatus();
+            document.querySelector('[data-radix-collection-item][value="preview"]')?.dispatchEvent(new MouseEvent('click'));
+          }, 1000);
         } catch (error) {
           console.error('Error submitting dubbing job:', error);
           toast.error('Failed to submit dubbing job');
