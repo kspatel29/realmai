@@ -84,9 +84,11 @@ export const useVideoGeneration = () => {
               }
               
               // Get the video URL from the result
-              const videoOutput = result.output ? 
-                (Array.isArray(result.output) ? result.output[0] : result.output) : 
-                null;
+              let videoOutput = null;
+              
+              if (result.output) {
+                videoOutput = Array.isArray(result.output) ? result.output[0] : result.output;
+              }
               
               if (!videoOutput) {
                 throw new Error("No video output received from the API");

@@ -17,7 +17,14 @@ serve(async (req) => {
   try {
     const REPLICATE_API_TOKEN = Deno.env.get('REPLICATE_API_TOKEN')
     if (!REPLICATE_API_TOKEN) {
-      throw new Error('REPLICATE_API_TOKEN is not set')
+      console.error("REPLICATE_API_TOKEN is not set");
+      return new Response(
+        JSON.stringify({ error: "API configuration error", details: "REPLICATE_API_TOKEN is not set" }),
+        {
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+          status: 500,
+        }
+      );
     }
 
     const replicate = new Replicate({
@@ -30,12 +37,26 @@ serve(async (req) => {
     // If it's a status check request
     if (body.predictionId) {
       console.log("Checking status for prediction:", body.predictionId)
-      const prediction = await replicate.predictions.get(body.predictionId)
-      console.log("Status check response:", prediction)
-      
-      return new Response(JSON.stringify(prediction), {
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      })
+      try {
+        const prediction = await replicate.predictions.get(body.predictionId)
+        console.log("Status check response:", prediction)
+        
+        return new Response(JSON.stringify(prediction), {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        })
+      } catch (error) {
+        console.error("Error checking prediction status:", error)
+        return new Response(
+          JSON.stringify({ 
+            error: "Failed to check prediction status", 
+            details: error.message || "Unknown error" 
+          }), 
+          {
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+            status: 500,
+          }
+        )
+      }
     }
 
     // If it's a generation request
@@ -73,21 +94,26 @@ serve(async (req) => {
     console.log("Cleaned input for Replicate:", input)
     
     try {
-      // Start the prediction using the kwaivgi/kling-v1.6-pro model
-      const prediction = await replicate.predictions.create({
-        version: "3a139358cc4ae29264fbcafd6ee8fbd92726dfa35c8b1e1ba03a7e04d8697bbb", // kling-v1.6-pro model version
-        input: input,
-      })
+      // Define the correct model version ID for kling-v1.6-pro
+      const MODEL_VERSION = "3a139358cc4ae29264fbcafd6ee8fbd92726dfa35c8b1e1ba03a7e04d8697bbb";
       
-      console.log("Prediction created:", prediction)
+      console.log(`Creating prediction with model version: ${MODEL_VERSION}`);
       
-      // Return the prediction ID so the client can poll for status
+      // Start the prediction using the direct run approach
+      const output = await replicate.run(
+        "kwaivgi/kling-v1.6-pro:3a139358cc4ae29264fbcafd6ee8fbd92726dfa35c8b1e1ba03a7e04d8697bbb",
+        { input }
+      );
+      
+      console.log("Prediction result:", output);
+      
+      // Return the output directly
       return new Response(JSON.stringify({ 
-        id: prediction.id,
-        status: prediction.status
+        status: "succeeded",
+        output
       }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        status: 202, // Accepted
+        status: 200,
       });
     } catch (replicateError) {
       console.error("Replicate API error:", replicateError)
@@ -101,7 +127,10 @@ serve(async (req) => {
     }
   } catch (error) {
     console.error("Error in video generation function:", error)
-    return new Response(JSON.stringify({ error: error.message || "Unknown error occurred", stack: error.stack }), {
+    return new Response(JSON.stringify({ 
+      error: error.message || "Unknown error occurred", 
+      stack: error.stack 
+    }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       status: 500,
     })
