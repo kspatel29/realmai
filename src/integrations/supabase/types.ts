@@ -45,6 +45,54 @@ export type Database = {
         }
         Relationships: []
       }
+      subtitle_jobs: {
+        Row: {
+          created_at: string
+          error: string | null
+          id: string
+          language: string | null
+          model_name: string
+          original_filename: string | null
+          prediction_id: string | null
+          preview_text: string | null
+          srt_url: string | null
+          status: string
+          updated_at: string
+          user_id: string
+          vtt_url: string | null
+        }
+        Insert: {
+          created_at?: string
+          error?: string | null
+          id?: string
+          language?: string | null
+          model_name: string
+          original_filename?: string | null
+          prediction_id?: string | null
+          preview_text?: string | null
+          srt_url?: string | null
+          status?: string
+          updated_at?: string
+          user_id: string
+          vtt_url?: string | null
+        }
+        Update: {
+          created_at?: string
+          error?: string | null
+          id?: string
+          language?: string | null
+          model_name?: string
+          original_filename?: string | null
+          prediction_id?: string | null
+          preview_text?: string | null
+          srt_url?: string | null
+          status?: string
+          updated_at?: string
+          user_id?: string
+          vtt_url?: string | null
+        }
+        Relationships: []
+      }
       user_credits: {
         Row: {
           created_at: string | null

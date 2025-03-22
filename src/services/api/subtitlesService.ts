@@ -179,5 +179,5 @@ export const fetchSubtitleJobs = async (): Promise<SubtitleJob[]> => {
     throw new Error(`Error fetching subtitle jobs: ${error.message}`);
   }
 
-  return data || [];
+  return data as SubtitleJob[];
 };

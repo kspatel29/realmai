@@ -1,220 +1,222 @@
 
-import { useState, useEffect } from "react";
-import { toast as sonnerToast } from "sonner";
-import { useQuery } from "@tanstack/react-query";
-import { 
-  generateSubtitles, 
-  checkSubtitlesStatus, 
-  createSubtitleJob, 
-  updateSubtitleJob 
-} from "@/services/api/subtitlesService";
-import { SubtitlesFormValues } from "./subtitlesSchema";
-import { useCredits } from "@/hooks/useCredits";
+import { useState } from "react";
+import { toast } from "sonner";
 import { useAuth } from "@/hooks/useAuth";
+import { generateSubtitles, checkSubtitlesStatus, uploadAudioFile, isAudioFile, createSubtitleJob, updateSubtitleJob } from "@/services/api/subtitlesService";
+import { SubtitlesFormValues } from "./subtitlesSchema";
+import { useInterval } from "@/hooks/useInterval";
 
-export const useSubtitlesProcess = () => {
+export function useSubtitlesProcess() {
+  const { user } = useAuth();
   const [isUploading, setIsUploading] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
   const [uploadedFileUrl, setUploadedFileUrl] = useState<string | null>(null);
+  const [uploadedFileName, setUploadedFileName] = useState<string | null>(null);
   const [srtFileUrl, setSrtFileUrl] = useState<string | null>(null);
   const [vttFileUrl, setVttFileUrl] = useState<string | null>(null);
+  const [editableText, setEditableText] = useState<string | null>(null);
+  const [estimatedWaitTime, setEstimatedWaitTime] = useState<number>(0);
   const [predictionId, setPredictionId] = useState<string | null>(null);
-  const [uploadedFileName, setUploadedFileName] = useState<string | null>(null);
-  const [editableText, setEditableText] = useState("");
-  const [estimatedWaitTime, setEstimatedWaitTime] = useState<number | null>(null);
-  const [subtitleJobId, setSubtitleJobId] = useState<string | null>(null);
-  const { useCredits: spendCredits } = useCredits();
-  const { user } = useAuth();
+  const [jobId, setJobId] = useState<string | null>(null);
+  const [statusCheckInterval, setStatusCheckInterval] = useState<number | null>(null);
+  const [lastCheckTime, setLastCheckTime] = useState<number>(0);
 
-  // Calculate estimated wait time based on model
-  const calculateEstimatedTime = (modelName: string) => {
-    // large-v2 takes longer than small
-    return modelName === "large-v2" ? 4 : 2; // minutes
-  };
-
-  // Query for checking job status
-  const { data: predictionStatus, error: statusError } = useQuery({
-    queryKey: ['subtitles-status', predictionId],
-    queryFn: async () => {
-      if (!predictionId) return null;
-      return await checkSubtitlesStatus(predictionId);
-    },
-    enabled: !!predictionId && isProcessing,
-    refetchInterval: 3000
-  });
-
-  // Effect to handle prediction status changes
-  useEffect(() => {
-    if (!predictionStatus) return;
-    
-    console.log("Prediction status update:", predictionStatus);
-    
-    if (predictionStatus.status === "succeeded") {
-      if (predictionStatus.output) {
-        setSrtFileUrl(predictionStatus.output.srt_file);
-        setVttFileUrl(predictionStatus.output.vtt_file);
-        setEditableText(predictionStatus.output.preview || "");
-        setIsProcessing(false);
-        setPredictionId(null);
-        setEstimatedWaitTime(null);
-        sonnerToast.success("Subtitles have been generated successfully.");
-        
-        // Update the subtitle job with the results
-        if (subtitleJobId) {
-          updateSubtitleJob(subtitleJobId, {
-            status: 'succeeded',
-            srt_url: predictionStatus.output.srt_file,
-            vtt_url: predictionStatus.output.vtt_file,
-            preview_text: predictionStatus.output.preview
-          }).catch(error => {
-            console.error("Failed to update subtitle job:", error);
-          });
-        }
-      }
-    } else if (predictionStatus.status === "failed") {
-      setIsProcessing(false);
-      setPredictionId(null);
-      setEstimatedWaitTime(null);
-      sonnerToast.error("Failed to generate subtitles: " + (predictionStatus.error || "Unknown error"));
-      
-      // Update the subtitle job with the error
-      if (subtitleJobId) {
-        updateSubtitleJob(subtitleJobId, {
-          status: 'failed',
-          error: predictionStatus.error || "Unknown error"
-        }).catch(error => {
-          console.error("Failed to update subtitle job error:", error);
-        });
-      }
-    } else {
-      // Update the status of the job
-      if (subtitleJobId) {
-        updateSubtitleJob(subtitleJobId, {
-          status: predictionStatus.status
-        }).catch(error => {
-          console.error("Failed to update subtitle job status:", error);
-        });
-      }
+  // Setup polling interval for checking status
+  useInterval(() => {
+    const now = Date.now();
+    // Only check if it's been at least 3 seconds since last check
+    if (predictionId && now - lastCheckTime >= 3000) {
+      checkStatus(predictionId, jobId);
+      setLastCheckTime(now);
     }
-  }, [predictionStatus, subtitleJobId]);
+  }, statusCheckInterval);
 
-  // Effect to handle status error
-  useEffect(() => {
-    if (statusError) {
-      console.error("Error checking status:", statusError);
-      setIsProcessing(false);
-      setPredictionId(null);
-      setEstimatedWaitTime(null);
-      sonnerToast.error(`Error checking status: ${statusError instanceof Error ? statusError.message : "Unknown error"}`);
+  const handleFileUploaded = async (file: File) => {
+    if (!file) return;
+    
+    try {
+      setIsUploading(true);
+      setUploadedFileName(file.name);
       
-      // Update the subtitle job with the error
-      if (subtitleJobId) {
-        updateSubtitleJob(subtitleJobId, {
-          status: 'failed',
-          error: statusError instanceof Error ? statusError.message : "Unknown error"
-        }).catch(error => {
-          console.error("Failed to update subtitle job error:", error);
-        });
+      if (!isAudioFile(file)) {
+        toast.error("Please upload a valid audio file (mp3, wav, ogg, etc.)");
+        setIsUploading(false);
+        return;
       }
-    }
-  }, [statusError, subtitleJobId]);
-
-  const handleFileUploaded = (url: string, fromVideo: boolean, fileName?: string) => {
-    setUploadedFileUrl(url);
-    if (fileName) {
-      setUploadedFileName(fileName);
+      
+      const fileUrl = await uploadAudioFile(file);
+      setUploadedFileUrl(fileUrl);
+      toast.success("File uploaded successfully!");
+    } catch (error) {
+      console.error("Error uploading file:", error);
+      toast.error("Failed to upload file");
+    } finally {
+      setIsUploading(false);
     }
   };
 
-  const processSubtitles = async (formValues: SubtitlesFormValues, creditCost: number) => {
-    if (!uploadedFileUrl) {
-      sonnerToast.error("Please upload a file first.");
-      return;
-    }
-    
+  const processSubtitles = async (values: SubtitlesFormValues, creditCost: number) => {
     if (!user) {
-      sonnerToast.error("You must be logged in to generate subtitles.");
+      toast.error("You must be logged in to generate subtitles");
+      return;
+    }
+    
+    if (!uploadedFileUrl) {
+      toast.error("Please upload an audio file first");
       return;
     }
 
-    setIsProcessing(true);
-    setEstimatedWaitTime(calculateEstimatedTime(formValues.model_name));
-    
-    spendCredits.mutate({
-      amount: creditCost,
-      service: "Subtitle Generator",
-      description: `Generated subtitles using ${formValues.model_name === "large-v2" ? "Best Quality" : "Affordable"} model`
-    }, {
-      onSuccess: async () => {
-        try {
-          // Create a subtitle job entry first
-          const jobId = await createSubtitleJob({
-            userId: user.id,
-            modelName: formValues.model_name,
-            language: formValues.language,
-            originalFilename: uploadedFileName || undefined
-          });
-          
-          setSubtitleJobId(jobId);
-          
-          const result = await generateSubtitles({
-            audioPath: uploadedFileUrl,
-            modelName: formValues.model_name,
-            language: formValues.language,
-            vadFilter: formValues.vad_filter
-          });
-          
-          // Check if the result has a predictionId (async job started)
-          if ('predictionId' in result) {
-            setPredictionId(result.predictionId);
-            sonnerToast.info(`Subtitle generation has started. This may take around ${estimatedWaitTime} minutes.`);
-            
-            // Update the job with the prediction ID
-            await updateSubtitleJob(jobId, {
-              prediction_id: result.predictionId,
-              status: result.status
-            });
-            
-          } else {
-            // Direct output available
-            setSrtFileUrl(result.srt_file);
-            setVttFileUrl(result.vtt_file);
-            setEditableText(result.preview || "");
-            setIsProcessing(false);
-            sonnerToast.success("Subtitles have been generated successfully.");
-            
-            // Update the job with the results
-            await updateSubtitleJob(jobId, {
-              status: 'succeeded',
-              srt_url: result.srt_file,
-              vtt_url: result.vtt_file,
-              preview_text: result.preview
-            });
-          }
-          
-        } catch (error) {
-          console.error("Generate subtitles error:", error);
-          setIsProcessing(false);
-          setEstimatedWaitTime(null);
-          sonnerToast.error(`Failed to process: ${error instanceof Error ? error.message : "An error occurred"}`);
-          
-          // Update the job with the error if we have a job ID
-          if (subtitleJobId) {
-            updateSubtitleJob(subtitleJobId, {
-              status: 'failed',
-              error: error instanceof Error ? error.message : "An error occurred"
-            }).catch(err => {
-              console.error("Failed to update subtitle job error:", err);
-            });
-          }
-        }
-      },
-      onError: (error) => {
-        setIsProcessing(false);
-        setEstimatedWaitTime(null);
-        sonnerToast.error(`Failed to process: ${error.message}`);
+    try {
+      setIsProcessing(true);
+      const modelName = values.model_name;
+      const fileSize = uploadedFileName ? uploadedFileName.length : 0; // Just a placeholder, ideally we'd have the actual file size
+      
+      // Estimate wait time based on model selected and file size
+      // This is just an approximation; adjust based on actual performance
+      const baseTime = modelName === "large-v2" ? 60 : 30; // seconds
+      const estimatedTime = baseTime + (fileSize / 1000000) * 10; // Add 10 seconds per MB
+      setEstimatedWaitTime(Math.ceil(estimatedTime));
+      
+      // Create a job entry in the database
+      const newJobId = await createSubtitleJob({
+        userId: user.id,
+        modelName: values.model_name,
+        language: values.language,
+        originalFilename: uploadedFileName || undefined
+      });
+      
+      setJobId(newJobId);
+      
+      // Start the subtitles generation process
+      const result = await generateSubtitles({
+        audioPath: uploadedFileUrl,
+        modelName: values.model_name,
+        language: values.language,
+        vadFilter: values.vad_filter
+      });
+      
+      // If we get a prediction ID, we need to poll for status
+      if ('predictionId' in result) {
+        console.log("Got prediction ID:", result.predictionId);
+        setPredictionId(result.predictionId);
+        
+        // Update the job with the prediction ID
+        await updateSubtitleJob(newJobId, {
+          prediction_id: result.predictionId,
+          status: 'processing'
+        });
+        
+        // Start polling for status (check every 5 seconds)
+        setStatusCheckInterval(5000);
+        setLastCheckTime(Date.now());
+        
+        toast.info("Subtitles generation started. This may take a few minutes.");
+      } else if ('preview' in result) {
+        // We got an immediate result
+        handleSubtitlesResult(result, newJobId);
+      } else {
+        throw new Error("Invalid response from generate-subtitles function: " + JSON.stringify(result));
       }
-    });
+    } catch (error) {
+      console.error("Error processing subtitles:", error);
+      
+      if (jobId) {
+        try {
+          await updateSubtitleJob(jobId, {
+            status: 'failed',
+            error: error instanceof Error ? error.message : String(error)
+          });
+        } catch (updateError) {
+          console.error("Failed to update job with error:", updateError);
+        }
+      }
+      
+      toast.error("Failed to process subtitles");
+      setIsProcessing(false);
+      setStatusCheckInterval(null);
+    }
+  };
+
+  const checkStatus = async (currentPredictionId: string, currentJobId: string | null) => {
+    try {
+      const statusData = await checkSubtitlesStatus(currentPredictionId);
+      
+      if (statusData.status === "succeeded" && statusData.output) {
+        console.log("Prediction succeeded with output:", statusData.output);
+        handleSubtitlesResult(statusData.output, currentJobId);
+        return;
+      }
+      
+      if (statusData.status === "failed" || statusData.error) {
+        throw new Error(statusData.error || "Subtitles generation failed");
+      }
+      
+      // Still processing, update the job status if needed
+      if (currentJobId) {
+        await updateSubtitleJob(currentJobId, {
+          status: statusData.status
+        });
+      }
+      
+      console.log("Still processing, status:", statusData.status);
+    } catch (error) {
+      console.error("Error checking status:", error);
+      
+      if (currentJobId) {
+        try {
+          await updateSubtitleJob(currentJobId, {
+            status: 'failed',
+            error: error instanceof Error ? error.message : String(error)
+          });
+        } catch (updateError) {
+          console.error("Failed to update job with error:", updateError);
+        }
+      }
+      
+      toast.error("Failed to check subtitles status");
+      setIsProcessing(false);
+      setStatusCheckInterval(null);
+    }
+  };
+
+  const handleSubtitlesResult = async (result: any, currentJobId: string | null) => {
+    try {
+      // Stop polling
+      setStatusCheckInterval(null);
+      
+      // Set the results in the UI
+      setSrtFileUrl(result.srt_file);
+      setVttFileUrl(result.vtt_file);
+      setEditableText(result.preview);
+      
+      // Update the job in the database if we have a job ID
+      if (currentJobId) {
+        await updateSubtitleJob(currentJobId, {
+          status: 'completed',
+          srt_url: result.srt_file,
+          vtt_url: result.vtt_file,
+          preview_text: result.preview
+        });
+      }
+      
+      toast.success("Subtitles generated successfully!");
+    } catch (error) {
+      console.error("Error handling subtitles result:", error);
+      toast.error("Error finishing subtitles process");
+      
+      if (currentJobId) {
+        try {
+          await updateSubtitleJob(currentJobId, {
+            status: 'failed',
+            error: error instanceof Error ? error.message : String(error)
+          });
+        } catch (updateError) {
+          console.error("Failed to update job with error:", updateError);
+        }
+      }
+    } finally {
+      setIsProcessing(false);
+    }
   };
 
   return {
@@ -231,4 +233,4 @@ export const useSubtitlesProcess = () => {
     handleFileUploaded,
     processSubtitles
   };
-};
+}
