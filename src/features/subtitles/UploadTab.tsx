@@ -1,6 +1,6 @@
 
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
-import AudioVideoFileUploader from "@/components/AudioVideoFileUploader";
+import AudioFileUploader from "@/components/AudioFileUploader";
 
 interface UploadTabProps {
   isUploading: boolean;
@@ -12,13 +12,13 @@ const UploadTab = ({ isUploading, setIsUploading, onFileUploaded }: UploadTabPro
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Upload Audio/Video</CardTitle>
+        <CardTitle>Upload Audio</CardTitle>
         <CardDescription>
-          Upload the audio or video file you want to generate subtitles for.
+          Upload the audio file you want to generate subtitles for.
         </CardDescription>
       </CardHeader>
       <CardContent>
-        <AudioVideoFileUploader 
+        <AudioFileUploader 
           onFileUploaded={onFileUploaded}
           isUploading={isUploading}
           setIsUploading={setIsUploading}

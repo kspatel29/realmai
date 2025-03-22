@@ -1,6 +1,5 @@
 
 import { useState, useEffect } from "react";
-import { useToast } from "@/hooks/use-toast";
 import { toast as sonnerToast } from "sonner";
 import { useQuery } from "@tanstack/react-query";
 import { generateSubtitles, checkSubtitlesStatus } from "@/services/api/subtitlesService";
@@ -14,10 +13,8 @@ export const useSubtitlesProcess = () => {
   const [srtFileUrl, setSrtFileUrl] = useState<string | null>(null);
   const [vttFileUrl, setVttFileUrl] = useState<string | null>(null);
   const [predictionId, setPredictionId] = useState<string | null>(null);
-  const [isFromVideo, setIsFromVideo] = useState(false);
   const [uploadedFileName, setUploadedFileName] = useState<string | null>(null);
   const [editableText, setEditableText] = useState("");
-  const { toast } = useToast();
   const { useCredits: spendCredits } = useCredits();
 
   // Query for checking job status
@@ -54,7 +51,6 @@ export const useSubtitlesProcess = () => {
 
   const handleFileUploaded = (url: string, fromVideo: boolean, fileName?: string) => {
     setUploadedFileUrl(url);
-    setIsFromVideo(fromVideo);
     if (fileName) {
       setUploadedFileName(fileName);
     }
@@ -71,7 +67,7 @@ export const useSubtitlesProcess = () => {
     spendCredits.mutate({
       amount: creditCost,
       service: "Subtitle Generator",
-      description: `Generated subtitles using ${formValues.model_name} model${isFromVideo ? ' from video' : ''}`
+      description: `Generated subtitles using ${formValues.model_name === "large-v2" ? "Best Quality" : "Affordable"} model`
     }, {
       onSuccess: async () => {
         try {
@@ -123,7 +119,6 @@ export const useSubtitlesProcess = () => {
     uploadedFileUrl,
     srtFileUrl,
     vttFileUrl,
-    isFromVideo,
     uploadedFileName,
     editableText,
     setEditableText,

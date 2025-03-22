@@ -8,60 +8,6 @@ const corsHeaders = {
     "authorization, x-client-info, apikey, content-type",
 };
 
-// Helper to extract audio using FFmpeg in Replicate
-async function extractAudioFromVideo(videoUrl) {
-  try {
-    console.log("Extracting audio from video:", videoUrl);
-    
-    // Validate video URL
-    if (!videoUrl || typeof videoUrl !== 'string') {
-      throw new Error(`Invalid video URL: ${JSON.stringify(videoUrl)}`);
-    }
-    
-    // Use Replicate with ffmpeg to extract audio
-    const REPLICATE_API_TOKEN = Deno.env.get('REPLICATE_API_TOKEN');
-    if (!REPLICATE_API_TOKEN) {
-      throw new Error('REPLICATE_API_TOKEN is not set');
-    }
-
-    const replicate = new Replicate({
-      auth: REPLICATE_API_TOKEN,
-    });
-    
-    // Use the replicate-ffmpeg model for audio extraction
-    console.log("Using ffmpeg model: lucataco/ffmpeg:b959eee21a1c1b62cac44b3c7010ffa9df669b0e3d2622ab2718931a62d85e78");
-    
-    try {
-      const output = await replicate.run(
-        "lucataco/ffmpeg:b959eee21a1c1b62cac44b3c7010ffa9df669b0e3d2622ab2718931a62d85e78",
-        {
-          input: {
-            input_video: videoUrl,
-            command: "-y -i {INPUT} -vn -acodec mp3 -ab 192k {OUTPUT}"
-          }
-        }
-      );
-      
-      console.log("Audio extraction result:", output);
-      
-      // Validate extraction output - the expected response is a URL
-      if (!output || typeof output !== 'string' || !output.startsWith('http')) {
-        console.error("Invalid extraction output:", output);
-        throw new Error("Audio extraction failed: Invalid response from ffmpeg model");
-      }
-      
-      return output;
-    } catch (replicateError) {
-      console.error("Replicate API error:", replicateError);
-      const errorDetails = replicateError.message || JSON.stringify(replicateError);
-      throw new Error(`Replicate API error during audio extraction: ${errorDetails}`);
-    }
-  } catch (error) {
-    console.error("Error extracting audio:", error);
-    throw error;
-  }
-}
-
 serve(async (req) => {
   // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
@@ -104,23 +50,6 @@ serve(async (req) => {
       return new Response(JSON.stringify(prediction), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       })
-    }
-
-    // If it's an audio extraction request
-    if (body.extractAudio && body.videoPath) {
-      console.log("Audio extraction requested for:", body.videoPath);
-      try {
-        const audioUrl = await extractAudioFromVideo(body.videoPath);
-        return new Response(JSON.stringify({ audioUrl }), {
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        });
-      } catch (error) {
-        console.error("Audio extraction failed:", error);
-        return new Response(JSON.stringify({ error: `Audio extraction failed: ${error.message}` }), {
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-          status: 500,
-        });
-      }
     }
 
     // If it's a generation request

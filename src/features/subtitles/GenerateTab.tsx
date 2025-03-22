@@ -4,12 +4,13 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from "@/components/ui/card";
 import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Toggle } from "@/components/ui/toggle";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Button } from "@/components/ui/button";
-import { Info } from "lucide-react";
+import { Info, Check } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import ServiceCostDisplay from "@/components/ServiceCostDisplay";
-import { MODEL_SIZES, LANGUAGES } from "./subtitlesConstants";
+import { MODEL_OPTIONS, LANGUAGES } from "./subtitlesConstants";
 import { subtitlesFormSchema, SubtitlesFormValues } from "./subtitlesSchema";
 import { useCredits } from "@/hooks/useCredits";
 
@@ -39,6 +40,8 @@ const GenerateTab = ({
     },
   });
 
+  const watchModelName = form.watch("model_name");
+
   return (
     <Card>
       <Form {...form}>
@@ -60,26 +63,35 @@ const GenerateTab = ({
               name="model_name"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Model Size</FormLabel>
-                  <Select
-                    onValueChange={field.onChange}
-                    defaultValue={field.value}
-                  >
-                    <FormControl>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select model size" />
-                      </SelectTrigger>
-                    </FormControl>
-                    <SelectContent>
-                      {MODEL_SIZES.map((model) => (
-                        <SelectItem key={model.id} value={model.id}>
-                          {model.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                  <FormLabel>Quality Level</FormLabel>
+                  <div className="grid grid-cols-2 gap-2">
+                    {MODEL_OPTIONS.map((option) => (
+                      <Toggle
+                        key={option.id}
+                        pressed={field.value === option.id}
+                        onPressedChange={() => field.onChange(option.id)}
+                        className={`h-auto p-4 justify-start ${
+                          field.value === option.id
+                            ? "border-youtube-red bg-youtube-red/10 text-youtube-red"
+                            : ""
+                        }`}
+                      >
+                        <div className="flex flex-col items-start text-left">
+                          <div className="flex items-center">
+                            <span className="font-medium">{option.name}</span>
+                            {field.value === option.id && (
+                              <Check className="h-4 w-4 ml-2" />
+                            )}
+                          </div>
+                          <span className="text-xs text-muted-foreground mt-1">
+                            {option.description}
+                          </span>
+                        </div>
+                      </Toggle>
+                    ))}
+                  </div>
                   <FormDescription>
-                    Larger models are more accurate but use more credits
+                    Choose between speed and accuracy
                   </FormDescription>
                   <FormMessage />
                 </FormItem>
@@ -154,7 +166,9 @@ const GenerateTab = ({
                     </Tooltip>
                   </TooltipProvider>
                   <p className="text-sm text-muted-foreground">
-                    Processing time depends on file length and model size
+                    {watchModelName === "large-v2" 
+                      ? "Best Quality: Longer processing time but highest accuracy" 
+                      : "Affordable: Faster processing with good results"}
                   </p>
                 </div>
               </div>

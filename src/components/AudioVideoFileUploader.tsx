@@ -6,22 +6,21 @@ import { Input } from "@/components/ui/input";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Progress } from "@/components/ui/progress";
 import { useToast } from "@/hooks/use-toast";
-import { uploadAudioFile, isVideoFile, isAudioFile, extractAudioFromVideo } from "@/services/api/subtitlesService";
+import { uploadAudioFile, isAudioFile } from "@/services/api/subtitlesService";
 
-interface AudioVideoFileUploaderProps {
-  onFileUploaded: (url: string, isFromVideo: boolean, fileName?: string) => void;
+interface AudioFileUploaderProps {
+  onFileUploaded: (url: string, fromVideo: boolean, fileName?: string) => void;
   isUploading: boolean;
   setIsUploading: (value: boolean) => void;
 }
 
-const AudioVideoFileUploader = ({ 
+const AudioFileUploader = ({ 
   onFileUploaded, 
   isUploading, 
   setIsUploading 
-}: AudioVideoFileUploaderProps) => {
+}: AudioFileUploaderProps) => {
   const [file, setFile] = useState<File | null>(null);
   const [progress, setProgress] = useState(0);
-  const [isExtracting, setIsExtracting] = useState(false);
   const { toast } = useToast();
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -29,10 +28,10 @@ const AudioVideoFileUploader = ({
       const selectedFile = e.target.files[0];
       
       // Validate file type
-      if (!isAudioFile(selectedFile) && !isVideoFile(selectedFile)) {
+      if (!isAudioFile(selectedFile)) {
         toast({
           title: "Invalid file type",
-          description: "Please select an audio file (MP3, WAV) or a video file (MP4, MOV)",
+          description: "Please select an audio file (MP3, WAV, etc.)",
           variant: "destructive"
         });
         return;
@@ -61,7 +60,7 @@ const AudioVideoFileUploader = ({
     if (!file) {
       toast({
         title: "No file selected",
-        description: "Please select an audio or video file to upload.",
+        description: "Please select an audio file to upload.",
         variant: "destructive"
       });
       return;
@@ -74,43 +73,13 @@ const AudioVideoFileUploader = ({
       // Upload the file to get a URL
       const fileUrl = await uploadAudioFile(file);
       
-      // If it's a video file, we need to extract the audio
-      if (isVideoFile(file)) {
-        setIsExtracting(true);
-        toast({
-          title: "Extracting audio",
-          description: "Please wait while we extract the audio from your video file.",
-        });
-        
-        try {
-          const audioUrl = await extractAudioFromVideo(fileUrl);
-          setProgress(100);
-          setIsUploading(false);
-          setIsExtracting(false);
-          onFileUploaded(audioUrl, true, file.name);
-          toast({
-            title: "Upload complete",
-            description: "Your video has been processed and audio extracted successfully."
-          });
-        } catch (error) {
-          setIsExtracting(false);
-          setIsUploading(false);
-          toast({
-            title: "Audio extraction failed",
-            description: error instanceof Error ? error.message : "Failed to extract audio from video",
-            variant: "destructive"
-          });
-        }
-      } else {
-        // For audio files, we can use the URL directly
-        setProgress(100);
-        setIsUploading(false);
-        onFileUploaded(fileUrl, false, file.name);
-        toast({
-          title: "Upload complete",
-          description: "Your audio file has been uploaded successfully."
-        });
-      }
+      setProgress(100);
+      setIsUploading(false);
+      onFileUploaded(fileUrl, false, file.name);
+      toast({
+        title: "Upload complete",
+        description: "Your audio file has been uploaded successfully."
+      });
     } catch (error) {
       stopProgress();
       setIsUploading(false);
@@ -134,11 +103,6 @@ const AudioVideoFileUploader = ({
             <p className="text-sm text-muted-foreground">
               {(file.size / (1024 * 1024)).toFixed(2)} MB
             </p>
-            {isVideoFile(file) && (
-              <p className="text-sm text-amber-500">
-                This is a video file. Audio will be extracted automatically.
-              </p>
-            )}
           </div>
         ) : (
           <div className="space-y-4">
@@ -148,13 +112,13 @@ const AudioVideoFileUploader = ({
             <div>
               <p className="font-medium">Drag and drop or click to upload</p>
               <p className="text-sm text-muted-foreground mt-1">
-                Supports audio (MP3, WAV) or video (MP4, MOV) files
+                Supports audio files (MP3, WAV, etc.)
               </p>
             </div>
             <Input 
               id="subtitle-upload" 
               type="file" 
-              accept="audio/*,video/*,.srt,.vtt" 
+              accept="audio/*" 
               className="hidden" 
               onChange={handleFileChange}
               disabled={isUploading}
@@ -173,7 +137,7 @@ const AudioVideoFileUploader = ({
       {isUploading && (
         <div className="space-y-2">
           <div className="flex justify-between text-sm mb-1">
-            <span>{isExtracting ? "Extracting audio..." : "Uploading..."}</span>
+            <span>Uploading...</span>
             <span>{progress}%</span>
           </div>
           <Progress value={progress} className="h-2" />
@@ -198,7 +162,7 @@ const AudioVideoFileUploader = ({
           disabled={!file || isUploading}
           className={isUploading ? "" : "bg-youtube-red hover:bg-youtube-darkred"}
         >
-          {isUploading ? (isExtracting ? "Extracting..." : `Uploading ${progress}%`) : "Upload File"}
+          {isUploading ? `Uploading ${progress}%` : "Upload File"}
           <Upload className="ml-2 h-4 w-4" />
         </Button>
       </div>
@@ -206,4 +170,4 @@ const AudioVideoFileUploader = ({
   );
 };
 
-export default AudioVideoFileUploader;
+export default AudioFileUploader;

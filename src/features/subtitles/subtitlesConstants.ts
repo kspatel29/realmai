@@ -1,15 +1,7 @@
 
-export const MODEL_SIZES = [
-  { id: "tiny.en", name: "Tiny (English only)" },
-  { id: "tiny", name: "Tiny (Multilingual)" },
-  { id: "base.en", name: "Base (English only)" },
-  { id: "base", name: "Base (Multilingual)" },
-  { id: "small.en", name: "Small (English only)" },
-  { id: "small", name: "Small (Multilingual)" },
-  { id: "medium.en", name: "Medium (English only)" },
-  { id: "medium", name: "Medium (Multilingual)" },
-  { id: "large-v1", name: "Large v1" },
-  { id: "large-v2", name: "Large v2" },
+export const MODEL_OPTIONS = [
+  { id: "small", name: "Affordable", description: "Quick processing, good for most needs" },
+  { id: "large-v2", name: "Best Quality", description: "Highest accuracy, longer processing time" },
 ];
 
 export const LANGUAGES = [
@@ -38,8 +30,6 @@ export const FORMATS = [
 
 export const CREDIT_COSTS = {
   BASE_COST: 3,
-  LARGE_MODEL: 6,
-  MEDIUM_MODEL: 4,
-  SMALL_MODEL: 3,
-  TINY_MODEL: 2,
+  AFFORDABLE: 0,
+  BEST_QUALITY: 5,
 };

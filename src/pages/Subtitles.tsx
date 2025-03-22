@@ -22,7 +22,6 @@ const Subtitles = () => {
     uploadedFileUrl,
     srtFileUrl,
     vttFileUrl,
-    isFromVideo,
     uploadedFileName,
     editableText,
     setEditableText,
@@ -30,12 +29,7 @@ const Subtitles = () => {
     processSubtitles
   } = useSubtitlesProcess();
   
-  const { calculateCost, setIsFromVideo: setCostIsFromVideo } = useSubtitlesCost();
-
-  const handleFileUpload = (url: string, fromVideo: boolean, fileName?: string) => {
-    handleFileUploaded(url, fromVideo, fileName);
-    setCostIsFromVideo(fromVideo);
-  };
+  const { calculateCost } = useSubtitlesCost();
 
   const handleGenerateSubtitles = (values: SubtitlesFormValues) => {
     if (!uploadedFileUrl) {
@@ -61,7 +55,7 @@ const Subtitles = () => {
       <div>
         <h1 className="text-2xl font-bold tracking-tight mb-2">Subtitle Generator</h1>
         <p className="text-muted-foreground">
-          Create accurate subtitles from audio and video files automatically.
+          Create accurate subtitles from audio files automatically.
         </p>
       </div>
 
@@ -71,7 +65,7 @@ const Subtitles = () => {
         serviceName="Subtitle Generator"
         creditCost={totalCost}
         onConfirm={confirmAndProcess}
-        description={`This will use ${totalCost} credits to generate subtitles using the ${formValues?.model_name} model${isFromVideo ? ' (including video processing)' : ''}.`}
+        description={`This will use ${totalCost} credits to generate subtitles using the ${formValues?.model_name === "large-v2" ? "Best Quality" : "Affordable"} model.`}
       />
 
       <Tabs defaultValue="upload" className="w-full">
@@ -86,7 +80,7 @@ const Subtitles = () => {
           <UploadTab
             isUploading={isUploading}
             setIsUploading={setIsUploading}
-            onFileUploaded={handleFileUpload}
+            onFileUploaded={handleFileUploaded}
           />
         </TabsContent>
         
