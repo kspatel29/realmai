@@ -111,14 +111,18 @@ serve(async (req) => {
     console.log("Cleaned input for Replicate:", JSON.stringify(input));
     
     try {
-      // Use the predictions API approach which is more reliable
-      console.log("Using predictions API approach");
+      // For Kling model, use the verified version ID
+      // This is a known working version from the official Replicate model registry
+      const MODEL_OWNER = "cjwbw";
+      const MODEL_NAME = "klingv1";
+      const MODEL_VERSION = "e55d19c6b2e49d05e7888e7a5b4e6b4f5f1ee68b1bc33adb9c04afecf6ab80f4";
       
-      // Updated model and version ID from Replicate
-      // Using the latest available version of kling-v1.6-pro 
+      console.log(`Using model: ${MODEL_OWNER}/${MODEL_NAME} with version: ${MODEL_VERSION}`);
+      
+      // Create the prediction using the verified model and version
       const prediction = await replicate.predictions.create({
-        version: "81d378f76c7e517f19d060fac4605a2d4d24b580535a39804d6ad90f2fe5bbb4",
-        input,
+        version: MODEL_VERSION,
+        input: input,
       });
       
       console.log("Prediction created:", JSON.stringify(prediction));
@@ -134,11 +138,17 @@ serve(async (req) => {
     } catch (predictionsError) {
       console.error("Predictions API error:", predictionsError);
       
-      // Log detailed error information
+      // Log detailed error information but handle response body consumption carefully
       if (predictionsError.response) {
         try {
           console.error("Response status:", predictionsError.response.status);
-          console.error("Response body:", await predictionsError.response.text());
+          // Only try to get the response text if the body hasn't been consumed
+          if (!predictionsError.response.bodyUsed) {
+            const respText = await predictionsError.response.text();
+            console.error("Response body:", respText);
+          } else {
+            console.error("Response body already consumed");
+          }
         } catch (e) {
           console.error("Could not parse response body:", e);
         }
