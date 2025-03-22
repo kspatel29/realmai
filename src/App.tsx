@@ -17,6 +17,7 @@ import ClipsGenerator from "./pages/ClipsGenerator";
 import Analytics from "./pages/Analytics";
 import Settings from "./pages/Settings";
 import Support from "./pages/Support";
+import History from "./pages/History";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -52,6 +53,7 @@ const App = () => (
               <Route path="video-dubbing" element={<VideoDubbing />} />
               <Route path="subtitles" element={<Subtitles />} />
               <Route path="clips" element={<ClipsGenerator />} />
+              <Route path="history" element={<History />} />
               <Route path="analytics" element={<Analytics />} />
               <Route path="settings" element={<Settings />} />
               <Route path="support" element={<Support />} />

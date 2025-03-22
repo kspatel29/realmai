@@ -10,7 +10,8 @@ import {
   Settings, 
   HelpCircle, 
   LogOut, 
-  Menu
+  Menu,
+  Clock
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useIsMobile } from "@/hooks/use-mobile";
@@ -45,6 +46,11 @@ const DashboardSidebar = ({ isSidebarOpen, toggleSidebar }: DashboardSidebarProp
       title: "Clips Generator",
       href: "/dashboard/clips",
       icon: <Scissors className="h-5 w-5" />,
+    },
+    {
+      title: "History",
+      href: "/dashboard/history",
+      icon: <Clock className="h-5 w-5" />,
     },
     {
       title: "Analytics",
