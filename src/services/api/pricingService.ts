@@ -1,5 +1,6 @@
 
 import { supabase } from "@/integrations/supabase/client";
+import { SERVICE_CREDIT_COSTS } from "@/constants/pricing";
 
 /**
  * Calculate the cost for dubbing a video
@@ -31,11 +32,13 @@ export const calculateDubbingCost = async (
     return data.creditCost;
   } catch (error) {
     console.error("Failed to calculate dubbing cost:", error);
-    // Fallback calculation if the edge function fails
-    const basePrice = enableLipSync ? 1.035 : 0.535;
+    // Fallback calculation using local constants
+    const baseCostPerMinute = enableLipSync 
+      ? SERVICE_CREDIT_COSTS.DUBBING.LIPSYNC_CREDITS_PER_MINUTE 
+      : SERVICE_CREDIT_COSTS.DUBBING.BASE_CREDITS_PER_MINUTE;
+    
     const languageCount = languages.length || 1;
-    const costUSD = basePrice * durationMinutes * languageCount;
-    return Math.ceil(costUSD * 2 * 15); // Apply profit margin and convert to credits
+    return baseCostPerMinute * durationMinutes * languageCount;
   }
 };
 
@@ -61,10 +64,10 @@ export const calculateSubtitlesCost = async (isPremiumModel: boolean = false): P
     return data.creditCost;
   } catch (error) {
     console.error("Failed to calculate subtitles cost:", error);
-    // Fallback calculation if the edge function fails
-    const basePrice = 0.052;
-    const costUSD = isPremiumModel ? basePrice * 1.5 : basePrice;
-    return Math.ceil(costUSD * 2 * 15); // Apply profit margin and convert to credits
+    // Fallback calculation using local constants
+    return isPremiumModel 
+      ? SERVICE_CREDIT_COSTS.SUBTITLES.PREMIUM_CREDITS
+      : SERVICE_CREDIT_COSTS.SUBTITLES.BASE_CREDITS;
   }
 };
 
@@ -90,8 +93,7 @@ export const calculateVideoGenerationCost = async (durationSeconds: number): Pro
     return data.creditCost;
   } catch (error) {
     console.error("Failed to calculate video generation cost:", error);
-    // Fallback calculation if the edge function fails
-    const costUSD = 0.4 * durationSeconds;
-    return Math.ceil(costUSD * 2 * 15); // Apply profit margin and convert to credits
+    // Fallback calculation using local constants
+    return SERVICE_CREDIT_COSTS.VIDEO_GENERATION.CREDITS_PER_SECOND * durationSeconds;
   }
 };

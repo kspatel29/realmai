@@ -2,67 +2,7 @@
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { ArrowRight, CheckCircle, X } from "lucide-react";
-
-const plans = [
-  {
-    name: "Starter",
-    price: "Free",
-    period: "",
-    description: "Perfect for creators just getting started with global content",
-    features: [
-      "50 credits included in your account",
-      "1 credit = 1 minute of video dubbing",
-      "1 credit = 3 minutes of subtitle generation",
-      "1 credit = 5 automated clips",
-      "Basic analytics dashboard",
-      "Email support"
-    ],
-    limitations: [
-      "No custom voice training",
-      "Limited language options (10 languages)"
-    ],
-    cta: "Sign Up",
-    highlight: false
-  },
-  {
-    name: "Pro",
-    price: "$79",
-    period: "per month",
-    description: "For growing creators expanding their international reach",
-    features: [
-      "300 credits per month",
-      "1 credit = 1 minute of video dubbing",
-      "1 credit = 3 minutes of subtitle generation",
-      "1 credit = 5 automated clips",
-      "Advanced analytics dashboard",
-      "Priority support",
-      "Custom voice training",
-      "All 50+ languages supported"
-    ],
-    limitations: [],
-    cta: "Upgrade Plan",
-    highlight: true
-  },
-  {
-    name: "Enterprise",
-    price: "$199",
-    period: "per month",
-    description: "For established creators maximizing their global presence",
-    features: [
-      "1000 credits per month",
-      "1 credit = 1 minute of video dubbing",
-      "1 credit = 3 minutes of subtitle generation",
-      "1 credit = 5 automated clips",
-      "Advanced analytics with revenue insights",
-      "Dedicated account manager",
-      "Custom voice training with fine-tuning",
-      "All 50+ languages with dialect support"
-    ],
-    limitations: [],
-    cta: "Contact Sales",
-    highlight: false
-  }
-];
+import { SUBSCRIPTION_PLANS, CREDIT_PACKAGES } from "@/constants/pricing";
 
 const CallToAction = () => {
   return (
@@ -76,19 +16,19 @@ const CallToAction = () => {
             Choose the Right Plan for Your <span className="text-youtube-red">Growth</span>
           </h2>
           <p className="text-lg text-muted-foreground">
-            Every account starts with 50 free credits. Upgrade anytime as your needs grow.
+            Every account starts with free credits. Upgrade anytime as your needs grow.
           </p>
         </div>
 
-        <div className="grid md:grid-cols-3 gap-8 max-w-6xl mx-auto">
-          {plans.map((plan, index) => (
+        <div className="grid md:grid-cols-4 gap-8 max-w-6xl mx-auto">
+          {SUBSCRIPTION_PLANS.map((plan, index) => (
             <div 
-              key={index} 
+              key={plan.id} 
               className={`glass-card rounded-2xl overflow-hidden transition-all duration-300 ${
-                plan.highlight ? 'ring-2 ring-youtube-red scale-105 md:scale-110 relative z-10' : ''
+                plan.id === 'creator' ? 'ring-2 ring-youtube-red scale-105 md:scale-110 relative z-10' : ''
               }`}
             >
-              {plan.highlight && (
+              {plan.id === 'creator' && (
                 <div className="bg-youtube-red text-white text-center py-2 text-sm font-medium">
                   Most Popular
                 </div>
@@ -96,8 +36,8 @@ const CallToAction = () => {
               <div className="p-8">
                 <h3 className="text-2xl font-bold mb-2">{plan.name}</h3>
                 <div className="flex items-end mb-4">
-                  <span className="text-4xl font-bold">{plan.price}</span>
-                  <span className="text-muted-foreground ml-2">{plan.period}</span>
+                  <span className="text-4xl font-bold">{plan.price !== null ? `$${plan.price}` : "Custom"}</span>
+                  <span className="text-muted-foreground ml-2">{plan.price !== null ? "per month" : ""}</span>
                 </div>
                 <p className="text-muted-foreground mb-6">
                   {plan.description}
@@ -105,11 +45,11 @@ const CallToAction = () => {
                 
                 <Link to="/signup">
                   <Button 
-                    className={`w-full h-12 ${plan.highlight ? 'bg-youtube-red hover:bg-youtube-darkred' : ''}`}
-                    variant={plan.highlight ? 'default' : 'outline'}
+                    className={`w-full h-12 ${plan.id === 'creator' ? 'bg-youtube-red hover:bg-youtube-darkred' : ''}`}
+                    variant={plan.id === 'creator' ? 'default' : 'outline'}
                     size="lg"
                   >
-                    {plan.cta}
+                    {plan.id === 'enterprise' ? 'Contact Sales' : 'Sign Up'}
                     <ArrowRight className="ml-2 h-4 w-4" />
                   </Button>
                 </Link>
@@ -123,18 +63,73 @@ const CallToAction = () => {
                         <span>{feature}</span>
                       </li>
                     ))}
-                    
-                    {plan.limitations.map((limitation, i) => (
-                      <li key={i} className="flex items-start gap-2 text-muted-foreground">
-                        <X className="h-5 w-5 text-gray-400 mt-0.5 flex-shrink-0" />
-                        <span>{limitation}</span>
-                      </li>
-                    ))}
                   </ul>
                 </div>
               </div>
             </div>
           ))}
+        </div>
+
+        <div className="mt-16 text-center">
+          <h3 className="text-2xl font-bold mb-4">Creator Access Packs</h3>
+          <p className="text-lg text-muted-foreground mb-8 max-w-2xl mx-auto">
+            Need more credits without a subscription? Purchase credit packs to use anytime.
+          </p>
+          
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-6 max-w-5xl mx-auto">
+            {CREDIT_PACKAGES.map((pkg) => (
+              <div key={pkg.id} className="glass-card rounded-xl p-6 hover:shadow-lg transition-shadow">
+                <h4 className="text-xl font-bold mb-2">{pkg.name}</h4>
+                <p className="text-sm text-muted-foreground mb-3">{pkg.description}</p>
+                <div className="text-3xl font-bold mb-2">{pkg.credits}</div>
+                <div className="text-youtube-red font-medium mb-4">${pkg.price}</div>
+                <Link to="/signup">
+                  <Button variant="outline" className="w-full">Get Started</Button>
+                </Link>
+              </div>
+            ))}
+          </div>
+        </div>
+        
+        <div className="mt-16 bg-muted/30 rounded-xl p-8 max-w-4xl mx-auto">
+          <h3 className="text-xl font-bold mb-4">Service Cost Breakdown</h3>
+          <div className="grid gap-4 md:grid-cols-3">
+            <div className="rounded-lg bg-background p-4">
+              <h4 className="font-medium mb-2">Video Dubbing</h4>
+              <ul className="space-y-2 text-sm">
+                <li className="flex justify-between">
+                  <span>Standard:</span>
+                  <span>16 credits/minute</span>
+                </li>
+                <li className="flex justify-between">
+                  <span>With Lip Sync:</span>
+                  <span>32 credits/minute</span>
+                </li>
+              </ul>
+            </div>
+            <div className="rounded-lg bg-background p-4">
+              <h4 className="font-medium mb-2">Subtitles</h4>
+              <ul className="space-y-2 text-sm">
+                <li className="flex justify-between">
+                  <span>Basic Model:</span>
+                  <span>4 credits/run</span>
+                </li>
+                <li className="flex justify-between">
+                  <span>Premium Model:</span>
+                  <span>10 credits/run</span>
+                </li>
+              </ul>
+            </div>
+            <div className="rounded-lg bg-background p-4">
+              <h4 className="font-medium mb-2">Video Generation</h4>
+              <ul className="space-y-2 text-sm">
+                <li className="flex justify-between">
+                  <span>Per Second:</span>
+                  <span>14 credits</span>
+                </li>
+              </ul>
+            </div>
+          </div>
         </div>
       </div>
     </section>
