@@ -86,7 +86,11 @@ export const useVideoGeneration = () => {
               // Get the video URL from the result
               const videoOutput = result.output ? 
                 (Array.isArray(result.output) ? result.output[0] : result.output) : 
-                videoUrl;
+                null;
+              
+              if (!videoOutput) {
+                throw new Error("No video output received from the API");
+              }
               
               setIsProcessing(false);
               
@@ -107,16 +111,17 @@ export const useVideoGeneration = () => {
               
               if (onSuccess) onSuccess();
             } catch (error) {
+              console.error("Error during video generation:", error);
               setIsProcessing(false);
               toast({
                 title: "Generation failed",
-                description: "There was an error generating your video clip.",
+                description: "There was an error generating your video clip: " + (error.message || "Unknown error"),
                 variant: "destructive"
               });
-              console.error("Error during video generation:", error);
             }
           },
           onError: (error) => {
+            console.error("Credit deduction failed:", error);
             setIsProcessing(false);
             toast({
               title: "Credit deduction failed",
@@ -128,6 +133,7 @@ export const useVideoGeneration = () => {
       );
       
     } catch (error) {
+      console.error("Error in generateVideoClip:", error);
       setIsProcessing(false);
       toast({
         title: "Generation failed",

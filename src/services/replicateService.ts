@@ -38,6 +38,7 @@ export const createReplicateVideoClip = async (input: VideoGenerationInput): Pro
         await new Promise(resolve => setTimeout(resolve, 2000)); // Wait 2 seconds between checks
         prediction = await checkReplicatePredictionStatus(data.id);
         attempts++;
+        console.log(`Polling attempt ${attempts}, status: ${prediction.status}`);
       }
       
       return prediction;

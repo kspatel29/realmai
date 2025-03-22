@@ -61,19 +61,19 @@ serve(async (req) => {
       cfg_scale: typeof body.cfg_scale === 'number' ? body.cfg_scale : parseFloat(body.cfg_scale) || 0.5,
     }
     
-    // Only add start_image and end_image if they are valid strings
-    if (body.start_image && typeof body.start_image === 'string') {
+    // Only add start_image and end_image if they are valid strings with proper URLs
+    if (body.start_image && typeof body.start_image === 'string' && body.start_image.startsWith('http')) {
       input.start_image = body.start_image
     }
     
-    if (body.end_image && typeof body.end_image === 'string') {
+    if (body.end_image && typeof body.end_image === 'string' && body.end_image.startsWith('http')) {
       input.end_image = body.end_image
     }
     
     console.log("Cleaned input for Replicate:", input)
     
     try {
-      // Start the prediction using the correct model
+      // Start the prediction using the kwaivgi/kling-v1.6-pro model
       const prediction = await replicate.predictions.create({
         version: "3a139358cc4ae29264fbcafd6ee8fbd92726dfa35c8b1e1ba03a7e04d8697bbb", // kling-v1.6-pro model version
         input: input,
@@ -92,7 +92,8 @@ serve(async (req) => {
     } catch (replicateError) {
       console.error("Replicate API error:", replicateError)
       return new Response(JSON.stringify({ 
-        error: replicateError.message || "Error creating prediction with Replicate API"
+        error: replicateError.message || "Error creating prediction with Replicate API",
+        details: replicateError
       }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         status: 500,
@@ -100,7 +101,7 @@ serve(async (req) => {
     }
   } catch (error) {
     console.error("Error in video generation function:", error)
-    return new Response(JSON.stringify({ error: error.message || "Unknown error occurred" }), {
+    return new Response(JSON.stringify({ error: error.message || "Unknown error occurred", stack: error.stack }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       status: 500,
     })
