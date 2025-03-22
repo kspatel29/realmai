@@ -40,12 +40,11 @@ export const createReplicateVideoClip = async (input: VideoGenerationInput): Pro
       // Poll for the prediction status
       let prediction = await checkReplicatePredictionStatus(data.id);
       let attempts = 0;
-      const maxAttempts = 60; // Increased for longer videos
+      const maxAttempts = 120; // Increased for potentially longer processing time
       
       // Poll until the prediction is complete or failed (or timeout)
-      // Stable Video Diffusion can take longer, so we allow more time
       while (prediction.status !== "succeeded" && prediction.status !== "failed" && attempts < maxAttempts) {
-        await new Promise(resolve => setTimeout(resolve, 3000)); // Wait 3 seconds between checks
+        await new Promise(resolve => setTimeout(resolve, 5000)); // Wait 5 seconds between checks
         prediction = await checkReplicatePredictionStatus(data.id);
         attempts++;
         console.log(`Polling attempt ${attempts}, status: ${prediction.status}`);
