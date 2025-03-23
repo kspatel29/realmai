@@ -63,7 +63,8 @@ export const stripeService = {
         throw new Error("Invalid response from payment service");
       }
       
-      console.log("Setup intent created successfully with client secret");
+      console.log("Setup intent created successfully with client secret:", 
+                  data.clientSecret ? data.clientSecret.substring(0, 10) + "..." : "missing");
       return data;
     } catch (error) {
       console.error('Error creating setup intent:', error);

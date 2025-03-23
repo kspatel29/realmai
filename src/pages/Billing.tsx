@@ -15,9 +15,10 @@ import { loadStripe } from "@stripe/stripe-js";
 import { Elements, PaymentElement, useStripe, useElements } from "@stripe/react-stripe-js";
 import type { Appearance, StripeElementsOptions } from '@stripe/stripe-js';
 
-const STRIPE_PUBLIC_KEY = import.meta.env.VITE_STRIPE_PUBLIC_KEY;
-console.log("Stripe public key available:", !!STRIPE_PUBLIC_KEY);
-const stripePromise = loadStripe(STRIPE_PUBLIC_KEY || "");
+const STRIPE_PUBLIC_KEY = "pk_test_51P2bUaLa9IWKTtOjlG8PpZgHxfCjg1vQ18PQtJPrSWTDvhvZqy0JGAeQzWp15aVW62HsFaHCO46sFM8kl7Rp8GmJ00mquhDVLH";
+console.log("Stripe public key:", STRIPE_PUBLIC_KEY);
+
+const stripePromise = loadStripe(STRIPE_PUBLIC_KEY);
 
 interface CheckoutFormProps {
   packageInfo: typeof CREDIT_PACKAGES[0];
@@ -268,7 +269,7 @@ const Billing = () => {
 
   useEffect(() => {
     if (setupIntent) {
-      console.log("New setup intent received, resetting elements initialized flag");
+      console.log("New setup intent received with client secret:", setupIntent.clientSecret.substring(0, 10) + "...");
       setStripeElementsInitialized(false);
     }
   }, [setupIntent]);
@@ -755,7 +756,7 @@ const Billing = () => {
             <Elements 
               stripe={stripePromise} 
               options={stripeElementsOptions}
-              key={setupIntent.clientSecret}
+              key={`setup-intent-${Date.now()}`}
             >
               <PaymentMethodForm 
                 onSuccess={handlePaymentMethodSuccess} 
@@ -789,4 +790,3 @@ const Billing = () => {
 };
 
 export default Billing;
-

@@ -85,8 +85,11 @@ serve(async (req) => {
         },
       });
 
+      // Log detailed information about the setup intent
       console.log(`Successfully created setup intent ${setupIntent.id} for customer: ${customerId}`);
-      console.log(`Client secret: ${setupIntent.client_secret ? 'created successfully' : 'missing'}`);
+      console.log(`Client secret created: ${!!setupIntent.client_secret}`);
+      console.log(`Client secret length: ${setupIntent.client_secret ? setupIntent.client_secret.length : 0}`);
+      console.log(`Setup intent status: ${setupIntent.status}`);
 
       return new Response(
         JSON.stringify({
