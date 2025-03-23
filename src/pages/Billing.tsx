@@ -13,8 +13,11 @@ import { stripeService } from "@/services/api/stripeService";
 import { toast } from "sonner";
 import { loadStripe } from "@stripe/stripe-js";
 import { Elements, PaymentElement, useStripe, useElements } from "@stripe/react-stripe-js";
+import { Form, FormField, FormItem, FormLabel, FormControl, FormMessage } from "@/components/ui/form";
+import { Input } from "@/components/ui/input";
+import { useForm } from "react-hook-form";
 
-// Initialize Stripe with your publishable key
+// Initialize Stripe with the correct publishable key
 const stripePromise = loadStripe("pk_test_51QRqRsRuznwovkUGZkNOQ4tO7HCmVDEbN0VW0UXnKJj7TrAoXKvKxgcPl3MFLhJbXG6qNqKGlVeAyH1eZH9LGNGM00YRCcBDl7");
 
 interface CheckoutFormProps {
@@ -22,6 +25,75 @@ interface CheckoutFormProps {
   onSuccess: () => void;
   onCancel: () => void;
 }
+
+interface PaymentMethodFormProps {
+  onSuccess: () => void;
+  onCancel: () => void;
+}
+
+// Payment Method form component
+const PaymentMethodForm = ({ onSuccess, onCancel }: PaymentMethodFormProps) => {
+  const stripe = useStripe();
+  const elements = useElements();
+  const [isProcessing, setIsProcessing] = useState(false);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+
+    if (!stripe || !elements) {
+      return;
+    }
+
+    setIsProcessing(true);
+    setErrorMessage(null);
+
+    try {
+      const { error } = await stripe.confirmSetup({
+        elements,
+        confirmParams: {
+          return_url: `${window.location.origin}/dashboard/billing`,
+        },
+        redirect: 'if_required',
+      });
+
+      if (error) {
+        setErrorMessage(error.message || "Failed to save payment method");
+        console.error("Payment method error:", error);
+      } else {
+        toast.success("Payment method added successfully!");
+        onSuccess();
+      }
+    } catch (err) {
+      console.error('Error adding payment method:', err);
+      setErrorMessage('An unexpected error occurred. Please try again.');
+    } finally {
+      setIsProcessing(false);
+    }
+  };
+
+  return (
+    <form onSubmit={handleSubmit} className="space-y-6">
+      {errorMessage && (
+        <div className="bg-red-50 border border-red-200 text-red-700 p-3 rounded-md flex items-center gap-2">
+          <AlertCircle className="h-5 w-5" />
+          <p>{errorMessage}</p>
+        </div>
+      )}
+      
+      <PaymentElement />
+      
+      <div className="flex items-center justify-between pt-4">
+        <Button type="button" variant="ghost" onClick={onCancel} disabled={isProcessing}>
+          Cancel
+        </Button>
+        <Button type="submit" disabled={!stripe || isProcessing}>
+          {isProcessing ? "Processing..." : "Save Payment Method"}
+        </Button>
+      </div>
+    </form>
+  );
+};
 
 // Checkout form component
 const CheckoutForm = ({ packageInfo, onSuccess, onCancel }: CheckoutFormProps) => {
@@ -53,6 +125,7 @@ const CheckoutForm = ({ packageInfo, onSuccess, onCancel }: CheckoutFormProps) =
 
       if (error) {
         setErrorMessage(error.message || "Payment failed");
+        console.error("Payment error:", error);
       } else if (paymentIntent && paymentIntent.status === 'succeeded') {
         // Call our backend to update credits
         await stripeService.confirmCreditPurchase(paymentIntent.id);
@@ -96,17 +169,21 @@ const Billing = () => {
   const [activeTab, setActiveTab] = useState("credits");
   const [selectedPackage, setSelectedPackage] = useState<typeof CREDIT_PACKAGES[0] | null>(null);
   const [paymentIntent, setPaymentIntent] = useState<{ clientSecret: string, id: string } | null>(null);
+  const [setupIntent, setSetupIntent] = useState<{ clientSecret: string } | null>(null);
   const [transactions, setTransactions] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [userSubscription, setUserSubscription] = useState<any>(null);
+  const [hasPaymentMethod, setHasPaymentMethod] = useState(false);
+  const [isAddingPaymentMethod, setIsAddingPaymentMethod] = useState(false);
 
-  // Fetch payment history and subscription data when tab changes
+  // Fetch payment history, subscription data, and payment methods when tab changes
   useEffect(() => {
     if (user) {
       if (activeTab === "history") {
         fetchPaymentHistory();
       } else if (activeTab === "subscription") {
         fetchUserSubscription();
+        checkPaymentMethod();
       }
     }
   }, [user, activeTab]);
@@ -131,12 +208,8 @@ const Billing = () => {
     
     try {
       setIsLoading(true);
-      // In a real app, this would fetch the user's actual subscription from Stripe
-      // For now, we'll just set a default plan
-      setUserSubscription({
-        planId: 'starter',
-        status: 'active'
-      });
+      const result = await stripeService.getUserSubscription(user.id);
+      setUserSubscription(result?.subscription || null);
     } catch (err) {
       console.error("Error fetching subscription:", err);
       toast.error("Failed to load subscription details");
@@ -145,9 +218,34 @@ const Billing = () => {
     }
   };
 
+  const checkPaymentMethod = async () => {
+    if (!user) return;
+    
+    try {
+      const result = await stripeService.checkPaymentMethod(user.id);
+      setHasPaymentMethod(result?.hasPaymentMethod || false);
+    } catch (err) {
+      console.error("Error checking payment method:", err);
+    }
+  };
+
   const handleBuyCredits = async (pkg: typeof CREDIT_PACKAGES[0]) => {
     if (!user) {
       toast.error("You must be logged in to purchase credits");
+      return;
+    }
+
+    // Check if the user has a payment method first
+    await checkPaymentMethod();
+    
+    if (!hasPaymentMethod) {
+      toast.error("Please add a payment method before making a purchase", {
+        description: "You'll be redirected to add a payment method.",
+        action: {
+          label: "Add Payment Method",
+          onClick: () => handleUpdatePayment(),
+        },
+      });
       return;
     }
 
@@ -174,14 +272,29 @@ const Billing = () => {
   };
 
   const handleChangePlan = () => {
-    // In a real app, this would open a modal or navigate to a subscription change flow
-    toast.info("Subscription change functionality would be implemented here");
-    // For demo purposes, you could toggle between different plans
+    // Redirect to subscription change flow or open modal
+    toast.info("Subscription change will be implemented in a future update");
   };
 
-  const handleUpdatePayment = () => {
-    // In a real app, this would open a payment method update modal
-    toast.info("Payment method update functionality would be implemented here");
+  const handleUpdatePayment = async () => {
+    if (!user) {
+      toast.error("You must be logged in to add a payment method");
+      return;
+    }
+
+    try {
+      setIsLoading(true);
+      const result = await stripeService.createSetupIntent(user.id);
+      setSetupIntent({
+        clientSecret: result.clientSecret
+      });
+      setIsAddingPaymentMethod(true);
+    } catch (err) {
+      console.error("Error creating setup intent:", err);
+      toast.error("Failed to initiate payment method setup");
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const handlePaymentSuccess = () => {
@@ -191,9 +304,21 @@ const Billing = () => {
     fetchPaymentHistory(); // Refresh history after successful payment
   };
 
+  const handlePaymentMethodSuccess = () => {
+    setSetupIntent(null);
+    setIsAddingPaymentMethod(false);
+    setHasPaymentMethod(true);
+    toast.success("Payment method added successfully!");
+  };
+
   const cancelPayment = () => {
     setPaymentIntent(null);
     setSelectedPackage(null);
+  };
+
+  const cancelPaymentMethodAddition = () => {
+    setSetupIntent(null);
+    setIsAddingPaymentMethod(false);
   };
 
   const formatDate = (dateString: string) => {
@@ -256,6 +381,23 @@ const Billing = () => {
                     packageInfo={selectedPackage} 
                     onSuccess={handlePaymentSuccess} 
                     onCancel={cancelPayment}
+                  />
+                </Elements>
+              </CardContent>
+            </Card>
+          ) : isAddingPaymentMethod && setupIntent ? (
+            <Card>
+              <CardHeader>
+                <CardTitle>Add Payment Method</CardTitle>
+                <CardDescription>
+                  Add a payment method to make purchases
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <Elements stripe={stripePromise} options={{ clientSecret: setupIntent.clientSecret }}>
+                  <PaymentMethodForm 
+                    onSuccess={handlePaymentMethodSuccess} 
+                    onCancel={cancelPaymentMethodAddition}
                   />
                 </Elements>
               </CardContent>
@@ -344,27 +486,34 @@ const Billing = () => {
               <CardDescription>Manage your payment details</CardDescription>
             </CardHeader>
             <CardContent>
-              {userSubscription ? (
-                <div className="bg-gray-50 p-4 rounded-lg flex items-center justify-between">
-                  <div className="flex items-center gap-3">
-                    <div className="bg-white p-2 rounded-md shadow-sm">
-                      <CreditCard className="h-6 w-6" />
-                    </div>
-                    <div>
-                      <p className="font-medium">Add payment method</p>
-                      <p className="text-sm text-muted-foreground">No payment methods on file</p>
-                    </div>
+              <div className="bg-gray-50 p-4 rounded-lg flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="bg-white p-2 rounded-md shadow-sm">
+                    <CreditCard className="h-6 w-6" />
                   </div>
-                  <Button variant="outline" size="sm" onClick={handleUpdatePayment}>Add</Button>
+                  <div>
+                    {hasPaymentMethod ? (
+                      <>
+                        <p className="font-medium">Payment method on file</p>
+                        <p className="text-sm text-muted-foreground">Credit card ending in ****</p>
+                      </>
+                    ) : (
+                      <>
+                        <p className="font-medium">No payment method</p>
+                        <p className="text-sm text-muted-foreground">Add a payment method to make purchases</p>
+                      </>
+                    )}
+                  </div>
                 </div>
-              ) : (
-                <div className="py-8 text-center text-muted-foreground">
-                  <p>No subscription active</p>
-                  <Button variant="outline" className="mt-4" onClick={handleChangePlan}>
-                    Select a Plan
-                  </Button>
-                </div>
-              )}
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  onClick={handleUpdatePayment}
+                  disabled={isLoading}
+                >
+                  {hasPaymentMethod ? "Update" : "Add"}
+                </Button>
+              </div>
             </CardContent>
           </Card>
         </TabsContent>

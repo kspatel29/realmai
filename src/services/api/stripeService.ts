@@ -7,6 +7,11 @@ export interface PaymentIntentResponse {
   paymentIntentId: string;
 }
 
+// Interface for setup intent response
+export interface SetupIntentResponse {
+  clientSecret: string;
+}
+
 // Interface for credit package purchase
 export interface CreditPackagePurchase {
   packageId: string;
@@ -29,6 +34,40 @@ export const stripeService = {
       return data;
     } catch (error) {
       console.error('Error creating payment intent:', error);
+      throw error;
+    }
+  },
+  
+  // Create a setup intent for adding a payment method
+  createSetupIntent: async (userId: string): Promise<SetupIntentResponse> => {
+    try {
+      const { data, error } = await supabase.functions.invoke('create-setup-intent', {
+        body: { 
+          userId 
+        }
+      });
+      
+      if (error) throw new Error(error.message);
+      return data;
+    } catch (error) {
+      console.error('Error creating setup intent:', error);
+      throw error;
+    }
+  },
+  
+  // Check if user has a payment method
+  checkPaymentMethod: async (userId: string): Promise<{ hasPaymentMethod: boolean }> => {
+    try {
+      const { data, error } = await supabase.functions.invoke('check-payment-method', {
+        body: { 
+          userId 
+        }
+      });
+      
+      if (error) throw new Error(error.message);
+      return data;
+    } catch (error) {
+      console.error('Error checking payment method:', error);
       throw error;
     }
   },
