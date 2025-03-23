@@ -13,7 +13,7 @@ import { stripeService } from "@/services/api/stripeService";
 import { toast } from "sonner";
 import { loadStripe } from "@stripe/stripe-js";
 import { Elements, PaymentElement, useStripe, useElements } from "@stripe/react-stripe-js";
-import type { Appearance } from '@stripe/stripe-js';
+import type { Appearance, StripeElementsOptions } from '@stripe/stripe-js';
 
 const stripePromise = loadStripe(import.meta.env.VITE_STRIPE_PUBLIC_KEY || "");
 
@@ -244,6 +244,7 @@ const Billing = () => {
   const [isPaymentMethodModalOpen, setIsPaymentMethodModalOpen] = useState(false);
   const [isChangePlanModalOpen, setIsChangePlanModalOpen] = useState(false);
   const [selectedPlanForChange, setSelectedPlanForChange] = useState<typeof SUBSCRIPTION_PLANS[0] | null>(null);
+  const [stripeElementsInitialized, setStripeElementsInitialized] = useState(false);
 
   useEffect(() => {
     if (user) {
@@ -255,6 +256,12 @@ const Billing = () => {
       }
     }
   }, [user, activeTab]);
+
+  useEffect(() => {
+    if (setupIntent) {
+      setStripeElementsInitialized(false);
+    }
+  }, [setupIntent]);
 
   const fetchPaymentHistory = async () => {
     if (!user) return;
@@ -434,6 +441,23 @@ const Billing = () => {
     },
   };
 
+  const paymentElementOptions = {
+    layout: {
+      type: 'tabs' as const,
+      defaultCollapsed: false,
+    }
+  };
+
+  const stripeElementsOptions: StripeElementsOptions = setupIntent ? {
+    clientSecret: setupIntent.clientSecret,
+    appearance,
+    loader: 'auto',
+  } : {
+    clientSecret: '',
+    appearance,
+    loader: 'auto',
+  };
+
   return (
     <div className="space-y-8 animate-fade-in">
       <div className="flex justify-between items-center">
@@ -493,7 +517,7 @@ const Billing = () => {
                 </CardDescription>
               </CardHeader>
               <CardContent>
-                <Elements stripe={stripePromise} options={{ clientSecret: setupIntent.clientSecret }}>
+                <Elements stripe={stripePromise} options={stripeElementsOptions}>
                   <PaymentMethodForm 
                     onSuccess={handlePaymentMethodSuccess} 
                     onCancel={cancelPaymentMethodAddition}
@@ -724,13 +748,11 @@ const Billing = () => {
               Add a payment method to make purchases and subscribe to plans
             </DialogDescription>
           </DialogHeader>
-          {setupIntent && (
+          {setupIntent && setupIntent.clientSecret && (
             <Elements 
               stripe={stripePromise} 
-              options={{ 
-                clientSecret: setupIntent.clientSecret,
-                appearance,
-              }}
+              options={stripeElementsOptions}
+              key={setupIntent.clientSecret}
             >
               <PaymentMethodForm 
                 onSuccess={handlePaymentMethodSuccess} 

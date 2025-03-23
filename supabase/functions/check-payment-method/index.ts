@@ -42,7 +42,7 @@ serve(async (req) => {
 
     console.log(`Checking payment methods for user: ${userId}`);
 
-    // Use the customer ID format
+    // Transform userId into a valid Stripe customer ID
     const customerId = `cus_${userId.replace(/-/g, '')}`;
     let hasPaymentMethod = false;
     
@@ -63,8 +63,8 @@ serve(async (req) => {
         console.log(`Customer has ${paymentMethods.data.length} payment methods`);
       }
     } catch (error) {
-      // Customer likely doesn't exist
-      console.log(`Error retrieving customer or payment methods: ${error.message}`);
+      // Customer likely doesn't exist, which is fine
+      console.log(`Customer doesn't exist or error retrieving: ${error.message}`);
       hasPaymentMethod = false;
     }
 

@@ -43,8 +43,8 @@ serve(async (req) => {
 
     console.log(`Creating setup intent for user: ${userId}`);
 
-    // Try to find or create a customer first
-    let customerId = `cus_${userId.replace(/-/g, '')}`;
+    // Create a reliable customer ID format
+    const customerId = `cus_${userId.replace(/-/g, '')}`;
     
     try {
       // Check if the customer exists
@@ -57,7 +57,7 @@ serve(async (req) => {
           id: customerId,
           metadata: { userId }
         });
-        customerId = newCustomer.id;
+        console.log(`Created new customer: ${newCustomer.id}`);
       }
     } catch (error) {
       // Customer doesn't exist, create it
@@ -67,8 +67,7 @@ serve(async (req) => {
           id: customerId,
           metadata: { userId }
         });
-        customerId = customer.id;
-        console.log(`Created new customer: ${customerId}`);
+        console.log(`Created new customer: ${customer.id}`);
       } catch (createError) {
         console.error(`Error creating customer: ${createError.message}`);
         throw createError;
@@ -79,6 +78,7 @@ serve(async (req) => {
     try {
       const setupIntent = await stripe.setupIntents.create({
         customer: customerId,
+        payment_method_types: ['card'],
         usage: "off_session",
         metadata: {
           userId: userId,
@@ -86,6 +86,9 @@ serve(async (req) => {
       });
 
       console.log(`Successfully created setup intent ${setupIntent.id} for customer: ${customerId}`);
+      console.log(`Setup intent created: ${JSON.stringify({
+        clientSecret: setupIntent.client_secret
+      })}`);
 
       return new Response(
         JSON.stringify({
