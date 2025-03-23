@@ -9,11 +9,30 @@ import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 
+// Define the stats interface
+interface DashboardStats {
+  totalVideos: number;
+  lastActive: string;
+  creditsUsed: number;
+  creditsRemaining: number;
+}
+
+// Define credit transaction interface
+interface CreditTransaction {
+  id: string;
+  user_id: string;
+  amount: number;
+  type: 'purchase' | 'usage' | 'refund';
+  service?: string;
+  description?: string;
+  created_at: string;
+}
+
 const Dashboard = () => {
   const { user } = useAuth();
   const { credits } = useCredits();
   const navigate = useNavigate();
-  const [stats, setStats] = useState({
+  const [stats, setStats] = useState<DashboardStats>({
     totalVideos: 0,
     lastActive: "Today",
     creditsUsed: 0,
@@ -44,16 +63,26 @@ const Dashboard = () => {
           .eq('type', 'usage')
           .order('created_at', { ascending: false });
           
+        if (txError) throw txError;
+        
+        // Calculate total used credits
         let creditsUsed = 0;
-        if (!txError && transactions) {
+        if (transactions && transactions.length > 0) {
           // Sum up all usage transactions
-          creditsUsed = transactions.reduce((total, tx) => total + (tx.amount || 0), 0);
+          creditsUsed = (transactions as CreditTransaction[]).reduce((total, tx) => total + tx.amount, 0);
         }
         
         // Calculate last active date based on last transaction
         let lastActive = "Today"; // Default
-        if (transactions && transactions.length > 0) {
-          const lastTxDate = new Date(transactions[0].created_at);
+        const allTransactions = await supabase
+          .from('credit_transactions')
+          .select('*')
+          .eq('user_id', user.id)
+          .order('created_at', { ascending: false })
+          .limit(1);
+          
+        if (allTransactions.data && allTransactions.data.length > 0) {
+          const lastTxDate = new Date(allTransactions.data[0].created_at);
           const today = new Date();
           const diffDays = Math.floor((today.getTime() - lastTxDate.getTime()) / (1000 * 60 * 60 * 24));
           
