@@ -13,8 +13,9 @@ import { stripeService } from "@/services/api/stripeService";
 import { toast } from "sonner";
 import { loadStripe } from "@stripe/stripe-js";
 import { Elements, PaymentElement, useStripe, useElements } from "@stripe/react-stripe-js";
+import type { Appearance } from '@stripe/stripe-js';
 
-const stripePromise = loadStripe(import.meta.env.VITE_STRIPE_PUBLIC_KEY || "pk_test_51OXpMCKXUJ4XLgZoIBgT1lX6FGKkd7lzY9bOvmmxT2J5jVdovlPBl44xEcjPwZeDuKnuHqKwEwCfIb2ejQTCbCOu00Vb64e9LT");
+const stripePromise = loadStripe(import.meta.env.VITE_STRIPE_PUBLIC_KEY || "");
 
 interface CheckoutFormProps {
   packageInfo: typeof CREDIT_PACKAGES[0];
@@ -85,7 +86,9 @@ const PaymentMethodForm = ({ onSuccess, onCancel }: PaymentMethodFormProps) => {
         </div>
       )}
       
-      <PaymentElement />
+      <div className="min-h-[200px] p-4 border rounded-md bg-white">
+        <PaymentElement />
+      </div>
       
       <div className="flex items-center justify-between pt-4">
         <Button type="button" variant="ghost" onClick={onCancel} disabled={isProcessing}>
@@ -288,6 +291,7 @@ const Billing = () => {
     
     try {
       const result = await stripeService.checkPaymentMethod(user.id);
+      console.log("Payment method check result:", result);
       setHasPaymentMethod(result?.hasPaymentMethod || false);
     } catch (err) {
       console.error("Error checking payment method:", err);
@@ -417,7 +421,7 @@ const Billing = () => {
     ? SUBSCRIPTION_PLANS.find(plan => plan.id === userSubscription.planId) 
     : SUBSCRIPTION_PLANS[0];
 
-  const appearance = {
+  const appearance: Appearance = {
     theme: 'stripe' as const,
     variables: {
       colorPrimary: '#10b981',
@@ -725,7 +729,7 @@ const Billing = () => {
               stripe={stripePromise} 
               options={{ 
                 clientSecret: setupIntent.clientSecret,
-                appearance: appearance,
+                appearance,
               }}
             >
               <PaymentMethodForm 
