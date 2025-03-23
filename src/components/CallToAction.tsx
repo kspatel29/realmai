@@ -3,8 +3,21 @@ import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { ArrowRight, CheckCircle, Package, Coins } from "lucide-react";
 import { SUBSCRIPTION_PLANS, CREDIT_PACKAGES, SERVICE_CREDIT_COSTS } from "@/constants/pricing";
+import { useAuth } from "@/hooks/useAuth";
+import { useNavigate } from "react-router-dom";
 
 const CallToAction = () => {
+  const { user } = useAuth();
+  const navigate = useNavigate();
+
+  const handlePricingAction = () => {
+    if (user) {
+      navigate('/dashboard/billing');
+    } else {
+      navigate('/signup');
+    }
+  };
+
   return (
     <section id="pricing" className="py-24 bg-gradient-to-b from-gray-50 to-white">
       <div className="container mx-auto px-6">
@@ -51,16 +64,15 @@ const CallToAction = () => {
                   {plan.description}
                 </p>
                 
-                <Link to="/signup">
-                  <Button 
-                    className={`w-full h-12 ${plan.id === 'creator-pro' ? 'bg-youtube-red hover:bg-youtube-darkred' : ''}`}
-                    variant={plan.id === 'creator-pro' ? 'default' : 'outline'}
-                    size="lg"
-                  >
-                    {plan.id === 'studio-pro' ? 'Contact Sales' : 'Sign Up'}
-                    <ArrowRight className="ml-2 h-4 w-4" />
-                  </Button>
-                </Link>
+                <Button 
+                  className={`w-full h-12 ${plan.id === 'creator-pro' ? 'bg-youtube-red hover:bg-youtube-darkred' : ''}`}
+                  variant={plan.id === 'creator-pro' ? 'default' : 'outline'}
+                  size="lg"
+                  onClick={handlePricingAction}
+                >
+                  {plan.id === 'studio-pro' ? 'Contact Sales' : user ? 'Upgrade Plan' : 'Sign Up'}
+                  <ArrowRight className="ml-2 h-4 w-4" />
+                </Button>
                 
                 <div className="mt-8 space-y-4">
                   <p className="font-medium">What's included:</p>
@@ -107,9 +119,13 @@ const CallToAction = () => {
                 <div className="text-xs text-muted-foreground mb-4 text-center">
                   ${(pkg.price / pkg.credits * 100).toFixed(1)}¢ per credit
                 </div>
-                <Link to="/signup">
-                  <Button variant="outline" className="w-full">Get Started</Button>
-                </Link>
+                <Button 
+                  variant="outline" 
+                  className="w-full"
+                  onClick={handlePricingAction}
+                >
+                  {user ? 'Buy Credits' : 'Get Started'}
+                </Button>
               </div>
             ))}
           </div>

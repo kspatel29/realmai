@@ -98,22 +98,48 @@ const Billing = () => {
   const [paymentIntent, setPaymentIntent] = useState<{ clientSecret: string, id: string } | null>(null);
   const [transactions, setTransactions] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(false);
+  const [userSubscription, setUserSubscription] = useState<any>(null);
 
-  // Fetch payment history
+  // Fetch payment history and subscription data when tab changes
   useEffect(() => {
-    if (user && activeTab === "history") {
-      fetchPaymentHistory();
+    if (user) {
+      if (activeTab === "history") {
+        fetchPaymentHistory();
+      } else if (activeTab === "subscription") {
+        fetchUserSubscription();
+      }
     }
   }, [user, activeTab]);
 
   const fetchPaymentHistory = async () => {
+    if (!user) return;
+    
     try {
       setIsLoading(true);
-      const result = await stripeService.getPaymentHistory(user!.id);
+      const result = await stripeService.getPaymentHistory(user.id);
       setTransactions(result.transactions || []);
     } catch (err) {
       console.error("Error fetching payment history:", err);
       toast.error("Failed to load payment history");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const fetchUserSubscription = async () => {
+    if (!user) return;
+    
+    try {
+      setIsLoading(true);
+      // In a real app, this would fetch the user's actual subscription from Stripe
+      // For now, we'll just set a default plan
+      setUserSubscription({
+        planId: 'starter',
+        status: 'active'
+      });
+    } catch (err) {
+      console.error("Error fetching subscription:", err);
+      toast.error("Failed to load subscription details");
     } finally {
       setIsLoading(false);
     }
@@ -147,10 +173,22 @@ const Billing = () => {
     }
   };
 
+  const handleChangePlan = () => {
+    // In a real app, this would open a modal or navigate to a subscription change flow
+    toast.info("Subscription change functionality would be implemented here");
+    // For demo purposes, you could toggle between different plans
+  };
+
+  const handleUpdatePayment = () => {
+    // In a real app, this would open a payment method update modal
+    toast.info("Payment method update functionality would be implemented here");
+  };
+
   const handlePaymentSuccess = () => {
     setPaymentIntent(null);
     setSelectedPackage(null);
     toast.success("Payment successful! Credits have been added to your account.");
+    fetchPaymentHistory(); // Refresh history after successful payment
   };
 
   const cancelPayment = () => {
@@ -166,6 +204,11 @@ const Billing = () => {
       day: 'numeric' 
     });
   };
+
+  // Get the current subscription plan details
+  const currentPlan = userSubscription 
+    ? SUBSCRIPTION_PLANS.find(plan => plan.id === userSubscription.planId) 
+    : SUBSCRIPTION_PLANS[0]; // Default to Starter plan
 
   return (
     <div className="space-y-8 animate-fade-in">
@@ -265,20 +308,24 @@ const Billing = () => {
           <Card>
             <CardHeader>
               <CardTitle>Current Plan</CardTitle>
-              <CardDescription>You are currently on the Creator Pro plan</CardDescription>
+              <CardDescription>
+                You are currently on the {currentPlan?.name} plan
+              </CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">
               <div className="bg-gray-50 p-4 rounded-lg flex items-center justify-between">
                 <div>
-                  <h3 className="font-medium text-lg">Creator Pro</h3>
-                  <p className="text-sm text-muted-foreground">$200/month • 3100 credits/month</p>
+                  <h3 className="font-medium text-lg">{currentPlan?.name}</h3>
+                  <p className="text-sm text-muted-foreground">
+                    {currentPlan?.price !== null ? `$${currentPlan?.price}/month • ${currentPlan?.creditsPerMonth} credits/month` : 'Custom pricing'}
+                  </p>
                 </div>
-                <Button variant="outline">Change Plan</Button>
+                <Button variant="outline" onClick={handleChangePlan}>Change Plan</Button>
               </div>
               <div className="space-y-4">
                 <h4 className="font-medium">Plan Features:</h4>
                 <ul className="space-y-2">
-                  {SUBSCRIPTION_PLANS.find(plan => plan.id === 'creator-pro')?.features.map((feature, index) => (
+                  {currentPlan?.features.map((feature, index) => (
                     <li key={index} className="flex items-start gap-2">
                       <div className="bg-green-100 p-1 rounded-full mt-0.5">
                         <CheckCircle className="h-3 w-3 text-green-600" />
@@ -297,18 +344,27 @@ const Billing = () => {
               <CardDescription>Manage your payment details</CardDescription>
             </CardHeader>
             <CardContent>
-              <div className="bg-gray-50 p-4 rounded-lg flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <div className="bg-white p-2 rounded-md shadow-sm">
-                    <CreditCard className="h-6 w-6" />
+              {userSubscription ? (
+                <div className="bg-gray-50 p-4 rounded-lg flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <div className="bg-white p-2 rounded-md shadow-sm">
+                      <CreditCard className="h-6 w-6" />
+                    </div>
+                    <div>
+                      <p className="font-medium">Add payment method</p>
+                      <p className="text-sm text-muted-foreground">No payment methods on file</p>
+                    </div>
                   </div>
-                  <div>
-                    <p className="font-medium">Visa •••• 4242</p>
-                    <p className="text-sm text-muted-foreground">Expires 12/2025</p>
-                  </div>
+                  <Button variant="outline" size="sm" onClick={handleUpdatePayment}>Add</Button>
                 </div>
-                <Button variant="outline" size="sm">Update</Button>
-              </div>
+              ) : (
+                <div className="py-8 text-center text-muted-foreground">
+                  <p>No subscription active</p>
+                  <Button variant="outline" className="mt-4" onClick={handleChangePlan}>
+                    Select a Plan
+                  </Button>
+                </div>
+              )}
             </CardContent>
           </Card>
         </TabsContent>
