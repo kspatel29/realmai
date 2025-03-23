@@ -15,7 +15,9 @@ import { loadStripe } from "@stripe/stripe-js";
 import { Elements, PaymentElement, useStripe, useElements } from "@stripe/react-stripe-js";
 import type { Appearance, StripeElementsOptions } from '@stripe/stripe-js';
 
-const stripePromise = loadStripe(import.meta.env.VITE_STRIPE_PUBLIC_KEY || "");
+const STRIPE_PUBLIC_KEY = import.meta.env.VITE_STRIPE_PUBLIC_KEY;
+console.log("Stripe public key available:", !!STRIPE_PUBLIC_KEY);
+const stripePromise = loadStripe(STRIPE_PUBLIC_KEY || "");
 
 interface CheckoutFormProps {
   packageInfo: typeof CREDIT_PACKAGES[0];
@@ -40,6 +42,8 @@ const PaymentMethodForm = ({ onSuccess, onCancel }: PaymentMethodFormProps) => {
   const elements = useElements();
   const [isProcessing, setIsProcessing] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+
+  console.log("PaymentMethodForm rendered, stripe:", !!stripe, "elements:", !!elements);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -87,7 +91,12 @@ const PaymentMethodForm = ({ onSuccess, onCancel }: PaymentMethodFormProps) => {
       )}
       
       <div className="min-h-[200px] p-4 border rounded-md bg-white">
-        <PaymentElement />
+        <PaymentElement options={{
+          layout: {
+            type: 'tabs',
+            defaultCollapsed: false,
+          }
+        }} />
       </div>
       
       <div className="flex items-center justify-between pt-4">
@@ -259,6 +268,7 @@ const Billing = () => {
 
   useEffect(() => {
     if (setupIntent) {
+      console.log("New setup intent received, resetting elements initialized flag");
       setStripeElementsInitialized(false);
     }
   }, [setupIntent]);
@@ -439,13 +449,6 @@ const Billing = () => {
       spacingUnit: '4px',
       borderRadius: '8px',
     },
-  };
-
-  const paymentElementOptions = {
-    layout: {
-      type: 'tabs' as const,
-      defaultCollapsed: false,
-    }
   };
 
   const stripeElementsOptions: StripeElementsOptions = setupIntent ? {
@@ -786,3 +789,4 @@ const Billing = () => {
 };
 
 export default Billing;
+

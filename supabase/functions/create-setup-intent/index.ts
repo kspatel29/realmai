@@ -43,7 +43,7 @@ serve(async (req) => {
 
     console.log(`Creating setup intent for user: ${userId}`);
 
-    // Create a reliable customer ID format
+    // Create a consistent customer ID format by removing hyphens from UUID
     const customerId = `cus_${userId.replace(/-/g, '')}`;
     
     try {
@@ -86,9 +86,7 @@ serve(async (req) => {
       });
 
       console.log(`Successfully created setup intent ${setupIntent.id} for customer: ${customerId}`);
-      console.log(`Setup intent created: ${JSON.stringify({
-        clientSecret: setupIntent.client_secret
-      })}`);
+      console.log(`Client secret: ${setupIntent.client_secret ? 'created successfully' : 'missing'}`);
 
       return new Response(
         JSON.stringify({

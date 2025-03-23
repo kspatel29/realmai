@@ -63,7 +63,7 @@ export const stripeService = {
         throw new Error("Invalid response from payment service");
       }
       
-      console.log("Setup intent created successfully");
+      console.log("Setup intent created successfully with client secret");
       return data;
     } catch (error) {
       console.error('Error creating setup intent:', error);
@@ -74,6 +74,7 @@ export const stripeService = {
   // Check if user has a payment method
   checkPaymentMethod: async (userId: string): Promise<{ hasPaymentMethod: boolean }> => {
     try {
+      console.log("Checking payment method for user:", userId);
       const { data, error } = await supabase.functions.invoke('check-payment-method', {
         body: { 
           userId 
@@ -85,6 +86,7 @@ export const stripeService = {
         return { hasPaymentMethod: false };
       }
       
+      console.log("Payment method check result:", data);
       return data || { hasPaymentMethod: false };
     } catch (error) {
       console.error('Error checking payment method:', error);

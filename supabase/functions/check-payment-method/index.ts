@@ -43,6 +43,7 @@ serve(async (req) => {
     console.log(`Checking payment methods for user: ${userId}`);
 
     // Transform userId into a valid Stripe customer ID
+    // Remove hyphens and prefix with 'cus_'
     const customerId = `cus_${userId.replace(/-/g, '')}`;
     let hasPaymentMethod = false;
     
