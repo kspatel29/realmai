@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
@@ -466,7 +467,7 @@ const Billing = () => {
                 </Elements>
               </CardContent>
             </Card>
-          ) : isAddingPaymentMethod && setupIntent ? (
+          ) : setupIntent && isPaymentMethodModalOpen ? (
             <Card>
               <CardHeader>
                 <CardTitle>Add Payment Method</CardTitle>
@@ -543,7 +544,15 @@ const Billing = () => {
                     {currentPlan?.price !== null ? `$${currentPlan?.price}/month • ${currentPlan?.creditsPerMonth} credits/month` : 'Custom pricing'}
                   </p>
                 </div>
-                <Button variant="outline" onClick={handleChangePlan}>Change Plan</Button>
+                <Button 
+                  variant="outline" 
+                  onClick={() => {
+                    // Using a direct function call instead of a MouseEventHandler
+                    if (currentPlan) setIsChangePlanModalOpen(true);
+                  }}
+                >
+                  Change Plan
+                </Button>
               </div>
               <div className="space-y-4">
                 <h4 className="font-medium">Plan Features:</h4>
