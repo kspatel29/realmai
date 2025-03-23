@@ -23,6 +23,9 @@ serve(async (req) => {
       throw new Error("Missing STRIPE_SECRET_KEY");
     }
 
+    // Log the first few characters of the secret key (for debugging only)
+    console.log("Using Stripe secret key starting with:", STRIPE_SECRET_KEY.substring(0, 7) + "...");
+
     const stripe = new Stripe(STRIPE_SECRET_KEY, {
       apiVersion: "2023-10-16",
       httpClient: Stripe.createFetchHttpClient(),
@@ -90,6 +93,11 @@ serve(async (req) => {
       console.log(`Client secret created: ${!!setupIntent.client_secret}`);
       console.log(`Client secret length: ${setupIntent.client_secret ? setupIntent.client_secret.length : 0}`);
       console.log(`Setup intent status: ${setupIntent.status}`);
+      
+      // For debug only, log the first few characters of the client secret
+      if (setupIntent.client_secret) {
+        console.log(`Client secret starts with: ${setupIntent.client_secret.substring(0, 10)}...`);
+      }
 
       return new Response(
         JSON.stringify({

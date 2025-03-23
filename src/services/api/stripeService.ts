@@ -25,16 +25,27 @@ export const stripeService = {
   // Create a payment intent for purchasing credits
   createPaymentIntent: async (purchase: CreditPackagePurchase): Promise<PaymentIntentResponse> => {
     try {
+      console.log("Creating payment intent for purchase:", purchase);
       const { data, error } = await supabase.functions.invoke('create-payment-intent', {
         body: { 
           purchase 
         }
       });
       
-      if (error) throw new Error(error.message);
+      if (error) {
+        console.error("Payment intent error response:", error);
+        throw new Error(error.message);
+      }
+      
       if (!data || !data.clientSecret || !data.paymentIntentId) {
+        console.error("Invalid payment intent response:", data);
         throw new Error("Invalid response from payment service");
       }
+      
+      console.log("Payment intent created successfully:", { 
+        paymentIntentId: data.paymentIntentId,
+        clientSecretLength: data.clientSecret ? data.clientSecret.length : 0
+      });
       
       return data;
     } catch (error) {
@@ -47,25 +58,40 @@ export const stripeService = {
   createSetupIntent: async (userId: string): Promise<SetupIntentResponse> => {
     try {
       console.log("Invoking create-setup-intent function with userId:", userId);
+      const startTime = Date.now();
+      
       const { data, error } = await supabase.functions.invoke('create-setup-intent', {
         body: { 
           userId 
         }
       });
       
+      const duration = Date.now() - startTime;
+      console.log(`Setup intent function responded in ${duration}ms`);
+      
       if (error) {
         console.error("Setup intent error response:", error);
         throw new Error(error.message);
       }
       
-      if (!data || !data.clientSecret) {
-        console.error("Invalid setup intent response:", data);
-        throw new Error("Invalid response from payment service");
+      if (!data) {
+        console.error("Empty setup intent response");
+        throw new Error("Empty response from payment service");
       }
       
-      console.log("Setup intent created successfully with client secret:", 
-                  data.clientSecret ? data.clientSecret.substring(0, 10) + "..." : "missing");
-      return data;
+      if (!data.clientSecret) {
+        console.error("Invalid setup intent response (missing client secret):", data);
+        throw new Error("Invalid response from payment service: missing client secret");
+      }
+      
+      console.log("Setup intent response:", {
+        clientSecret: data.clientSecret ? `${data.clientSecret.substring(0, 10)}...` : "missing",
+        clientSecretLength: data.clientSecret ? data.clientSecret.length : 0
+      });
+      
+      return {
+        clientSecret: data.clientSecret
+      };
     } catch (error) {
       console.error('Error creating setup intent:', error);
       throw error;

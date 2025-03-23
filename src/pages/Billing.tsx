@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -16,9 +16,14 @@ import { Elements, PaymentElement, useStripe, useElements } from "@stripe/react-
 import type { Appearance, StripeElementsOptions } from '@stripe/stripe-js';
 
 const STRIPE_PUBLIC_KEY = "pk_test_51P2bUaLa9IWKTtOjlG8PpZgHxfCjg1vQ18PQtJPrSWTDvhvZqy0JGAeQzWp15aVW62HsFaHCO46sFM8kl7Rp8GmJ00mquhDVLH";
-console.log("Stripe public key:", STRIPE_PUBLIC_KEY);
+console.log("Using Stripe public key:", STRIPE_PUBLIC_KEY);
 
 const stripePromise = loadStripe(STRIPE_PUBLIC_KEY);
+if (!stripePromise) {
+  console.error("Failed to initialize Stripe with key:", STRIPE_PUBLIC_KEY);
+} else {
+  console.log("Stripe initialization successful");
+}
 
 interface CheckoutFormProps {
   packageInfo: typeof CREDIT_PACKAGES[0];
@@ -254,7 +259,14 @@ const Billing = () => {
   const [isPaymentMethodModalOpen, setIsPaymentMethodModalOpen] = useState(false);
   const [isChangePlanModalOpen, setIsChangePlanModalOpen] = useState(false);
   const [selectedPlanForChange, setSelectedPlanForChange] = useState<typeof SUBSCRIPTION_PLANS[0] | null>(null);
-  const [stripeElementsInitialized, setStripeElementsInitialized] = useState(false);
+  const [elementsKey, setElementsKey] = useState<string>(`setup-intent-${Date.now()}`);
+  const [stripeInitialized, setStripeInitialized] = useState(false);
+
+  useEffect(() => {
+    if (stripePromise) {
+      setStripeInitialized(true);
+    }
+  }, []);
 
   useEffect(() => {
     if (user) {
@@ -268,9 +280,10 @@ const Billing = () => {
   }, [user, activeTab]);
 
   useEffect(() => {
-    if (setupIntent) {
-      console.log("New setup intent received with client secret:", setupIntent.clientSecret.substring(0, 10) + "...");
-      setStripeElementsInitialized(false);
+    if (setupIntent && setupIntent.clientSecret) {
+      console.log("New setup intent received with client secret:", 
+                 setupIntent.clientSecret.substring(0, 10) + "...");
+      setElementsKey(`setup-intent-${Date.now()}`);
     }
   }, [setupIntent]);
 
@@ -452,7 +465,7 @@ const Billing = () => {
     },
   };
 
-  const stripeElementsOptions: StripeElementsOptions = setupIntent ? {
+  const stripeElementsOptions: StripeElementsOptions = setupIntent?.clientSecret ? {
     clientSecret: setupIntent.clientSecret,
     appearance,
     loader: 'auto',
@@ -752,17 +765,28 @@ const Billing = () => {
               Add a payment method to make purchases and subscribe to plans
             </DialogDescription>
           </DialogHeader>
-          {setupIntent && setupIntent.clientSecret && (
+          {setupIntent && setupIntent.clientSecret && stripeInitialized && (
             <Elements 
               stripe={stripePromise} 
               options={stripeElementsOptions}
-              key={`setup-intent-${Date.now()}`}
+              key={elementsKey}
             >
               <PaymentMethodForm 
                 onSuccess={handlePaymentMethodSuccess} 
                 onCancel={cancelPaymentMethodAddition}
               />
             </Elements>
+          )}
+          {(!setupIntent || !setupIntent.clientSecret || !stripeInitialized) && (
+            <div className="p-4 text-center">
+              <p className="text-red-500">Unable to load payment form. Please try again later.</p>
+              <Button 
+                onClick={cancelPaymentMethodAddition} 
+                className="mt-4"
+              >
+                Close
+              </Button>
+            </div>
           )}
         </DialogContent>
       </Dialog>
