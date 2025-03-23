@@ -18,6 +18,7 @@ serve(async (req) => {
   try {
     const STRIPE_SECRET_KEY = Deno.env.get("STRIPE_SECRET_KEY");
     if (!STRIPE_SECRET_KEY) {
+      console.error("Missing STRIPE_SECRET_KEY environment variable");
       throw new Error("Missing STRIPE_SECRET_KEY");
     }
 
@@ -29,6 +30,7 @@ serve(async (req) => {
     const { userId } = await req.json();
     
     if (!userId) {
+      console.error("Missing user ID in request");
       return new Response(
         JSON.stringify({ error: "Missing user ID" }),
         {
@@ -38,6 +40,8 @@ serve(async (req) => {
       );
     }
 
+    console.log(`Checking payment methods for user: ${userId}`);
+
     // Use the customer ID format
     const customerId = `cus_${userId.replace(/-/g, '')}`;
     let hasPaymentMethod = false;
@@ -45,22 +49,27 @@ serve(async (req) => {
     try {
       // Check if customer exists first
       const customer = await stripe.customers.retrieve(customerId);
+      console.log(`Found customer: ${customerId}, deleted status: ${customer.deleted}`);
       
       if (customer && !customer.deleted) {
         // Check for payment methods
+        console.log(`Listing payment methods for customer: ${customerId}`);
         const paymentMethods = await stripe.paymentMethods.list({
           customer: customerId,
           type: 'card',
         });
         
         hasPaymentMethod = paymentMethods.data.length > 0;
+        console.log(`Customer has ${paymentMethods.data.length} payment methods`);
       }
     } catch (error) {
       // Customer likely doesn't exist
-      console.log("Customer not found or other error:", error.message);
+      console.log(`Error retrieving customer or payment methods: ${error.message}`);
       hasPaymentMethod = false;
     }
 
+    console.log(`Returning hasPaymentMethod: ${hasPaymentMethod} for user: ${userId}`);
+    
     return new Response(
       JSON.stringify({
         hasPaymentMethod,
@@ -71,7 +80,7 @@ serve(async (req) => {
       }
     );
   } catch (error) {
-    console.error("Error checking payment method:", error);
+    console.error(`Error in check-payment-method: ${error.message}`);
     return new Response(
       JSON.stringify({ 
         hasPaymentMethod: false,

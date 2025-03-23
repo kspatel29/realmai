@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
@@ -15,7 +14,7 @@ import { toast } from "sonner";
 import { loadStripe } from "@stripe/stripe-js";
 import { Elements, PaymentElement, useStripe, useElements } from "@stripe/react-stripe-js";
 
-const stripePromise = loadStripe("pk_test_51OXpMCKXUJ4XLgZoIBgT1lX6FGKkd7lzY9bOvmmxT2J5jVdovlPBl44xEcjPwZeDuKnuHqKwEwCfIb2ejQTCbCOu00Vb64e9LT");
+const stripePromise = loadStripe(import.meta.env.VITE_STRIPE_PUBLIC_KEY || "pk_test_51OXpMCKXUJ4XLgZoIBgT1lX6FGKkd7lzY9bOvmmxT2J5jVdovlPBl44xEcjPwZeDuKnuHqKwEwCfIb2ejQTCbCOu00Vb64e9LT");
 
 interface CheckoutFormProps {
   packageInfo: typeof CREDIT_PACKAGES[0];
@@ -45,6 +44,7 @@ const PaymentMethodForm = ({ onSuccess, onCancel }: PaymentMethodFormProps) => {
     e.preventDefault();
 
     if (!stripe || !elements) {
+      console.error("Stripe.js hasn't loaded yet");
       return;
     }
 
@@ -417,6 +417,19 @@ const Billing = () => {
     ? SUBSCRIPTION_PLANS.find(plan => plan.id === userSubscription.planId) 
     : SUBSCRIPTION_PLANS[0];
 
+  const appearance = {
+    theme: 'stripe',
+    variables: {
+      colorPrimary: '#10b981',
+      colorBackground: '#ffffff',
+      colorText: '#1f2937',
+      colorDanger: '#ef4444',
+      fontFamily: 'ui-sans-serif, system-ui, sans-serif',
+      spacingUnit: '4px',
+      borderRadius: '8px',
+    },
+  };
+
   return (
     <div className="space-y-8 animate-fade-in">
       <div className="flex justify-between items-center">
@@ -547,7 +560,6 @@ const Billing = () => {
                 <Button 
                   variant="outline" 
                   onClick={() => {
-                    // Using a direct function call instead of a MouseEventHandler
                     if (currentPlan) setIsChangePlanModalOpen(true);
                   }}
                 >
@@ -701,7 +713,7 @@ const Billing = () => {
       </Tabs>
 
       <Dialog open={isPaymentMethodModalOpen} onOpenChange={setIsPaymentMethodModalOpen}>
-        <DialogContent className="sm:max-w-[425px]">
+        <DialogContent className="sm:max-w-[500px]">
           <DialogHeader>
             <DialogTitle>Add Payment Method</DialogTitle>
             <DialogDescription>
@@ -709,7 +721,13 @@ const Billing = () => {
             </DialogDescription>
           </DialogHeader>
           {setupIntent && (
-            <Elements stripe={stripePromise} options={{ clientSecret: setupIntent.clientSecret }}>
+            <Elements 
+              stripe={stripePromise} 
+              options={{ 
+                clientSecret: setupIntent.clientSecret,
+                appearance: appearance,
+              }}
+            >
               <PaymentMethodForm 
                 onSuccess={handlePaymentMethodSuccess} 
                 onCancel={cancelPaymentMethodAddition}

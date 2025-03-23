@@ -19,6 +19,7 @@ serve(async (req) => {
     // Get the Stripe secret key from environment variables
     const STRIPE_SECRET_KEY = Deno.env.get("STRIPE_SECRET_KEY");
     if (!STRIPE_SECRET_KEY) {
+      console.error("Missing STRIPE_SECRET_KEY environment variable");
       throw new Error("Missing STRIPE_SECRET_KEY");
     }
 
@@ -30,6 +31,7 @@ serve(async (req) => {
     const { userId } = await req.json();
     
     if (!userId) {
+      console.error("Missing user ID in request");
       return new Response(
         JSON.stringify({ error: "Missing user ID" }),
         {
@@ -39,45 +41,72 @@ serve(async (req) => {
       );
     }
 
+    console.log(`Creating setup intent for user: ${userId}`);
+
     // Try to find or create a customer first
     let customerId = `cus_${userId.replace(/-/g, '')}`;
     
     try {
       // Check if the customer exists
-      await stripe.customers.retrieve(customerId);
+      const customer = await stripe.customers.retrieve(customerId);
+      console.log(`Found existing customer: ${customerId}`);
+      
+      if (customer.deleted) {
+        console.log(`Customer ${customerId} was deleted, creating a new one`);
+        const newCustomer = await stripe.customers.create({
+          id: customerId,
+          metadata: { userId }
+        });
+        customerId = newCustomer.id;
+      }
     } catch (error) {
       // Customer doesn't exist, create it
-      const customer = await stripe.customers.create({
-        id: customerId,
-        metadata: { userId }
-      });
-      customerId = customer.id;
+      console.log(`Customer ${customerId} not found, creating a new one`);
+      try {
+        const customer = await stripe.customers.create({
+          id: customerId,
+          metadata: { userId }
+        });
+        customerId = customer.id;
+        console.log(`Created new customer: ${customerId}`);
+      } catch (createError) {
+        console.error(`Error creating customer: ${createError.message}`);
+        throw createError;
+      }
     }
 
     // Create a setup intent for the customer
-    const setupIntent = await stripe.setupIntents.create({
-      customer: customerId,
-      usage: "off_session",
-      metadata: {
-        userId: userId,
-      },
-    });
+    try {
+      const setupIntent = await stripe.setupIntents.create({
+        customer: customerId,
+        usage: "off_session",
+        metadata: {
+          userId: userId,
+        },
+      });
 
-    console.log("Successfully created setup intent for customer:", customerId);
+      console.log(`Successfully created setup intent ${setupIntent.id} for customer: ${customerId}`);
 
-    return new Response(
-      JSON.stringify({
-        clientSecret: setupIntent.client_secret,
-      }),
-      {
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-        status: 200,
-      }
-    );
+      return new Response(
+        JSON.stringify({
+          clientSecret: setupIntent.client_secret,
+        }),
+        {
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+          status: 200,
+        }
+      );
+    } catch (setupError) {
+      console.error(`Error creating setup intent: ${setupError.message}`);
+      throw setupError;
+    }
   } catch (error) {
-    console.error("Error creating setup intent:", error);
+    console.error(`Error in create-setup-intent: ${error.message}`);
     return new Response(
-      JSON.stringify({ error: error.message }),
+      JSON.stringify({ 
+        error: error.message,
+        stackTrace: error.stack
+      }),
       {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
         status: 500,
