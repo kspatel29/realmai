@@ -16,6 +16,7 @@ serve(async (req) => {
   }
 
   try {
+    // Get the Stripe secret key from environment variables
     const STRIPE_SECRET_KEY = Deno.env.get("STRIPE_SECRET_KEY");
     if (!STRIPE_SECRET_KEY) {
       throw new Error("Missing STRIPE_SECRET_KEY");
@@ -38,13 +39,31 @@ serve(async (req) => {
       );
     }
 
-    // Create a setup intent
+    // Try to find or create a customer first
+    let customerId = `cus_${userId.replace(/-/g, '')}`;
+    
+    try {
+      // Check if the customer exists
+      await stripe.customers.retrieve(customerId);
+    } catch (error) {
+      // Customer doesn't exist, create it
+      const customer = await stripe.customers.create({
+        id: customerId,
+        metadata: { userId }
+      });
+      customerId = customer.id;
+    }
+
+    // Create a setup intent for the customer
     const setupIntent = await stripe.setupIntents.create({
+      customer: customerId,
       usage: "off_session",
       metadata: {
         userId: userId,
       },
     });
+
+    console.log("Successfully created setup intent for customer:", customerId);
 
     return new Response(
       JSON.stringify({

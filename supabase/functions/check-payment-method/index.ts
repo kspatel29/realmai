@@ -38,15 +38,28 @@ serve(async (req) => {
       );
     }
 
-    // Get customer ID from metadata
-    // In a real implementation, you'd have a customers table to look up the Stripe customer ID
-    // For now, we'll simulate by searching for payments with this user_id in metadata
-    const paymentMethods = await stripe.paymentMethods.list({
-      customer: `cus_${userId.replace(/-/g, '')}`, // Simulate customer ID
-      type: 'card',
-    }).catch(() => ({ data: [] }));
-
-    const hasPaymentMethod = paymentMethods.data.length > 0;
+    // Use the customer ID format
+    const customerId = `cus_${userId.replace(/-/g, '')}`;
+    let hasPaymentMethod = false;
+    
+    try {
+      // Check if customer exists first
+      const customer = await stripe.customers.retrieve(customerId);
+      
+      if (customer && !customer.deleted) {
+        // Check for payment methods
+        const paymentMethods = await stripe.paymentMethods.list({
+          customer: customerId,
+          type: 'card',
+        });
+        
+        hasPaymentMethod = paymentMethods.data.length > 0;
+      }
+    } catch (error) {
+      // Customer likely doesn't exist
+      console.log("Customer not found or other error:", error.message);
+      hasPaymentMethod = false;
+    }
 
     return new Response(
       JSON.stringify({
