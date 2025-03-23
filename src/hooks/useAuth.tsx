@@ -1,4 +1,3 @@
-
 import { createContext, useContext, useEffect, useState, ReactNode } from "react";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
@@ -18,6 +17,7 @@ interface AuthContextType {
   login: (email: string, password: string) => Promise<void>;
   signup: (name: string, email: string, password: string) => Promise<void>;
   logout: () => Promise<void>;
+  updateProfile: (data: { name?: string }) => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | null>(null);
@@ -126,6 +126,37 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     }
   };
 
+  // Add the updateProfile method
+  const updateProfile = async (data: { name?: string }) => {
+    try {
+      const { error } = await supabase.auth.updateUser({
+        data: {
+          name: data.name
+        }
+      });
+      
+      if (error) throw error;
+      
+      // Update the local user state
+      if (session && user) {
+        const updatedUser = {
+          ...user,
+          user_metadata: {
+            ...user.user_metadata,
+            name: data.name
+          }
+        };
+        setUser(updatedUser as UserWithMetadata);
+      }
+      
+      return Promise.resolve();
+    } catch (error) {
+      console.error("Error updating profile:", error);
+      toast.error(error instanceof Error ? error.message : "Failed to update profile");
+      return Promise.reject(error);
+    }
+  };
+
   return (
     <AuthContext.Provider
       value={{
@@ -135,7 +166,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         isAuthenticated: !!user,
         login,
         signup,
-        logout
+        logout,
+        updateProfile
       }}
     >
       {children}
