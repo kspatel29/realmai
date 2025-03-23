@@ -418,7 +418,7 @@ const Billing = () => {
     : SUBSCRIPTION_PLANS[0];
 
   const appearance = {
-    theme: 'stripe',
+    theme: 'stripe' as const,
     variables: {
       colorPrimary: '#10b981',
       colorBackground: '#ffffff',
