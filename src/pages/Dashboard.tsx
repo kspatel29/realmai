@@ -2,7 +2,7 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { useAuth } from "@/hooks/useAuth";
 import ServiceCard from "@/components/ServiceCard";
-import { Film, Subtitles, Video, Package, Plus, BarChart, Users, Clock, Zap } from "lucide-react";
+import { Film, Subtitles, Video, Package, Plus, Calendar, Users, CreditCard, Zap } from "lucide-react";
 import { useCredits } from "@/hooks/useCredits";
 import { Button } from "@/components/ui/button";
 import { useEffect, useState } from "react";
@@ -15,9 +15,9 @@ const Dashboard = () => {
   const navigate = useNavigate();
   const [stats, setStats] = useState({
     totalVideos: 0,
-    totalUsers: 0,
-    processingTime: "0h",
-    usageTrend: "0%"
+    lastActive: "Today",
+    creditsUsed: 0,
+    creditsRemaining: 0
   });
   
   useEffect(() => {
@@ -33,21 +33,55 @@ const Dashboard = () => {
           
         if (videoError) throw videoError;
         
-        // For other stats, in a real app you would fetch from your database
-        // or analytics service. For now we'll just use some realistic values.
+        // Get user credits data
+        const creditsData = credits || 0;
+        
+        // Get credit transaction history to calculate used credits
+        const { data: transactions, error: txError } = await supabase
+          .from('credit_transactions')
+          .select('*')
+          .eq('user_id', user.id)
+          .eq('type', 'usage')
+          .order('created_at', { ascending: false });
+          
+        let creditsUsed = 0;
+        if (!txError && transactions) {
+          // Sum up all usage transactions
+          creditsUsed = transactions.reduce((total, tx) => total + (tx.amount || 0), 0);
+        }
+        
+        // Calculate last active date based on last transaction
+        let lastActive = "Today"; // Default
+        if (transactions && transactions.length > 0) {
+          const lastTxDate = new Date(transactions[0].created_at);
+          const today = new Date();
+          const diffDays = Math.floor((today.getTime() - lastTxDate.getTime()) / (1000 * 60 * 60 * 24));
+          
+          if (diffDays === 0) lastActive = "Today";
+          else if (diffDays === 1) lastActive = "Yesterday";
+          else lastActive = `${diffDays} days ago`;
+        }
+        
         setStats({
           totalVideos: videoCount || 0,
-          totalUsers: 1, // Individual account
-          processingTime: "1.2h", 
-          usageTrend: "+12%"
+          lastActive: lastActive,
+          creditsUsed: creditsUsed,
+          creditsRemaining: creditsData
         });
       } catch (error) {
         console.error("Error fetching stats:", error);
+        // Fall back to basic stats if there's an error
+        setStats({
+          totalVideos: 0,
+          lastActive: "Today",
+          creditsUsed: 0,
+          creditsRemaining: credits || 0
+        });
       }
     };
     
     fetchStats();
-  }, [user]);
+  }, [user, credits]);
 
   const services = [
     {
@@ -86,24 +120,24 @@ const Dashboard = () => {
       color: "bg-blue-50"
     },
     {
-      title: "Total Users",
-      value: stats.totalUsers.toString(),
-      description: "Team members",
-      icon: <Users className="h-5 w-5 text-violet-500" />,
+      title: "Last Active",
+      value: stats.lastActive,
+      description: "Your recent activity",
+      icon: <Calendar className="h-5 w-5 text-violet-500" />,
       color: "bg-violet-50"
     },
     {
-      title: "Processing Time",
-      value: stats.processingTime,
-      description: "Average processing",
-      icon: <Clock className="h-5 w-5 text-emerald-500" />,
+      title: "Credits Used",
+      value: stats.creditsUsed.toString(),
+      description: "Total consumption",
+      icon: <CreditCard className="h-5 w-5 text-emerald-500" />,
       color: "bg-emerald-50"
     },
     {
-      title: "Usage Trend",
-      value: stats.usageTrend,
-      description: "Month over month",
-      icon: <BarChart className="h-5 w-5 text-amber-500" />,
+      title: "Credits Remaining",
+      value: stats.creditsRemaining.toString(),
+      description: "Available balance",
+      icon: <Zap className="h-5 w-5 text-amber-500" />,
       color: "bg-amber-50"
     }
   ];

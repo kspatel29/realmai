@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
@@ -13,12 +12,8 @@ import { stripeService } from "@/services/api/stripeService";
 import { toast } from "sonner";
 import { loadStripe } from "@stripe/stripe-js";
 import { Elements, PaymentElement, useStripe, useElements } from "@stripe/react-stripe-js";
-import { Form, FormField, FormItem, FormLabel, FormControl, FormMessage } from "@/components/ui/form";
-import { Input } from "@/components/ui/input";
-import { useForm } from "react-hook-form";
 
-// Initialize Stripe with the correct publishable key
-const stripePromise = loadStripe("pk_test_51QRqRsRuznwovkUGZkNOQ4tO7HCmVDEbN0VW0UXnKJj7TrAoXKvKxgcPl3MFLhJbXG6qNqKGlVeAyH1eZH9LGNGM00YRCcBDl7");
+const stripePromise = loadStripe("pk_test_51OXpMCKXUJ4XLgZoIBgT1lX6FGKkd7lzY9bOvmmxT2J5jVdovlPBl44xEcjPwZeDuKnuHqKwEwCfIb2ejQTCbCOu00Vb64e9LT");
 
 interface CheckoutFormProps {
   packageInfo: typeof CREDIT_PACKAGES[0];
@@ -31,7 +26,6 @@ interface PaymentMethodFormProps {
   onCancel: () => void;
 }
 
-// Payment Method form component
 const PaymentMethodForm = ({ onSuccess, onCancel }: PaymentMethodFormProps) => {
   const stripe = useStripe();
   const elements = useElements();
@@ -49,6 +43,7 @@ const PaymentMethodForm = ({ onSuccess, onCancel }: PaymentMethodFormProps) => {
     setErrorMessage(null);
 
     try {
+      console.log("Confirming setup with elements");
       const { error } = await stripe.confirmSetup({
         elements,
         confirmParams: {
@@ -58,8 +53,8 @@ const PaymentMethodForm = ({ onSuccess, onCancel }: PaymentMethodFormProps) => {
       });
 
       if (error) {
-        setErrorMessage(error.message || "Failed to save payment method");
         console.error("Payment method error:", error);
+        setErrorMessage(error.message || "Failed to save payment method");
       } else {
         toast.success("Payment method added successfully!");
         onSuccess();
@@ -95,7 +90,6 @@ const PaymentMethodForm = ({ onSuccess, onCancel }: PaymentMethodFormProps) => {
   );
 };
 
-// Checkout form component
 const CheckoutForm = ({ packageInfo, onSuccess, onCancel }: CheckoutFormProps) => {
   const stripe = useStripe();
   const elements = useElements();
@@ -114,7 +108,6 @@ const CheckoutForm = ({ packageInfo, onSuccess, onCancel }: CheckoutFormProps) =
     setErrorMessage(null);
 
     try {
-      // Use confirmPayment to complete the payment
       const { error, paymentIntent } = await stripe.confirmPayment({
         elements,
         confirmParams: {
@@ -127,7 +120,6 @@ const CheckoutForm = ({ packageInfo, onSuccess, onCancel }: CheckoutFormProps) =
         setErrorMessage(error.message || "Payment failed");
         console.error("Payment error:", error);
       } else if (paymentIntent && paymentIntent.status === 'succeeded') {
-        // Call our backend to update credits
         await stripeService.confirmCreditPurchase(paymentIntent.id);
         toast.success(`Successfully purchased ${packageInfo.credits} credits!`);
         onSuccess();
@@ -176,7 +168,6 @@ const Billing = () => {
   const [hasPaymentMethod, setHasPaymentMethod] = useState(false);
   const [isAddingPaymentMethod, setIsAddingPaymentMethod] = useState(false);
 
-  // Fetch payment history, subscription data, and payment methods when tab changes
   useEffect(() => {
     if (user) {
       if (activeTab === "history") {
@@ -235,7 +226,6 @@ const Billing = () => {
       return;
     }
 
-    // Check if the user has a payment method first
     await checkPaymentMethod();
     
     if (!hasPaymentMethod) {
@@ -272,7 +262,6 @@ const Billing = () => {
   };
 
   const handleChangePlan = () => {
-    // Redirect to subscription change flow or open modal
     toast.info("Subscription change will be implemented in a future update");
   };
 
@@ -284,14 +273,21 @@ const Billing = () => {
 
     try {
       setIsLoading(true);
+      console.log("Creating setup intent for user", user.id);
       const result = await stripeService.createSetupIntent(user.id);
-      setSetupIntent({
-        clientSecret: result.clientSecret
-      });
-      setIsAddingPaymentMethod(true);
+      console.log("Setup intent created:", result);
+      
+      if (result && result.clientSecret) {
+        setSetupIntent({
+          clientSecret: result.clientSecret
+        });
+        setIsAddingPaymentMethod(true);
+      } else {
+        toast.error("Failed to create setup intent: Invalid response");
+      }
     } catch (err) {
       console.error("Error creating setup intent:", err);
-      toast.error("Failed to initiate payment method setup");
+      toast.error("Failed to initiate payment method setup. Please try again later.");
     } finally {
       setIsLoading(false);
     }
@@ -301,7 +297,7 @@ const Billing = () => {
     setPaymentIntent(null);
     setSelectedPackage(null);
     toast.success("Payment successful! Credits have been added to your account.");
-    fetchPaymentHistory(); // Refresh history after successful payment
+    fetchPaymentHistory();
   };
 
   const handlePaymentMethodSuccess = () => {
@@ -330,10 +326,9 @@ const Billing = () => {
     });
   };
 
-  // Get the current subscription plan details
   const currentPlan = userSubscription 
     ? SUBSCRIPTION_PLANS.find(plan => plan.id === userSubscription.planId) 
-    : SUBSCRIPTION_PLANS[0]; // Default to Starter plan
+    : SUBSCRIPTION_PLANS[0];
 
   return (
     <div className="space-y-8 animate-fade-in">

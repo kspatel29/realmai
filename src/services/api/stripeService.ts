@@ -1,5 +1,6 @@
 
 import { supabase } from "@/integrations/supabase/client";
+import { toast } from "sonner";
 
 // Interface for payment intent response
 export interface PaymentIntentResponse {
@@ -31,6 +32,10 @@ export const stripeService = {
       });
       
       if (error) throw new Error(error.message);
+      if (!data || !data.clientSecret || !data.paymentIntentId) {
+        throw new Error("Invalid response from payment service");
+      }
+      
       return data;
     } catch (error) {
       console.error('Error creating payment intent:', error);
@@ -41,13 +46,24 @@ export const stripeService = {
   // Create a setup intent for adding a payment method
   createSetupIntent: async (userId: string): Promise<SetupIntentResponse> => {
     try {
+      console.log("Invoking create-setup-intent function with userId:", userId);
       const { data, error } = await supabase.functions.invoke('create-setup-intent', {
         body: { 
           userId 
         }
       });
       
-      if (error) throw new Error(error.message);
+      if (error) {
+        console.error("Setup intent error response:", error);
+        throw new Error(error.message);
+      }
+      
+      if (!data || !data.clientSecret) {
+        console.error("Invalid setup intent response:", data);
+        throw new Error("Invalid response from payment service");
+      }
+      
+      console.log("Setup intent created successfully");
       return data;
     } catch (error) {
       console.error('Error creating setup intent:', error);
@@ -64,11 +80,16 @@ export const stripeService = {
         }
       });
       
-      if (error) throw new Error(error.message);
-      return data;
+      if (error) {
+        console.error("Error checking payment method:", error);
+        return { hasPaymentMethod: false };
+      }
+      
+      return data || { hasPaymentMethod: false };
     } catch (error) {
       console.error('Error checking payment method:', error);
-      throw error;
+      // Return a default value to avoid breaking the UI
+      return { hasPaymentMethod: false };
     }
   },
   
@@ -98,11 +119,27 @@ export const stripeService = {
         }
       });
       
-      if (error) throw new Error(error.message);
+      if (error) {
+        console.error("Error getting subscription:", error);
+        // Return a default subscription to avoid breaking the UI
+        return {
+          subscription: {
+            planId: "starter",
+            status: "active"
+          }
+        };
+      }
+      
       return data;
     } catch (error) {
       console.error('Error getting user subscription:', error);
-      throw error;
+      // Return a default value to avoid breaking the UI
+      return {
+        subscription: {
+          planId: "starter",
+          status: "active"
+        }
+      };
     }
   },
   
@@ -115,11 +152,16 @@ export const stripeService = {
         }
       });
       
-      if (error) throw new Error(error.message);
-      return data;
+      if (error) {
+        console.error("Error getting payment history:", error);
+        return { transactions: [] };
+      }
+      
+      return data || { transactions: [] };
     } catch (error) {
       console.error('Error getting payment history:', error);
-      throw error;
+      // Return a default value to avoid breaking the UI
+      return { transactions: [] };
     }
   }
 };
