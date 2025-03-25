@@ -22,15 +22,20 @@ export const useSubtitlesCost = () => {
       let cost: number;
       
       if (fileDuration) {
+        console.log(`Calculating cost for subtitles with model ${modelName} and duration ${fileDuration} seconds`);
+        
         // Calculate cost based on file duration
         cost = await calculateCostFromFileDuration(
           fileDuration,
           "subtitles",
           { isPremiumModel }
         );
+        
+        console.log(`Subtitles cost for ${fileDuration}s with ${isPremiumModel ? 'premium' : 'standard'} model: ${cost} credits`);
       } else {
         // Get basic cost from edge function
         cost = await calculateSubtitlesCost(isPremiumModel);
+        console.log(`Base subtitles cost for ${isPremiumModel ? 'premium' : 'standard'} model: ${cost} credits`);
       }
       
       // Cache the result
@@ -45,6 +50,14 @@ export const useSubtitlesCost = () => {
       
       if (isPremiumModel) {
         fallbackCost += CREDIT_COSTS.BEST_QUALITY;
+      }
+      
+      // Scale cost based on duration (if provided)
+      if (fileDuration) {
+        const durationMultiplier = Math.max(1, fileDuration / 60 / 10);
+        fallbackCost = Math.ceil(fallbackCost * durationMultiplier);
+        
+        console.log(`Fallback subtitles cost calculation: ${CREDIT_COSTS.BASE_COST} * ${durationMultiplier} = ${fallbackCost} credits`);
       }
       
       return fallbackCost;

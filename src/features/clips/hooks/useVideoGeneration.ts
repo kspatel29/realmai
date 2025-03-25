@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { z } from "zod";
 import { videoGenerationSchema } from "../components/VideoGenerationForm";
@@ -19,6 +20,8 @@ export const useVideoGeneration = () => {
 
   const calculateCost = async (durationSeconds: number): Promise<number> => {
     try {
+      console.log(`Calculating cost for video_generation with duration ${durationSeconds} seconds: {}`);
+      
       // Try to get cost from the edge function
       const cost = await calculateCostFromFileDuration(
         durationSeconds,
@@ -144,7 +147,7 @@ export const useVideoGeneration = () => {
               setIsProcessing(false);
               toast({
                 title: "Generation failed",
-                description: "There was an error generating your video clip: " + (error.message || "Unknown error"),
+                description: "There was an error generating your video clip: " + (error instanceof Error ? error.message : "Unknown error"),
                 variant: "destructive"
               });
             }

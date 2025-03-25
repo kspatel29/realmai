@@ -19,12 +19,25 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
+import { useDubbingJobs } from "@/hooks/dubbingJobs";
 
 const DashboardLayout = () => {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
-  const [notifications, setNotifications] = useState<{id: string, message: string, time: string}[]>([]);
   const navigate = useNavigate();
   const { logout } = useAuth();
+  const { jobs: dubbingJobs } = useDubbingJobs();
+  
+  // Only show completed/failed jobs in the notifications
+  const notifications = dubbingJobs
+    .filter(job => job.status === 'completed' || job.status === 'failed')
+    .map(job => ({
+      id: job.id,
+      message: job.status === 'completed' 
+        ? `Your dubbing job for ${job.languages.join(', ')} is ready` 
+        : `Your dubbing job for ${job.languages.join(', ')} has failed`,
+      time: new Date(job.updated_at).toLocaleString(),
+      status: job.status
+    }));
   
   const toggleSidebar = () => {
     setIsSidebarOpen(!isSidebarOpen);
@@ -60,21 +73,33 @@ const DashboardLayout = () => {
                 <PopoverTrigger asChild>
                   <Button variant="ghost" size="icon">
                     <Bell className="h-5 w-5" />
+                    {notifications.length > 0 && (
+                      <span className="absolute top-0 right-0 h-2 w-2 rounded-full bg-red-500"></span>
+                    )}
                   </Button>
                 </PopoverTrigger>
-                <PopoverContent className="w-80">
-                  <div className="flex flex-col space-y-2 p-2">
+                <PopoverContent className="w-80 p-0">
+                  <div className="flex flex-col space-y-2 p-4">
                     <h3 className="font-medium">Notifications</h3>
                     {notifications.length > 0 ? (
-                      notifications.map(notification => (
-                        <div key={notification.id} className="text-sm border-b pb-2">
-                          <p>{notification.message}</p>
-                          <p className="text-xs text-muted-foreground">{notification.time}</p>
-                        </div>
-                      ))
+                      <div className="max-h-[300px] overflow-auto">
+                        {notifications.map(notification => (
+                          <div 
+                            key={notification.id} 
+                            className="text-sm border-b pb-2 mt-2 cursor-pointer hover:bg-muted/50 p-2 rounded"
+                            onClick={() => navigate('/dashboard/video-dubbing')}
+                          >
+                            <div className="flex items-center gap-2">
+                              <div className={`w-2 h-2 rounded-full ${notification.status === 'completed' ? 'bg-green-500' : 'bg-red-500'}`}></div>
+                              <p>{notification.message}</p>
+                            </div>
+                            <p className="text-xs text-muted-foreground mt-1">{notification.time}</p>
+                          </div>
+                        ))}
+                      </div>
                     ) : (
                       <p className="text-sm text-muted-foreground py-4 text-center">
-                        No notifications yet. When your dubbing jobs complete, you'll see them here.
+                        No notifications yet. When your jobs complete, you'll see them here.
                       </p>
                     )}
                   </div>
@@ -87,7 +112,7 @@ const DashboardLayout = () => {
                     <User className="h-5 w-5" />
                   </Button>
                 </DropdownMenuTrigger>
-                <DropdownMenuContent align="end">
+                <DropdownMenuContent align="end" className="w-56">
                   <DropdownMenuItem onClick={() => navigate('/dashboard/settings')}>
                     Settings
                   </DropdownMenuItem>
