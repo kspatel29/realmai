@@ -27,8 +27,9 @@ export const useAudioFiles = () => {
     queryFn: async (): Promise<AudioFile[]> => {
       if (!user) return [];
       
+      // Use a type assertion to treat 'audio_files' as a valid table
       const { data, error } = await supabase
-        .from('audio_files')
+        .from('audio_files' as any)
         .select('*')
         .eq('user_id', user.id)
         .order('created_at', { ascending: false });
@@ -58,7 +59,7 @@ export const useAudioFiles = () => {
       
       // First create a database entry for the audio file
       const { data: audioRecord, error: audioError } = await supabase
-        .from('audio_files')
+        .from('audio_files' as any)
         .insert({
           user_id: user.id,
           title,
@@ -86,7 +87,7 @@ export const useAudioFiles = () => {
         
         // Update the status to 'failed' if upload failed
         await supabase
-          .from('audio_files')
+          .from('audio_files' as any)
           .update({ status: 'failed' })
           .eq('id', audioRecord.id);
           
@@ -95,7 +96,7 @@ export const useAudioFiles = () => {
       
       // Update the audio record with the completed status
       const { error: updateError } = await supabase
-        .from('audio_files')
+        .from('audio_files' as any)
         .update({ 
           status: 'ready',
           updated_at: new Date().toISOString()
@@ -125,7 +126,7 @@ export const useAudioFiles = () => {
       try {
         // First get the audio record to get the filename
         const { data: audioRecord, error: fetchError } = await supabase
-          .from('audio_files')
+          .from('audio_files' as any)
           .select('*')
           .eq('id', audioId)
           .single();
@@ -150,7 +151,7 @@ export const useAudioFiles = () => {
         
         // Delete the database record
         const { error: deleteError } = await supabase
-          .from('audio_files')
+          .from('audio_files' as any)
           .delete()
           .eq('id', audioId);
         
@@ -179,7 +180,7 @@ export const useAudioFiles = () => {
       if (!user) throw new Error('User not authenticated');
       
       const { error } = await supabase
-        .from('audio_files')
+        .from('audio_files' as any)
         .update({ 
           used_in_job: jobId,
           updated_at: new Date().toISOString()

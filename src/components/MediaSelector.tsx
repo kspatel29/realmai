@@ -14,6 +14,7 @@ export interface MediaFile {
   filename?: string | null;
   created_at: string;
   file_size?: number | null;
+  duration?: number | null;
   type: 'video' | 'audio';
   url?: string;
 }
