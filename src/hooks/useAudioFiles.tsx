@@ -29,7 +29,7 @@ export const useAudioFiles = () => {
       
       // Use a type assertion to treat 'audio_files' as a valid table
       const { data, error } = await supabase
-        .from('audio_files' as any)
+        .from('audio_files')
         .select('*')
         .eq('user_id', user.id)
         .order('created_at', { ascending: false });
@@ -40,8 +40,8 @@ export const useAudioFiles = () => {
         throw error;
       }
       
-      // Properly cast the data to AudioFile[] type
-      return (data || []) as AudioFile[];
+      // Convert to unknown first and then to AudioFile[]
+      return (data || []) as unknown as AudioFile[];
     },
     enabled: !!user,
   });
@@ -60,7 +60,7 @@ export const useAudioFiles = () => {
       
       // First create a database entry for the audio file
       const { data: audioRecord, error: audioError } = await supabase
-        .from('audio_files' as any)
+        .from('audio_files')
         .insert({
           user_id: user.id,
           title,
@@ -77,8 +77,8 @@ export const useAudioFiles = () => {
         throw audioError;
       }
       
-      // Properly cast audioRecord to AudioFile
-      const typedAudioRecord = audioRecord as AudioFile;
+      // Convert to unknown first and then to AudioFile
+      const typedAudioRecord = audioRecord as unknown as AudioFile;
       
       // Upload the file to storage
       const filePath = `${user.id}/${typedAudioRecord.id}/${file.name}`;
@@ -91,7 +91,7 @@ export const useAudioFiles = () => {
         
         // Update the status to 'failed' if upload failed
         await supabase
-          .from('audio_files' as any)
+          .from('audio_files')
           .update({ status: 'failed' })
           .eq('id', typedAudioRecord.id);
           
@@ -100,7 +100,7 @@ export const useAudioFiles = () => {
       
       // Update the audio record with the completed status
       const { error: updateError } = await supabase
-        .from('audio_files' as any)
+        .from('audio_files')
         .update({ 
           status: 'ready',
           updated_at: new Date().toISOString()
@@ -130,7 +130,7 @@ export const useAudioFiles = () => {
       try {
         // First get the audio record to get the filename
         const { data: audioRecord, error: fetchError } = await supabase
-          .from('audio_files' as any)
+          .from('audio_files')
           .select('*')
           .eq('id', audioId)
           .single();
@@ -140,8 +140,8 @@ export const useAudioFiles = () => {
           throw fetchError;
         }
         
-        // Properly cast audioRecord to AudioFile
-        const typedAudioRecord = audioRecord as AudioFile;
+        // Convert to unknown first and then to AudioFile
+        const typedAudioRecord = audioRecord as unknown as AudioFile;
         
         // Delete the file from storage if it exists
         if (typedAudioRecord.filename) {
@@ -158,7 +158,7 @@ export const useAudioFiles = () => {
         
         // Delete the database record
         const { error: deleteError } = await supabase
-          .from('audio_files' as any)
+          .from('audio_files')
           .delete()
           .eq('id', audioId);
         
@@ -187,7 +187,7 @@ export const useAudioFiles = () => {
       if (!user) throw new Error('User not authenticated');
       
       const { error } = await supabase
-        .from('audio_files' as any)
+        .from('audio_files')
         .update({ 
           used_in_job: jobId,
           updated_at: new Date().toISOString()
