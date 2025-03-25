@@ -1,4 +1,3 @@
-
 import { useState, useEffect, useRef } from "react";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -55,21 +54,26 @@ const VideoDubbing = () => {
     isUpdating 
   } = useDubbingJobs();
   
-  const hasAddedCreditsRef = useRef(false);
-  const hasCleanedUpRef = useRef(false);
+  useEffect(() => {
+    const hasAddedCredits = sessionStorage.getItem('hasAddedDemoCredits');
+    if (hasAddedCredits === 'true') {
+      setCreditsAlreadyAdded(true);
+    }
+  }, []);
 
-  // Add credits only once and track it with state to avoid multiple notifications
   useEffect(() => {
     const developmentUserId = 'a73c1162-06ee-42b5-a50e-77f268419d4f';
     
-    if (!hasAddedCreditsRef.current && !creditsAlreadyAdded) {
+    if (!creditsAlreadyAdded) {
       addCreditsToUser.mutate({
         userId: developmentUserId,
-        amount: 1000
+        amount: 1000,
+        silent: true
       }, {
         onSuccess: () => {
-          hasAddedCreditsRef.current = true;
           setCreditsAlreadyAdded(true);
+          sessionStorage.setItem('hasAddedDemoCredits', 'true');
+          toast.success("Added demo credits to user account");
         }
       });
     }
@@ -96,9 +100,7 @@ const VideoDubbing = () => {
     }
   }, [selectedVideo]);
 
-  // Handle tab change enforcement
   const handleTabChange = (value: string) => {
-    // Only allow navigation to dub or preview if video is selected
     if ((value === "dub" || value === "preview") && !selectedVideo) {
       toast.error("Please select a video first");
       return;
@@ -138,7 +140,6 @@ const VideoDubbing = () => {
       
       setVideoURL(data.signedUrl);
       
-      // Get video duration
       const videoElement = document.createElement('video');
       videoElement.src = data.signedUrl;
       
@@ -157,11 +158,9 @@ const VideoDubbing = () => {
     }
   };
 
-  // Calculate cost whenever duration or form values change
   useEffect(() => {
     const updateCost = async () => {
       if (!fileDuration || !currentForm) {
-        // Don't show any cost if we don't have duration or form values
         return;
       }
       
@@ -171,7 +170,6 @@ const VideoDubbing = () => {
         const enableLipSync = currentForm.enable_lipsyncing || false;
         const languages = currentForm.target_languages || [];
         
-        // Calculate cost based on duration and options
         const cost = await calculateCostFromFileDuration(
           fileDuration,
           "dubbing",
@@ -324,7 +322,6 @@ const VideoDubbing = () => {
     }
   };
 
-  // Move to next step in the process
   const goToNextStep = () => {
     if (activeTab === "upload" && selectedVideo) {
       setActiveTab("dub");

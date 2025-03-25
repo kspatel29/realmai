@@ -10,7 +10,7 @@ export const useAddCreditsToUser = () => {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async ({ userId, amount }: { userId: string; amount: number }) => {
+    mutationFn: async ({ userId, amount, silent = false }: { userId: string; amount: number; silent?: boolean }) => {
       try {
         // First check if the user has a credits record
         const { data: existingCredits, error: fetchError } = await supabase
@@ -61,8 +61,12 @@ export const useAddCreditsToUser = () => {
         throw error;
       }
     },
-    onSuccess: (result) => {
-      toast.success(`Added credits to user ${result.user_id}`);
+    onSuccess: (result, variables) => {
+      // Only show toast notification if silent is false
+      if (!variables.silent) {
+        toast.success(`Added credits to user ${result.user_id}`);
+      }
+      
       // If this is the current user, update the cache
       if (user && result.user_id === user.id) {
         queryClient.setQueryData(["user-credits", user.id], result);
