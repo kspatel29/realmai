@@ -75,6 +75,11 @@ const VideoDubbing = () => {
           setCreditsAlreadyAdded(true);
           sessionStorage.setItem('hasAddedDemoCredits', 'true');
           toast.success("Added demo credits to user account");
+        },
+        onError: () => {
+          console.log("Note: Credits functionality requires database connection");
+          setCreditsAlreadyAdded(true);
+          sessionStorage.setItem('hasAddedDemoCredits', 'true');
         }
       });
     }
