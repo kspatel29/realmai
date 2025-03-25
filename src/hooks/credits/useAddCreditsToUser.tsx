@@ -38,12 +38,14 @@ export const useAddCreditsToUser = () => {
           
           if (error) {
             console.error("Error updating user credits:", error);
+            if (error.message.includes("new row violates row-level security policy")) {
+              throw new Error("Permission denied: Only administrators can add credits");
+            }
             throw new Error(`Failed to update user credits: ${error.message}`);
           }
           
           return data;
         } else {
-          // Create new record with RLS bypass
           try {
             const { data, error } = await supabase.rpc("create_user_credits", {
               user_id_param: userId,
@@ -52,6 +54,9 @@ export const useAddCreditsToUser = () => {
             
             if (error) {
               console.error("Error creating user credits:", error);
+              if (error.message.includes("new row violates row-level security policy")) {
+                throw new Error("Permission denied: Only administrators can add credits");
+              }
               throw new Error(`Failed to create user credits: ${error.message}`);
             }
             
@@ -62,8 +67,17 @@ export const useAddCreditsToUser = () => {
             } else {
               throw new Error("No user credits record returned from create_user_credits");
             }
-          } catch (rpcError) {
+          } catch (rpcError: any) {
             console.error("Error in create_user_credits RPC:", rpcError);
+            
+            if (rpcError.message && rpcError.message.includes("row-level security policy")) {
+              throw new Error("Permission denied: Only administrators can add credits");
+            }
+            
+            // Don't try fallback insert if it's an RLS error
+            if (rpcError.message && rpcError.message.includes("Permission denied")) {
+              throw rpcError;
+            }
             
             // Fallback to direct insert if RPC fails
             const { data: fallbackData, error: fallbackError } = await supabase
@@ -79,6 +93,9 @@ export const useAddCreditsToUser = () => {
               
             if (fallbackError) {
               console.error("Fallback insert error:", fallbackError);
+              if (fallbackError.message.includes("new row violates row-level security policy")) {
+                throw new Error("Permission denied: Only administrators can add credits");
+              }
               throw new Error(`Failed to add credits: ${fallbackError.message}`);
             }
             
@@ -105,13 +122,7 @@ export const useAddCreditsToUser = () => {
       // Don't show toast for network errors during development demo mode
       if (error.message && error.message.includes("Failed to fetch")) {
         console.warn("Network error when adding credits - this is expected in demo mode");
-        // Simulate success for demo purposes
-        if (user) {
-          queryClient.setQueryData(["user-credits", user.id], (oldData: any) => {
-            if (!oldData) return { credits_balance: 1000, user_id: user.id };
-            return { ...oldData, credits_balance: oldData.credits_balance + 1000 };
-          });
-        }
+        // We don't simulate success here anymore
         return;
       }
       

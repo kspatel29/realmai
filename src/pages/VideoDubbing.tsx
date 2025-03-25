@@ -34,11 +34,10 @@ const VideoDubbing = () => {
   const [fileDuration, setFileDuration] = useState<number | null>(null);
   const [totalCost, setTotalCost] = useState<number>(0);
   const [isCalculatingCost, setIsCalculatingCost] = useState(false);
-  const [creditsAlreadyAdded, setCreditsAlreadyAdded] = useState(false);
   const [activeTab, setActiveTab] = useState("upload");
   const hasCleanedUpRef = useRef(false);
   
-  const { credits, useCredits: spendCredits, hasEnoughCredits, addCreditsToUser } = useCredits();
+  const { credits, useCredits: spendCredits, hasEnoughCredits } = useCredits();
   const { 
     videos, 
     isLoading: isLoadingVideos, 
@@ -54,36 +53,6 @@ const VideoDubbing = () => {
     refreshJobStatus,
     isUpdating 
   } = useDubbingJobs();
-  
-  useEffect(() => {
-    const hasAddedCredits = sessionStorage.getItem('hasAddedDemoCredits');
-    if (hasAddedCredits === 'true') {
-      setCreditsAlreadyAdded(true);
-    }
-  }, []);
-
-  useEffect(() => {
-    const developmentUserId = 'a73c1162-06ee-42b5-a50e-77f268419d4f';
-    
-    if (!creditsAlreadyAdded) {
-      addCreditsToUser.mutate({
-        userId: developmentUserId,
-        amount: 1000,
-        silent: true
-      }, {
-        onSuccess: () => {
-          setCreditsAlreadyAdded(true);
-          sessionStorage.setItem('hasAddedDemoCredits', 'true');
-          toast.success("Added demo credits to user account");
-        },
-        onError: () => {
-          console.log("Note: Credits functionality requires database connection");
-          setCreditsAlreadyAdded(true);
-          sessionStorage.setItem('hasAddedDemoCredits', 'true');
-        }
-      });
-    }
-  }, [creditsAlreadyAdded, addCreditsToUser]);
 
   useEffect(() => {
     return () => {
@@ -640,3 +609,4 @@ const VideoDubbing = () => {
 };
 
 export default VideoDubbing;
+
