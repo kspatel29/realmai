@@ -55,7 +55,13 @@ export const useAddCreditsToUser = () => {
               throw new Error(`Failed to create user credits: ${error.message}`);
             }
             
-            return data as UserCredits;
+            // Fix: The RPC function returns an array, but we need a single object
+            // Extract the first item from the array
+            if (Array.isArray(data) && data.length > 0) {
+              return data[0] as UserCredits;
+            } else {
+              throw new Error("No user credits record returned from create_user_credits");
+            }
           } catch (rpcError) {
             console.error("Error in create_user_credits RPC:", rpcError);
             
@@ -97,7 +103,7 @@ export const useAddCreditsToUser = () => {
     },
     onError: (error: Error) => {
       // Don't show toast for network errors during development demo mode
-      if (error.message.includes("Failed to fetch")) {
+      if (error.message && error.message.includes("Failed to fetch")) {
         console.warn("Network error when adding credits - this is expected in demo mode");
         // Simulate success for demo purposes
         if (user) {
@@ -109,7 +115,14 @@ export const useAddCreditsToUser = () => {
         return;
       }
       
-      toast.error(`Failed to add credits: ${error.message}`);
+      // Format error message to avoid showing [object Object]
+      const errorMessage = error instanceof Error 
+        ? error.message 
+        : (typeof error === 'object' && error !== null)
+          ? JSON.stringify(error)
+          : String(error);
+          
+      toast.error(`Failed to add credits: ${errorMessage}`);
     }
   });
 };
