@@ -2,7 +2,7 @@
 import { useState, useEffect } from 'react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Coins, Plus } from 'lucide-react';
+import { Coins } from 'lucide-react';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { useCredits } from '@/hooks/credits';
 import { useNavigate } from 'react-router-dom';
@@ -21,12 +21,12 @@ const UserCredits = () => {
     }
   }, [credits, isLoading]);
 
-  const handleBuyMoreCredits = () => {
+  const handleCreditsClick = () => {
     navigate('/dashboard/billing');
   };
 
   return (
-    <div className="flex items-center gap-1">
+    <div className="flex items-center">
       <TooltipProvider>
         <Tooltip>
           <TooltipTrigger asChild>
@@ -34,7 +34,7 @@ const UserCredits = () => {
               variant="ghost" 
               size="sm" 
               className="h-8 gap-1 px-2"
-              onClick={() => navigate('/dashboard/billing')}
+              onClick={handleCreditsClick}
             >
               <Coins className="h-4 w-4 text-yellow-500" />
               <Badge 
@@ -46,24 +46,7 @@ const UserCredits = () => {
             </Button>
           </TooltipTrigger>
           <TooltipContent>
-            <p>Available credits</p>
-          </TooltipContent>
-        </Tooltip>
-      </TooltipProvider>
-      <TooltipProvider>
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <Button 
-              variant="ghost" 
-              size="sm" 
-              className="h-8 w-8 p-0" 
-              onClick={handleBuyMoreCredits}
-            >
-              <Plus className="h-4 w-4" />
-            </Button>
-          </TooltipTrigger>
-          <TooltipContent>
-            <p>Buy more credits</p>
+            <p>View billing and credits</p>
           </TooltipContent>
         </Tooltip>
       </TooltipProvider>

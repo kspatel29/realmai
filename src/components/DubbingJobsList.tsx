@@ -41,6 +41,8 @@ export default function DubbingJobsList({ jobs, onRefresh, isLoading }: DubbingJ
   const [manualUrlOpen, setManualUrlOpen] = useState(false);
   const [manualUrl, setManualUrl] = useState("");
   const [isUpdatingUrl, setIsUpdatingUrl] = useState(false);
+  const [lastRefreshTime, setLastRefreshTime] = useState(0);
+  const refreshTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const { updateJobWithUrl } = useDubbingJobs();
@@ -70,17 +72,37 @@ export default function DubbingJobsList({ jobs, onRefresh, isLoading }: DubbingJ
   useEffect(() => {
     videoRef.current = document.getElementById("preview-video") as HTMLVideoElement;
     
-    const hasActiveJobs = jobs.some(job => job.status === "queued" || job.status === "running");
-    if (hasActiveJobs && !isLoading) {
-      console.log("Automatically refreshing job statuses due to active jobs");
-      onRefresh();
+    // Clear any existing refresh timeout
+    if (refreshTimeoutRef.current) {
+      clearTimeout(refreshTimeoutRef.current);
+      refreshTimeoutRef.current = null;
     }
     
-    if (selectedJob && (selectedJob.status === "queued" || selectedJob.status === "running") && !isLoading) {
-      console.log(`Selected job ${selectedJob.sieve_job_id} is active, refreshing status`);
-      onRefresh();
+    const hasActiveJobs = jobs.some(job => job.status === "queued" || job.status === "running");
+    const now = Date.now();
+    const timeSinceLastRefresh = now - lastRefreshTime;
+    
+    // Only refresh if:
+    // 1. There are active jobs
+    // 2. We're not already loading
+    // 3. It's been at least 10 seconds since the last refresh
+    if (hasActiveJobs && !isLoading && timeSinceLastRefresh > 10000) {
+      console.log("Setting up refresh for active jobs");
+      
+      // Instead of refreshing immediately, set a timeout
+      refreshTimeoutRef.current = setTimeout(() => {
+        console.log("Auto-refreshing job statuses due to active jobs");
+        onRefresh();
+        setLastRefreshTime(Date.now());
+      }, 5000);
     }
-  }, [selectedJob, isLoading, onRefresh, jobs]);
+    
+    return () => {
+      if (refreshTimeoutRef.current) {
+        clearTimeout(refreshTimeoutRef.current);
+      }
+    };
+  }, [selectedJob, isLoading, onRefresh, jobs, lastRefreshTime]);
 
   const togglePlayPause = () => {
     if (videoRef.current) {
@@ -126,9 +148,19 @@ export default function DubbingJobsList({ jobs, onRefresh, isLoading }: DubbingJ
   };
 
   const handleRefresh = () => {
+    const now = Date.now();
+    const timeSinceLastRefresh = now - lastRefreshTime;
+    
+    // Prevent refreshing too frequently (at least 3 seconds between manual refreshes)
+    if (timeSinceLastRefresh < 3000) {
+      toast.info("Please wait a moment before refreshing again");
+      return;
+    }
+    
     console.log("Manual refresh requested by user");
     toast.info("Refreshing job statuses...");
     onRefresh();
+    setLastRefreshTime(now);
   };
 
   const handleManualUrlSubmit = async () => {
