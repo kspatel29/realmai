@@ -156,14 +156,17 @@ const Subtitles = () => {
           <UploadTab
             isUploading={isUploading}
             setIsUploading={setIsUploading}
-            onFileUploaded={(file) => {
-              const fileReader = new FileReader();
-              fileReader.onload = (e) => {
-                if (e.target?.result && typeof e.target.result === 'string') {
-                  handleFileUploaded(file, e.target.result);
-                }
-              };
-              fileReader.readAsDataURL(file);
+            onFileUploaded={(file: File) => {
+              return new Promise<void>((resolve) => {
+                const fileReader = new FileReader();
+                fileReader.onload = (e) => {
+                  if (e.target?.result && typeof e.target.result === 'string') {
+                    handleFileUploaded(file, e.target.result);
+                  }
+                  resolve();
+                };
+                fileReader.readAsDataURL(file);
+              });
             }}
           />
         </TabsContent>

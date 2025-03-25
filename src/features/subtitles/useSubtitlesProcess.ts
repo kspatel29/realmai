@@ -28,7 +28,7 @@ export const useSubtitlesProcess = () => {
   // Audio/video element to get duration
   const audioRef = useRef<HTMLAudioElement | null>(null);
   
-  const { useCredits } = useCredits();
+  const { useCredits: spendCredits } = useCredits();
   const { jobs, refreshJobs } = useSubtitleJobs();
   
   // Create mutations for subtitle job operations
@@ -137,7 +137,7 @@ export const useSubtitlesProcess = () => {
     
     try {
       // Deduct credits
-      const creditResult = await useCredits.mutateAsync({
+      const creditResult = await spendCredits.mutateAsync({
         amount: creditCost,
         service: "Subtitle Generation",
         description: `Generated subtitles for "${uploadedFileName}"`
