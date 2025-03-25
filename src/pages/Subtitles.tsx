@@ -18,6 +18,7 @@ const Subtitles = () => {
   const [totalCost, setTotalCost] = useState<number>(0);
   const [fileDuration, setFileDuration] = useState<number | null>(null);
   const [isCalculatingCost, setIsCalculatingCost] = useState<boolean>(false);
+  const [activeTab, setActiveTab] = useState("upload");
   
   const {
     isUploading,
@@ -36,6 +37,17 @@ const Subtitles = () => {
   } = useSubtitlesProcess();
   
   const { calculateCost } = useSubtitlesCost();
+
+  // Handle tab change enforcement
+  const handleTabChange = (value: string) => {
+    // Only allow navigation to generate tab if file is uploaded
+    if (value === "generate" && !uploadedFileUrl) {
+      sonnerToast.error("Please upload a file first");
+      return;
+    }
+    
+    setActiveTab(value);
+  };
 
   useEffect(() => {
     const updateFileDuration = async () => {
@@ -116,6 +128,15 @@ const Subtitles = () => {
     return `${minutes}m ${seconds}s`;
   };
 
+  // Go to next step after upload
+  const goToNextStep = () => {
+    if (uploadedFileUrl) {
+      setActiveTab("generate");
+    } else {
+      sonnerToast.error("Please upload a file first");
+    }
+  };
+
   return (
     <div className="space-y-8 animate-fade-in">
       <div>
@@ -133,7 +154,8 @@ const Subtitles = () => {
           </div>
           <ServiceCostDisplay 
             cost={totalCost} 
-            label={isCalculatingCost ? "calculating..." : "credits"} 
+            label="credits" 
+            isCalculating={isCalculatingCost} 
           />
         </div>
       )}
@@ -147,29 +169,42 @@ const Subtitles = () => {
         description={`This will use ${totalCost} credits to generate subtitles using the ${formValues?.model_name === "large-v2" ? "Best Quality" : "Affordable"} model.`}
       />
 
-      <Tabs defaultValue="upload" className="w-full">
+      <Tabs value={activeTab} onValueChange={handleTabChange} className="w-full">
         <TabsList className="grid grid-cols-2 w-full max-w-md">
           <TabsTrigger value="upload">Upload</TabsTrigger>
           <TabsTrigger value="generate">Generate</TabsTrigger>
         </TabsList>
         
         <TabsContent value="upload" className="mt-6">
-          <UploadTab
-            isUploading={isUploading}
-            setIsUploading={setIsUploading}
-            onFileUploaded={(file: File) => {
-              return new Promise<void>((resolve) => {
-                const fileReader = new FileReader();
-                fileReader.onload = (e) => {
-                  if (e.target?.result && typeof e.target.result === 'string') {
-                    handleFileUploaded(file, e.target.result);
-                  }
-                  resolve();
-                };
-                fileReader.readAsDataURL(file);
-              });
-            }}
-          />
+          <div className="space-y-4">
+            <UploadTab
+              isUploading={isUploading}
+              setIsUploading={setIsUploading}
+              onFileUploaded={(file: File) => {
+                return new Promise<void>((resolve) => {
+                  const fileReader = new FileReader();
+                  fileReader.onload = (e) => {
+                    if (e.target?.result && typeof e.target.result === 'string') {
+                      handleFileUploaded(file, e.target.result);
+                    }
+                    resolve();
+                  };
+                  fileReader.readAsDataURL(file);
+                });
+              }}
+            />
+            
+            {uploadedFileUrl && (
+              <div className="flex justify-end">
+                <button
+                  onClick={goToNextStep}
+                  className="px-4 py-2 rounded-md bg-youtube-red hover:bg-youtube-darkred text-white font-medium"
+                >
+                  Next Step
+                </button>
+              </div>
+            )}
+          </div>
         </TabsContent>
         
         <TabsContent value="generate" className="mt-6">

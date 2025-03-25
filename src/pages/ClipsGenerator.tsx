@@ -24,6 +24,7 @@ const ClipsGenerator = () => {
   const [endFrame, setEndFrame] = useState<string | null>(null);
   const [currentTab, setCurrentTab] = useState("upload");
   const [videoDuration, setVideoDuration] = useState<number | null>(null);
+  const [isCalculatingCost, setIsCalculatingCost] = useState(false);
 
   const { isProcessing, generatedClips, generateVideoClip, videoCost, calculateCost } = useVideoGeneration();
 
@@ -40,11 +41,31 @@ const ClipsGenerator = () => {
     },
   });
 
+  // Handle tab change enforcement
+  const handleTabChange = (value: string) => {
+    // For generate tab, either require a video file or allow text-only generation
+    if (value === "generate" && !file) {
+      // Still allow access to generate tab, as users can generate videos from text only
+      setCurrentTab(value);
+      return;
+    }
+    
+    // For preview tab, only allow if there are generated clips or if processing
+    if (value === "preview" && generatedClips.length === 0 && !isProcessing) {
+      toast("No clips generated yet. Generate a clip first.");
+      return;
+    }
+    
+    setCurrentTab(value);
+  };
+
   // Update cost when duration changes
   useEffect(() => {
     const subscription = form.watch((value, { name }) => {
       if (name === "duration" && value.duration) {
-        calculateCost(parseInt(value.duration as string));
+        setIsCalculatingCost(true);
+        calculateCost(parseInt(value.duration as string))
+          .finally(() => setIsCalculatingCost(false));
       }
     });
     
@@ -155,11 +176,14 @@ const ClipsGenerator = () => {
               )}
             </div>
           </div>
-          <ServiceCostDisplay cost={videoCost} />
+          <ServiceCostDisplay 
+            cost={videoCost} 
+            isCalculating={isCalculatingCost} 
+          />
         </div>
       )}
 
-      <Tabs value={currentTab} onValueChange={setCurrentTab} className="w-full">
+      <Tabs value={currentTab} onValueChange={handleTabChange} className="w-full">
         <TabsList className="grid grid-cols-3 w-full max-w-md">
           <TabsTrigger value="upload">Upload</TabsTrigger>
           <TabsTrigger value="generate">Generate</TabsTrigger>

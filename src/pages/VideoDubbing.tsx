@@ -35,6 +35,8 @@ const VideoDubbing = () => {
   const [fileDuration, setFileDuration] = useState<number | null>(null);
   const [totalCost, setTotalCost] = useState<number>(0);
   const [isCalculatingCost, setIsCalculatingCost] = useState(false);
+  const [creditsAlreadyAdded, setCreditsAlreadyAdded] = useState(false);
+  const [activeTab, setActiveTab] = useState("upload");
   
   const { credits, useCredits: spendCredits, hasEnoughCredits, addCreditsToUser } = useCredits();
   const { 
@@ -56,20 +58,22 @@ const VideoDubbing = () => {
   const hasAddedCreditsRef = useRef(false);
   const hasCleanedUpRef = useRef(false);
 
+  // Add credits only once and track it with state to avoid multiple notifications
   useEffect(() => {
     const developmentUserId = 'a73c1162-06ee-42b5-a50e-77f268419d4f';
     
-    if (!hasAddedCreditsRef.current) {
+    if (!hasAddedCreditsRef.current && !creditsAlreadyAdded) {
       addCreditsToUser.mutate({
         userId: developmentUserId,
         amount: 1000
       }, {
         onSuccess: () => {
           hasAddedCreditsRef.current = true;
+          setCreditsAlreadyAdded(true);
         }
       });
     }
-  }, []);
+  }, [creditsAlreadyAdded, addCreditsToUser]);
 
   useEffect(() => {
     return () => {
@@ -91,6 +95,17 @@ const VideoDubbing = () => {
       setFileDuration(null);
     }
   }, [selectedVideo]);
+
+  // Handle tab change enforcement
+  const handleTabChange = (value: string) => {
+    // Only allow navigation to dub or preview if video is selected
+    if ((value === "dub" || value === "preview") && !selectedVideo) {
+      toast.error("Please select a video first");
+      return;
+    }
+    
+    setActiveTab(value);
+  };
 
   useInterval(() => {
     if (dubbingJobs.some(job => job.status === "queued" || job.status === "running")) {
@@ -282,7 +297,7 @@ const VideoDubbing = () => {
           setTimeout(() => {
             console.log("Initial status check after job creation");
             refreshJobStatus();
-            document.querySelector('[data-radix-collection-item][value="preview"]')?.dispatchEvent(new MouseEvent('click'));
+            setActiveTab("preview");
           }, 1000);
         } catch (error) {
           console.error('Error submitting dubbing job:', error);
@@ -309,6 +324,13 @@ const VideoDubbing = () => {
     }
   };
 
+  // Move to next step in the process
+  const goToNextStep = () => {
+    if (activeTab === "upload" && selectedVideo) {
+      setActiveTab("dub");
+    }
+  };
+
   return (
     <div className="space-y-8 animate-fade-in">
       <div>
@@ -327,7 +349,7 @@ const VideoDubbing = () => {
         description={`This will use ${totalCost} credits to dub your video in ${currentForm?.target_languages?.length || 0} languages ${currentForm?.enable_voice_cloning ? 'with voice cloning' : 'with AI voice'}.`}
       />
 
-      <Tabs defaultValue="upload" className="w-full">
+      <Tabs value={activeTab} onValueChange={handleTabChange} className="w-full">
         <TabsList className="grid grid-cols-3 w-full max-w-md">
           <TabsTrigger value="upload">Select Video</TabsTrigger>
           <TabsTrigger value="dub">Dub</TabsTrigger>
@@ -544,8 +566,9 @@ const VideoDubbing = () => {
                 variant="default"
                 disabled={!selectedVideo}
                 className="bg-youtube-red hover:bg-youtube-darkred"
+                onClick={goToNextStep}
               >
-                Use This Video
+                Next Step
               </Button>
             </CardFooter>
           </Card>
@@ -572,7 +595,7 @@ const VideoDubbing = () => {
                   <Button 
                     variant="outline" 
                     className="mt-4"
-                    onClick={() => document.querySelector('[data-radix-collection-item][value="upload"]')?.dispatchEvent(new MouseEvent('click'))}
+                    onClick={() => setActiveTab("upload")}
                   >
                     Go to Select Video
                   </Button>

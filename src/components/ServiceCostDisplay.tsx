@@ -7,20 +7,23 @@ type ServiceCostDisplayProps = {
   showSummary?: boolean;
   cost?: number;
   label?: string;
+  isCalculating?: boolean;
 }
 
-const ServiceCostDisplay = ({ showSummary = true, cost, label }: ServiceCostDisplayProps) => {
+const ServiceCostDisplay = ({ showSummary = true, cost, label, isCalculating = false }: ServiceCostDisplayProps) => {
   // If we have a specific cost to display, show that instead of the full pricing table
   if (cost !== undefined) {
     // Don't display anything if cost is 0 (typically when waiting for video upload)
-    if (cost === 0) {
+    if (cost === 0 && !isCalculating) {
       return null;
     }
     
     return (
       <div className="flex items-center gap-1 text-yellow-600 bg-yellow-50 px-2 py-1 rounded-md text-sm">
         <Coins className="h-3.5 w-3.5" />
-        <span>{cost} {label || 'credits'}</span>
+        <span>
+          {isCalculating ? "Calculating..." : `${cost} ${label || 'credits'}`}
+        </span>
       </div>
     );
   }
