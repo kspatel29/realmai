@@ -60,16 +60,23 @@ serve(async (req) => {
       
       // Apply profit margin and convert to credits
       creditCost = Math.ceil(costUSD * PROFIT_MULTIPLIER * CREDIT_CONVERSION_RATE);
+      
+      console.log(`Calculated dubbing cost: ${durationMinutes} minutes with ${languageCount} languages, lipSync=${enableLipSync} = ${creditCost} credits`);
     } 
     else if (body.service === "subtitles") {
-      const { isPremiumModel } = body;
+      const { isPremiumModel, durationMinutes } = body;
       
       // Premium model costs more than base price
       const baseRate = SERVICE_PRICING.SUBTITLES.PRICE_PER_RUN;
       const costUSD = isPremiumModel ? baseRate * 1.5 : baseRate;
       
+      // If duration is provided, adjust cost based on duration
+      const durationMultiplier = durationMinutes ? Math.max(1, durationMinutes / 10) : 1;
+      
       // Apply profit margin and convert to credits
-      creditCost = Math.ceil(costUSD * PROFIT_MULTIPLIER * CREDIT_CONVERSION_RATE);
+      creditCost = Math.ceil(costUSD * durationMultiplier * PROFIT_MULTIPLIER * CREDIT_CONVERSION_RATE);
+      
+      console.log(`Calculated subtitles cost: premium=${isPremiumModel}, duration=${durationMinutes || 'not provided'} = ${creditCost} credits`);
     } 
     else if (body.service === "video_generation") {
       const { durationSeconds } = body;
@@ -79,6 +86,8 @@ serve(async (req) => {
       
       // Apply profit margin and convert to credits
       creditCost = Math.ceil(costUSD * PROFIT_MULTIPLIER * CREDIT_CONVERSION_RATE);
+      
+      console.log(`Calculated video generation cost: ${durationSeconds} seconds = ${creditCost} credits`);
     } 
     else {
       throw new Error("Invalid service specified");

@@ -1,5 +1,5 @@
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -20,6 +20,8 @@ import { SUPPORTED_LANGUAGES } from "@/services/sieveApi";
 import { Badge } from "@/components/ui/badge";
 import { Check, Globe, Info } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { calculateCostFromFileDuration } from "@/services/api/pricingService";
+import ServiceCostDisplay from "@/components/ServiceCostDisplay";
 
 // Define the form schema using Zod
 const formSchema = z.object({
@@ -41,6 +43,7 @@ interface VideoDubbingFormProps {
   isVoiceCloning: boolean;
   setIsVoiceCloning: (value: boolean) => void;
   cost: number;
+  fileDuration?: number; // Add file duration prop
 }
 
 export default function VideoDubbingForm({
@@ -49,9 +52,12 @@ export default function VideoDubbingForm({
   isVoiceCloning,
   setIsVoiceCloning,
   cost,
+  fileDuration,
 }: VideoDubbingFormProps) {
   const [selectedLanguages, setSelectedLanguages] = useState<string[]>([]);
   const [showAdvancedOptions, setShowAdvancedOptions] = useState(false);
+  const [calculatedCost, setCalculatedCost] = useState<number>(cost);
+  const [isCalculatingCost, setIsCalculatingCost] = useState<boolean>(false);
 
   const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),
@@ -59,13 +65,51 @@ export default function VideoDubbingForm({
       target_languages: [],
       enable_voice_cloning: true,
       preserve_background_audio: true,
-      enable_lipsyncing: false, // Changed from true to false
+      enable_lipsyncing: false,
       safewords: "",
       translation_dictionary: "",
       start_time: 0,
       end_time: -1,
     },
   });
+
+  // Calculate cost when relevant parameters change
+  useEffect(() => {
+    const calculateCost = async () => {
+      if (!fileDuration) {
+        setCalculatedCost(cost);
+        return;
+      }
+      
+      setIsCalculatingCost(true);
+      
+      try {
+        const durationMinutes = fileDuration / 60;
+        const enableLipSync = form.watch("enable_lipsyncing");
+        const languages = selectedLanguages;
+        
+        // Get cost based on duration and options
+        const newCost = await calculateCostFromFileDuration(
+          fileDuration,
+          "dubbing",
+          {
+            enableLipSync,
+            languages
+          }
+        );
+        
+        console.log(`Dubbing cost calculation: ${durationMinutes} minutes with ${languages.length} languages, lip sync: ${enableLipSync} = ${newCost} credits`);
+        setCalculatedCost(newCost);
+      } catch (error) {
+        console.error("Error calculating dubbing cost:", error);
+        setCalculatedCost(cost); // Fallback to default cost
+      } finally {
+        setIsCalculatingCost(false);
+      }
+    };
+    
+    calculateCost();
+  }, [fileDuration, selectedLanguages, form.watch("enable_lipsyncing"), cost]);
 
   const toggleLanguage = (language: string) => {
     setSelectedLanguages((prev) => {
@@ -89,9 +133,28 @@ export default function VideoDubbingForm({
     setIsVoiceCloning(value);
   };
 
+  // Display file duration in a readable format
+  const getReadableDuration = () => {
+    if (!fileDuration) return "";
+    
+    const minutes = Math.floor(fileDuration / 60);
+    const seconds = Math.floor(fileDuration % 60);
+    return `${minutes}m ${seconds}s`;
+  };
+
   return (
     <Form {...form}>
       <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+        {fileDuration > 0 && (
+          <div className="rounded-md bg-muted p-3 flex justify-between items-center">
+            <div>
+              <h4 className="font-medium">Video Duration</h4>
+              <p className="text-sm text-muted-foreground">{getReadableDuration()}</p>
+            </div>
+            <ServiceCostDisplay cost={calculatedCost} />
+          </div>
+        )}
+
         <div className="space-y-4">
           <FormField
             control={form.control}
@@ -276,7 +339,12 @@ export default function VideoDubbingForm({
             className="bg-youtube-red hover:bg-youtube-darkred"
             disabled={isProcessing || selectedLanguages.length === 0}
           >
-            {isProcessing ? "Processing..." : `Generate (${cost} credits)`}
+            {isProcessing 
+              ? "Processing..." 
+              : isCalculatingCost 
+                ? "Calculating cost..." 
+                : `Generate (${calculatedCost} credits)`
+            }
           </Button>
         </div>
       </form>

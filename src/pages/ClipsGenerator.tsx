@@ -10,6 +10,7 @@ import VideoUploader from "@/features/clips/components/VideoUploader";
 import FrameSelectionPanel from "@/features/clips/components/FrameSelectionPanel";
 import VideoGenerationForm, { videoGenerationSchema } from "@/features/clips/components/VideoGenerationForm";
 import ClipPreview from "@/features/clips/components/ClipPreview";
+import ServiceCostDisplay from "@/components/ServiceCostDisplay";
 
 // Hooks
 import { useVideoGeneration } from "@/features/clips/hooks/useVideoGeneration";
@@ -22,8 +23,9 @@ const ClipsGenerator = () => {
   const [startFrame, setStartFrame] = useState<string | null>(null);
   const [endFrame, setEndFrame] = useState<string | null>(null);
   const [currentTab, setCurrentTab] = useState("upload");
+  const [videoDuration, setVideoDuration] = useState<number | null>(null);
 
-  const { isProcessing, generatedClips, generateVideoClip } = useVideoGeneration();
+  const { isProcessing, generatedClips, generateVideoClip, videoCost, calculateCost } = useVideoGeneration();
 
   const form = useForm<VideoGenerationFormValues>({
     defaultValues: {
@@ -38,12 +40,40 @@ const ClipsGenerator = () => {
     },
   });
 
+  // Update cost when duration changes
+  useEffect(() => {
+    const subscription = form.watch((value, { name }) => {
+      if (name === "duration" && value.duration) {
+        calculateCost(parseInt(value.duration as string));
+      }
+    });
+    
+    return () => subscription.unsubscribe();
+  }, [form.watch, calculateCost]);
+
   useEffect(() => {
     // Save generated clips to localStorage for history
     if (generatedClips.length > 0) {
       localStorage.setItem('generatedVideoClips', JSON.stringify(generatedClips));
     }
   }, [generatedClips]);
+
+  // Get video file's duration when selected
+  useEffect(() => {
+    if (videoUrl) {
+      const video = document.createElement('video');
+      video.src = videoUrl;
+      
+      video.onloadedmetadata = () => {
+        setVideoDuration(video.duration);
+      };
+      
+      video.onerror = () => {
+        console.error("Error getting video duration");
+        setVideoDuration(null);
+      };
+    }
+  }, [videoUrl]);
 
   const handleVideoSelected = (selectedFile: File, url: string) => {
     setFile(selectedFile);
@@ -93,6 +123,15 @@ const ClipsGenerator = () => {
     );
   };
 
+  // Display file duration in a readable format
+  const getReadableDuration = () => {
+    if (!videoDuration) return "";
+    
+    const minutes = Math.floor(videoDuration / 60);
+    const seconds = Math.floor(videoDuration % 60);
+    return `${minutes}m ${seconds}s`;
+  };
+
   return (
     <div className="space-y-8 animate-fade-in">
       <div>
@@ -101,6 +140,24 @@ const ClipsGenerator = () => {
           Create stunning short videos from text prompts or customize existing videos.
         </p>
       </div>
+
+      {currentTab === "generate" && (
+        <div className="flex justify-between items-center rounded-md bg-muted p-3">
+          <div className="flex flex-col">
+            <div className="font-medium">
+              {file ? "Selected Video" : "Output Video"}
+            </div>
+            <div className="text-sm text-muted-foreground">
+              {file ? (
+                <>Duration: {getReadableDuration()}</>
+              ) : (
+                <>Duration: {form.watch("duration")}s</>
+              )}
+            </div>
+          </div>
+          <ServiceCostDisplay cost={videoCost} />
+        </div>
+      )}
 
       <Tabs value={currentTab} onValueChange={setCurrentTab} className="w-full">
         <TabsList className="grid grid-cols-3 w-full max-w-md">
@@ -129,6 +186,7 @@ const ClipsGenerator = () => {
                 onSubmit={handleGenerateClips}
                 onStartFrameUpload={handleStartFrameUpload}
                 onEndFrameUpload={handleEndFrameUpload}
+                cost={videoCost}
               />
             </div>
 

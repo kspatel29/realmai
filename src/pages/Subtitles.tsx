@@ -9,11 +9,15 @@ import UploadTab from "@/features/subtitles/UploadTab";
 import GenerateTab from "@/features/subtitles/GenerateTab";
 import DownloadTab from "@/features/subtitles/DownloadTab";
 import { toast as sonnerToast } from "sonner";
+import { calculateCostFromFileDuration } from "@/services/api/pricingService";
+import ServiceCostDisplay from "@/components/ServiceCostDisplay";
 
 const Subtitles = () => {
   const [showCreditConfirm, setShowCreditConfirm] = useState(false);
   const [formValues, setFormValues] = useState<SubtitlesFormValues | null>(null);
   const [totalCost, setTotalCost] = useState<number>(0);
+  const [fileDuration, setFileDuration] = useState<number | null>(null);
+  const [isCalculatingCost, setIsCalculatingCost] = useState<boolean>(false);
   
   const {
     isUploading,
@@ -27,24 +31,68 @@ const Subtitles = () => {
     setEditableText,
     estimatedWaitTime,
     handleFileUploaded,
-    processSubtitles
+    processSubtitles,
+    getUploadedFileDuration
   } = useSubtitlesProcess();
   
   const { calculateCost } = useSubtitlesCost();
 
-  // Update cost when form values change
+  // Get file duration when a file is uploaded
   useEffect(() => {
-    const updateCost = async () => {
-      if (formValues?.model_name) {
-        const cost = await calculateCost(formValues.model_name);
-        setTotalCost(cost);
-      } else {
-        const cost = await calculateCost();
-        setTotalCost(cost);
+    const updateFileDuration = async () => {
+      if (uploadedFileUrl) {
+        try {
+          const duration = await getUploadedFileDuration();
+          setFileDuration(duration);
+        } catch (error) {
+          console.error("Error getting file duration:", error);
+        }
       }
     };
+    
+    updateFileDuration();
+  }, [uploadedFileUrl, getUploadedFileDuration]);
+
+  // Update cost when form values or file duration change
+  useEffect(() => {
+    const updateCost = async () => {
+      if (!formValues) {
+        const cost = await calculateCost();
+        setTotalCost(cost);
+        return;
+      }
+      
+      setIsCalculatingCost(true);
+      
+      try {
+        if (fileDuration) {
+          // Calculate cost based on file duration
+          const isPremiumModel = formValues.model_name === "large-v2";
+          
+          const cost = await calculateCostFromFileDuration(
+            fileDuration,
+            "subtitles",
+            { isPremiumModel }
+          );
+          
+          console.log(`Subtitles cost for ${fileDuration}s video with ${isPremiumModel ? "premium" : "basic"} model: ${cost} credits`);
+          setTotalCost(cost);
+        } else {
+          // Fallback to basic calculation
+          const cost = await calculateCost(formValues.model_name);
+          setTotalCost(cost);
+        }
+      } catch (error) {
+        console.error("Error calculating subtitles cost:", error);
+        const cost = await calculateCost(formValues.model_name);
+        setTotalCost(cost);
+      } finally {
+        setIsCalculatingCost(false);
+      }
+    };
+    
     updateCost();
-  }, [formValues, calculateCost]);
+  }, [formValues, fileDuration, calculateCost]);
 
   const handleGenerateSubtitles = (values: SubtitlesFormValues) => {
     console.log("Generate subtitles with file URL:", uploadedFileUrl);
@@ -60,9 +108,17 @@ const Subtitles = () => {
 
   const confirmAndProcess = async () => {
     if (formValues) {
-      const cost = await calculateCost(formValues.model_name);
-      processSubtitles(formValues, cost);
+      processSubtitles(formValues, totalCost);
     }
+  };
+  
+  // Display file duration in a readable format
+  const getReadableDuration = () => {
+    if (!fileDuration) return "";
+    
+    const minutes = Math.floor(fileDuration / 60);
+    const seconds = Math.floor(fileDuration % 60);
+    return `${minutes}m ${seconds}s`;
   };
 
   return (
@@ -73,6 +129,19 @@ const Subtitles = () => {
           Create accurate subtitles from audio files automatically.
         </p>
       </div>
+
+      {fileDuration && (
+        <div className="rounded-md bg-muted p-3 flex justify-between items-center">
+          <div>
+            <h4 className="font-medium">Audio/Video Duration</h4>
+            <p className="text-sm text-muted-foreground">{getReadableDuration()}</p>
+          </div>
+          <ServiceCostDisplay 
+            cost={totalCost} 
+            label={isCalculatingCost ? "calculating..." : "credits"} 
+          />
+        </div>
+      )}
 
       <CreditConfirmDialog
         open={showCreditConfirm}

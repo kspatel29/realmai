@@ -5,7 +5,7 @@ import { ClipData } from "../components/ClipPreview";
 import { useToast } from "@/hooks/use-toast";
 import { useCredits } from "@/hooks/credits";
 import { createReplicateVideoClip } from "@/services/replicateService";
-import { calculateVideoGenerationCost } from "@/services/api/pricingService";
+import { calculateVideoGenerationCost, calculateCostFromFileDuration } from "@/services/api/pricingService";
 import { SERVICE_CREDIT_COSTS } from "@/constants/pricing";
 
 export const useVideoGeneration = () => {
@@ -18,7 +18,11 @@ export const useVideoGeneration = () => {
   const calculateCost = async (durationSeconds: number): Promise<number> => {
     try {
       // Try to get cost from the edge function
-      const cost = await calculateVideoGenerationCost(durationSeconds);
+      const cost = await calculateCostFromFileDuration(
+        durationSeconds,
+        "video_generation"
+      );
+      console.log(`Video generation cost for ${durationSeconds}s: ${cost} credits`);
       setVideoCost(cost);
       return cost;
     } catch (error) {

@@ -21,6 +21,16 @@ export interface CreditPackagePurchase {
   userId: string;
 }
 
+// Interface for duration-based cost calculation
+export interface DurationCostParams {
+  durationMinutes?: number;
+  durationSeconds?: number;
+  service: "dubbing" | "subtitles" | "video_generation";
+  enableLipSync?: boolean;
+  isPremiumModel?: boolean;
+  languages?: string[];
+}
+
 export const stripeService = {
   // Create a payment intent for purchasing credits
   createPaymentIntent: async (purchase: CreditPackagePurchase): Promise<PaymentIntentResponse> => {
@@ -51,6 +61,61 @@ export const stripeService = {
     } catch (error) {
       console.error('Error creating payment intent:', error);
       throw error;
+    }
+  },
+  
+  // Calculate cost based on file duration and service type
+  calculateCostFromDuration: async (params: DurationCostParams): Promise<number> => {
+    try {
+      console.log("Calculating cost from duration:", params);
+      const startTime = Date.now();
+      
+      const { data, error } = await supabase.functions.invoke('calculate-costs', {
+        body: params
+      });
+      
+      const duration = Date.now() - startTime;
+      console.log(`Cost calculation responded in ${duration}ms`);
+      
+      if (error) {
+        console.error("Cost calculation error:", error);
+        throw new Error(error.message);
+      }
+      
+      if (!data || typeof data.creditCost !== 'number') {
+        console.error("Invalid cost calculation response:", data);
+        throw new Error("Invalid response from cost calculation service");
+      }
+      
+      console.log("Cost calculation result:", data);
+      return data.creditCost;
+    } catch (error) {
+      console.error('Error calculating cost from duration:', error);
+      
+      // Fallback calculations if the edge function fails
+      const { CREDIT_CONVERSION_RATE, SERVICE_PRICING } = await import("@/constants/pricing");
+      const PROFIT_MULTIPLIER = 2;
+      
+      if (params.service === "dubbing" && params.durationMinutes) {
+        const baseRatePerMinute = params.enableLipSync 
+          ? SERVICE_PRICING.DUBBING.LIPSYNC_PRICE_PER_MINUTE 
+          : SERVICE_PRICING.DUBBING.BASE_PRICE_PER_MINUTE;
+        
+        const languageCount = params.languages?.length || 1;
+        const costUSD = baseRatePerMinute * params.durationMinutes * languageCount;
+        return Math.ceil(costUSD * PROFIT_MULTIPLIER * CREDIT_CONVERSION_RATE);
+      } 
+      else if (params.service === "subtitles") {
+        const baseRate = SERVICE_PRICING.SUBTITLES.PRICE_PER_RUN;
+        const costUSD = params.isPremiumModel ? baseRate * 1.5 : baseRate;
+        return Math.ceil(costUSD * PROFIT_MULTIPLIER * CREDIT_CONVERSION_RATE);
+      } 
+      else if (params.service === "video_generation" && params.durationSeconds) {
+        const costUSD = SERVICE_PRICING.VIDEO_GENERATION.PRICE_PER_SECOND * params.durationSeconds;
+        return Math.ceil(costUSD * PROFIT_MULTIPLIER * CREDIT_CONVERSION_RATE);
+      }
+      
+      return 0;
     }
   },
   
