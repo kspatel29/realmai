@@ -126,6 +126,18 @@ export const calculateCostFromFileDuration = async (
     } 
     else if (service === "subtitles") {
       const { isPremiumModel } = additionalParams;
+      
+      // Calculate based on duration for subtitles
+      if (durationMinutes) {
+        const baseCost = isPremiumModel 
+          ? SERVICE_CREDIT_COSTS.SUBTITLES.PREMIUM_CREDITS
+          : SERVICE_CREDIT_COSTS.SUBTITLES.BASE_CREDITS;
+        
+        // Scale cost based on duration (minimum 1x)
+        const durationMultiplier = Math.max(1, durationMinutes / 10);
+        return Math.ceil(baseCost * durationMultiplier);
+      }
+      
       return isPremiumModel 
         ? SERVICE_CREDIT_COSTS.SUBTITLES.PREMIUM_CREDITS
         : SERVICE_CREDIT_COSTS.SUBTITLES.BASE_CREDITS;

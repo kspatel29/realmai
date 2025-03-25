@@ -156,7 +156,7 @@ export const useSubtitlesProcess = () => {
       const job = await createSubtitleJob.mutateAsync(jobData);
       console.log("Subtitle job created:", job);
       
-      // Generate subtitles - fix the parameter mismatch
+      // Generate subtitles
       const result = await generateSubtitles({
         audioPath: uploadedFileUrl,
         modelName: values.model_name,
