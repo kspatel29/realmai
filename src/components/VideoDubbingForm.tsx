@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
@@ -43,7 +42,7 @@ interface VideoDubbingFormProps {
   isVoiceCloning: boolean;
   setIsVoiceCloning: (value: boolean) => void;
   cost: number;
-  fileDuration?: number; // Add file duration prop
+  fileDuration?: number;
 }
 
 export default function VideoDubbingForm({
@@ -56,7 +55,7 @@ export default function VideoDubbingForm({
 }: VideoDubbingFormProps) {
   const [selectedLanguages, setSelectedLanguages] = useState<string[]>([]);
   const [showAdvancedOptions, setShowAdvancedOptions] = useState(false);
-  const [calculatedCost, setCalculatedCost] = useState<number>(cost);
+  const [calculatedCost, setCalculatedCost] = useState<number>(0);
   const [isCalculatingCost, setIsCalculatingCost] = useState<boolean>(false);
 
   const form = useForm<FormValues>({
@@ -77,14 +76,13 @@ export default function VideoDubbingForm({
   useEffect(() => {
     const calculateCost = async () => {
       if (!fileDuration) {
-        setCalculatedCost(cost);
+        setCalculatedCost(0);
         return;
       }
       
       setIsCalculatingCost(true);
       
       try {
-        const durationMinutes = fileDuration / 60;
         const enableLipSync = form.watch("enable_lipsyncing");
         const languages = selectedLanguages;
         
@@ -98,11 +96,11 @@ export default function VideoDubbingForm({
           }
         );
         
-        console.log(`Dubbing cost calculation: ${durationMinutes} minutes with ${languages.length} languages, lip sync: ${enableLipSync} = ${newCost} credits`);
+        console.log(`Dubbing cost calculation: ${fileDuration/60} minutes with ${languages.length} languages, lip sync: ${enableLipSync} = ${newCost} credits`);
         setCalculatedCost(newCost);
       } catch (error) {
         console.error("Error calculating dubbing cost:", error);
-        setCalculatedCost(cost); // Fallback to default cost
+        setCalculatedCost(cost); // Fallback to provided cost
       } finally {
         setIsCalculatingCost(false);
       }
@@ -145,15 +143,20 @@ export default function VideoDubbingForm({
   return (
     <Form {...form}>
       <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
-        {fileDuration > 0 && (
+        {fileDuration ? (
           <div className="rounded-md bg-muted p-3 flex justify-between items-center">
             <div>
               <h4 className="font-medium">Video Duration</h4>
               <p className="text-sm text-muted-foreground">{getReadableDuration()}</p>
             </div>
-            <ServiceCostDisplay cost={calculatedCost} />
+            {calculatedCost > 0 && (
+              <ServiceCostDisplay 
+                cost={calculatedCost} 
+                label={isCalculatingCost ? "calculating..." : "credits"} 
+              />
+            )}
           </div>
-        )}
+        ) : null}
 
         <div className="space-y-4">
           <FormField
@@ -337,13 +340,15 @@ export default function VideoDubbingForm({
           <Button
             type="submit"
             className="bg-youtube-red hover:bg-youtube-darkred"
-            disabled={isProcessing || selectedLanguages.length === 0}
+            disabled={isProcessing || selectedLanguages.length === 0 || calculatedCost === 0}
           >
             {isProcessing 
               ? "Processing..." 
               : isCalculatingCost 
                 ? "Calculating cost..." 
-                : `Generate (${calculatedCost} credits)`
+                : fileDuration && calculatedCost > 0
+                  ? `Generate (${calculatedCost} credits)`
+                  : "Generate"
             }
           </Button>
         </div>

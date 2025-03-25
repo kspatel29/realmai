@@ -1,3 +1,4 @@
+
 import { useState, useEffect, useRef } from "react";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -17,12 +18,7 @@ import VideoDubbingForm from "@/components/VideoDubbingForm";
 import DubbingJobsList from "@/components/DubbingJobsList";
 import { submitVideoDubbing } from "@/services/api";
 import { useInterval } from "@/hooks/useInterval";
-
-const CREDIT_COSTS = {
-  BASE_COST: 5,
-  PER_LANGUAGE: 3,
-  VOICE_CLONE: 5,
-};
+import { calculateCostFromFileDuration } from "@/services/api/pricingService";
 
 const VideoDubbing = () => {
   const { user } = useAuth();
@@ -36,6 +32,9 @@ const VideoDubbing = () => {
   const [uploadDialogOpen, setUploadDialogOpen] = useState(false);
   const [videoSelectOpen, setVideoSelectOpen] = useState(false);
   const [currentForm, setCurrentForm] = useState<any>(null);
+  const [fileDuration, setFileDuration] = useState<number | null>(null);
+  const [totalCost, setTotalCost] = useState<number>(0);
+  const [isCalculatingCost, setIsCalculatingCost] = useState(false);
   
   const { credits, useCredits: spendCredits, hasEnoughCredits, addCreditsToUser } = useCredits();
   const { 
@@ -89,6 +88,7 @@ const VideoDubbing = () => {
       loadVideoURL(selectedVideo);
     } else {
       setVideoURL(null);
+      setFileDuration(null);
     }
   }, [selectedVideo]);
 
@@ -122,11 +122,61 @@ const VideoDubbing = () => {
       }
       
       setVideoURL(data.signedUrl);
+      
+      // Get video duration
+      const videoElement = document.createElement('video');
+      videoElement.src = data.signedUrl;
+      
+      videoElement.onloadedmetadata = () => {
+        console.log(`Video duration loaded: ${videoElement.duration} seconds`);
+        setFileDuration(videoElement.duration);
+      };
+      
+      videoElement.onerror = () => {
+        console.error('Error loading video metadata');
+        toast.error('Could not determine video duration');
+      };
     } catch (error) {
       console.error('Error loading video URL:', error);
       toast.error('Failed to load video');
     }
   };
+
+  // Calculate cost whenever duration or form values change
+  useEffect(() => {
+    const updateCost = async () => {
+      if (!fileDuration || !currentForm) {
+        // Don't show any cost if we don't have duration or form values
+        return;
+      }
+      
+      setIsCalculatingCost(true);
+      
+      try {
+        const enableLipSync = currentForm.enable_lipsyncing || false;
+        const languages = currentForm.target_languages || [];
+        
+        // Calculate cost based on duration and options
+        const cost = await calculateCostFromFileDuration(
+          fileDuration,
+          "dubbing",
+          {
+            enableLipSync,
+            languages
+          }
+        );
+        
+        console.log(`Dubbing cost calculation: ${fileDuration/60} minutes with ${languages.length} languages, lip sync: ${enableLipSync} = ${cost} credits`);
+        setTotalCost(cost);
+      } catch (error) {
+        console.error("Error calculating dubbing cost:", error);
+      } finally {
+        setIsCalculatingCost(false);
+      }
+    };
+    
+    updateCost();
+  }, [fileDuration, currentForm]);
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
@@ -168,23 +218,6 @@ const VideoDubbing = () => {
     }
   };
 
-  const calculateCost = (): number => {
-    if (!selectedVideo || !currentForm) return CREDIT_COSTS.BASE_COST;
-    
-    const numLanguages = currentForm.target_languages?.length || 0;
-    
-    let totalCost = CREDIT_COSTS.BASE_COST;
-    totalCost += numLanguages * CREDIT_COSTS.PER_LANGUAGE;
-    
-    if (currentForm.enable_voice_cloning) {
-      totalCost += CREDIT_COSTS.VOICE_CLONE;
-    }
-    
-    return totalCost;
-  };
-
-  const totalCost = calculateCost();
-
   const handleProcessVideo = (formValues: any) => {
     if (!selectedVideo) {
       toast.error("Please select a video first.");
@@ -203,10 +236,8 @@ const VideoDubbing = () => {
   const confirmAndProcess = async () => {
     if (!videoURL || !currentForm || !selectedVideo) return;
     
-    const cost = calculateCost();
-    
     spendCredits.mutate({
-      amount: cost,
+      amount: totalCost,
       service: "Video Dubbing",
       description: `Dubbed video in ${currentForm.target_languages.length} languages, ${isVoiceCloning ? 'with voice cloning' : 'with AI voice'}`
     }, {
@@ -523,18 +554,10 @@ const VideoDubbing = () => {
         <TabsContent value="dub" className="mt-6">
           <Card>
             <CardHeader>
-              <div className="flex justify-between items-start">
-                <div>
-                  <CardTitle>Dubbing Settings</CardTitle>
-                  <CardDescription>
-                    Configure languages and voice settings for your video
-                  </CardDescription>
-                </div>
-                <ServiceCostDisplay 
-                  cost={totalCost} 
-                  label="Estimated cost" 
-                />
-              </div>
+              <CardTitle>Dubbing Settings</CardTitle>
+              <CardDescription>
+                Configure languages and voice settings for your video
+              </CardDescription>
             </CardHeader>
             <CardContent>
               {!selectedVideo ? (
@@ -561,6 +584,7 @@ const VideoDubbing = () => {
                   isVoiceCloning={isVoiceCloning}
                   setIsVoiceCloning={setIsVoiceCloning}
                   cost={totalCost}
+                  fileDuration={fileDuration || undefined}
                 />
               )}
             </CardContent>

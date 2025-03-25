@@ -32,7 +32,7 @@ export const calculateDubbingCost = async (
       : SERVICE_CREDIT_COSTS.DUBBING.BASE_CREDITS_PER_MINUTE;
     
     const languageCount = languages.length || 1;
-    return baseCostPerMinute * durationMinutes * languageCount;
+    return Math.ceil(baseCostPerMinute * durationMinutes * languageCount);
   }
 };
 
@@ -74,7 +74,7 @@ export const calculateVideoGenerationCost = async (durationSeconds: number): Pro
   } catch (error) {
     console.error("Failed to calculate video generation cost:", error);
     // Fallback calculation using local constants
-    return SERVICE_CREDIT_COSTS.VIDEO_GENERATION.CREDITS_PER_SECOND * durationSeconds;
+    return Math.ceil(SERVICE_CREDIT_COSTS.VIDEO_GENERATION.CREDITS_PER_SECOND * durationSeconds);
   }
 };
 
@@ -97,53 +97,51 @@ export const calculateCostFromFileDuration = async (
   console.log(`Calculating cost for ${service} with duration ${fileDuration} seconds:`, additionalParams);
   
   // Convert to minutes for dubbing and subtitles
-  const durationMinutes = service !== "video_generation" ? fileDuration / 60 : undefined;
-  
-  // Use seconds for video generation
-  const durationSeconds = service === "video_generation" ? fileDuration : undefined;
+  const durationMinutes = fileDuration / 60;
   
   try {
     const cost = await stripeService.calculateCostFromDuration({
       service,
-      durationMinutes,
-      durationSeconds,
+      durationMinutes: service !== "video_generation" ? durationMinutes : undefined,
+      durationSeconds: service === "video_generation" ? fileDuration : undefined,
       ...additionalParams
     });
     
+    console.log(`Cost from edge function for ${service}: ${cost} credits`);
     return cost;
   } catch (error) {
     console.error(`Failed to calculate ${service} cost:`, error);
     
     // Fallback calculations
-    if (service === "dubbing" && durationMinutes) {
+    if (service === "dubbing") {
       const { enableLipSync, languages } = additionalParams;
       const baseCostPerMinute = enableLipSync 
         ? SERVICE_CREDIT_COSTS.DUBBING.LIPSYNC_CREDITS_PER_MINUTE 
         : SERVICE_CREDIT_COSTS.DUBBING.BASE_CREDITS_PER_MINUTE;
       
       const languageCount = languages?.length || 1;
-      return Math.ceil(baseCostPerMinute * durationMinutes * languageCount);
+      const calculatedCost = Math.ceil(baseCostPerMinute * durationMinutes * languageCount);
+      console.log(`Fallback calculation for dubbing: ${baseCostPerMinute} * ${durationMinutes} min * ${languageCount} languages = ${calculatedCost} credits`);
+      return calculatedCost;
     } 
     else if (service === "subtitles") {
       const { isPremiumModel } = additionalParams;
       
       // Calculate based on duration for subtitles
-      if (durationMinutes) {
-        const baseCost = isPremiumModel 
-          ? SERVICE_CREDIT_COSTS.SUBTITLES.PREMIUM_CREDITS
-          : SERVICE_CREDIT_COSTS.SUBTITLES.BASE_CREDITS;
-        
-        // Scale cost based on duration (minimum 1x)
-        const durationMultiplier = Math.max(1, durationMinutes / 10);
-        return Math.ceil(baseCost * durationMultiplier);
-      }
-      
-      return isPremiumModel 
+      const baseCost = isPremiumModel 
         ? SERVICE_CREDIT_COSTS.SUBTITLES.PREMIUM_CREDITS
         : SERVICE_CREDIT_COSTS.SUBTITLES.BASE_CREDITS;
+      
+      // Scale cost based on duration (minimum 1x)
+      const durationMultiplier = Math.max(1, durationMinutes / 10);
+      const calculatedCost = Math.ceil(baseCost * durationMultiplier);
+      console.log(`Fallback calculation for subtitles: ${baseCost} * ${durationMultiplier} duration multiplier = ${calculatedCost} credits`);
+      return calculatedCost;
     } 
-    else if (service === "video_generation" && durationSeconds) {
-      return Math.ceil(SERVICE_CREDIT_COSTS.VIDEO_GENERATION.CREDITS_PER_SECOND * durationSeconds);
+    else if (service === "video_generation") {
+      const calculatedCost = Math.ceil(SERVICE_CREDIT_COSTS.VIDEO_GENERATION.CREDITS_PER_SECOND * fileDuration);
+      console.log(`Fallback calculation for video generation: ${SERVICE_CREDIT_COSTS.VIDEO_GENERATION.CREDITS_PER_SECOND} * ${fileDuration} sec = ${calculatedCost} credits`);
+      return calculatedCost;
     }
     
     return 0;
