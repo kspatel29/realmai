@@ -36,6 +36,7 @@ const VideoDubbing = () => {
   const [isCalculatingCost, setIsCalculatingCost] = useState(false);
   const [creditsAlreadyAdded, setCreditsAlreadyAdded] = useState(false);
   const [activeTab, setActiveTab] = useState("upload");
+  const hasCleanedUpRef = useRef(false);
   
   const { credits, useCredits: spendCredits, hasEnoughCredits, addCreditsToUser } = useCredits();
   const { 
