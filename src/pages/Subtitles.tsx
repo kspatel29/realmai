@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useSubtitlesCost } from "@/features/subtitles/useSubtitlesCost";
@@ -37,7 +36,6 @@ const Subtitles = () => {
   
   const { calculateCost } = useSubtitlesCost();
 
-  // Get file duration when a file is uploaded
   useEffect(() => {
     const updateFileDuration = async () => {
       if (uploadedFileUrl) {
@@ -53,7 +51,6 @@ const Subtitles = () => {
     updateFileDuration();
   }, [uploadedFileUrl, getUploadedFileDuration]);
 
-  // Update cost when form values or file duration change
   useEffect(() => {
     const updateCost = async () => {
       if (!formValues) {
@@ -66,7 +63,6 @@ const Subtitles = () => {
       
       try {
         if (fileDuration) {
-          // Calculate cost based on file duration
           const isPremiumModel = formValues.model_name === "large-v2";
           
           const cost = await calculateCostFromFileDuration(
@@ -78,7 +74,6 @@ const Subtitles = () => {
           console.log(`Subtitles cost for ${fileDuration}s video with ${isPremiumModel ? "premium" : "basic"} model: ${cost} credits`);
           setTotalCost(cost);
         } else {
-          // Fallback to basic calculation
           const cost = await calculateCost(formValues.model_name);
           setTotalCost(cost);
         }
@@ -112,7 +107,6 @@ const Subtitles = () => {
     }
   };
   
-  // Display file duration in a readable format
   const getReadableDuration = () => {
     if (!fileDuration) return "";
     
@@ -162,7 +156,15 @@ const Subtitles = () => {
           <UploadTab
             isUploading={isUploading}
             setIsUploading={setIsUploading}
-            onFileUploaded={handleFileUploaded}
+            onFileUploaded={(file) => {
+              const fileReader = new FileReader();
+              fileReader.onload = (e) => {
+                if (e.target?.result && typeof e.target.result === 'string') {
+                  handleFileUploaded(file, e.target.result);
+                }
+              };
+              fileReader.readAsDataURL(file);
+            }}
           />
         </TabsContent>
         

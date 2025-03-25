@@ -12,6 +12,10 @@ export interface SubtitlesResult {
   preview: string;
   srt_file: string;
   vtt_file: string;
+  srtUrl?: string;
+  vttUrl?: string;
+  text?: string;
+  error?: string;
 }
 
 export interface SubtitleJob {

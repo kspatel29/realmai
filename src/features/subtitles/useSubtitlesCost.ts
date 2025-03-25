@@ -1,5 +1,5 @@
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { CREDIT_COSTS } from "./subtitlesConstants";
 import { calculateSubtitlesCost, calculateCostFromFileDuration } from "@/services/api/pricingService";
 

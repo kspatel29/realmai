@@ -1,12 +1,14 @@
-
 import { useState, useEffect } from "react";
-import { VideoGenerationFormValues } from "../components/VideoGenerationForm";
+import { z } from "zod";
+import { videoGenerationSchema } from "../components/VideoGenerationForm";
 import { ClipData } from "../components/ClipPreview";
 import { useToast } from "@/hooks/use-toast";
 import { useCredits } from "@/hooks/credits";
 import { createReplicateVideoClip } from "@/services/replicateService";
 import { calculateVideoGenerationCost, calculateCostFromFileDuration } from "@/services/api/pricingService";
 import { SERVICE_CREDIT_COSTS } from "@/constants/pricing";
+
+type VideoGenerationFormValues = z.infer<typeof videoGenerationSchema>;
 
 export const useVideoGeneration = () => {
   const [isProcessing, setIsProcessing] = useState(false);

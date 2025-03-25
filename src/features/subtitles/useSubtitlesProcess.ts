@@ -2,9 +2,18 @@
 import { useState, useRef, useCallback } from "react";
 import { toast } from "sonner";
 import { SubtitlesFormValues } from "./subtitlesSchema";
-import { uploadAudioFile, generateSubtitles } from "@/services/api/subtitlesService";
+import { uploadAudioFile, generateSubtitles, SubtitlesResult } from "@/services/api/subtitlesService";
 import { useSubtitleJobs } from "@/hooks/useSubtitleJobs";
 import { useCredits } from "@/hooks/credits";
+import { useMutation } from "@tanstack/react-query";
+
+// Extended interface for the subtitle service response
+interface ExtendedSubtitlesResult extends SubtitlesResult {
+  srtUrl?: string;
+  vttUrl?: string;
+  text?: string;
+  error?: string;
+}
 
 export const useSubtitlesProcess = () => {
   const [isUploading, setIsUploading] = useState(false);
@@ -20,7 +29,51 @@ export const useSubtitlesProcess = () => {
   const audioRef = useRef<HTMLAudioElement | null>(null);
   
   const { useCredits } = useCredits();
-  const { createSubtitleJob, updateStatus } = useSubtitleJobs();
+  const { jobs, refreshJobs } = useSubtitleJobs();
+  
+  // Create mutations for subtitle job operations
+  const createSubtitleJob = useMutation({
+    mutationFn: async (data: {
+      file_name: string;
+      file_url: string;
+      model_name: string;
+      status: string;
+    }) => {
+      const response = await fetch('/api/subtitle-jobs', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data)
+      });
+      
+      if (!response.ok) {
+        throw new Error('Failed to create subtitle job');
+      }
+      
+      return response.json();
+    }
+  });
+  
+  const updateStatus = useMutation({
+    mutationFn: async (data: {
+      id: string;
+      status: string;
+      srt_url?: string;
+      vtt_url?: string;
+      raw_text?: string;
+    }) => {
+      const response = await fetch(`/api/subtitle-jobs/${data.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data)
+      });
+      
+      if (!response.ok) {
+        throw new Error('Failed to update subtitle job status');
+      }
+      
+      return response.json();
+    }
+  });
   
   // Function to get file duration
   const getUploadedFileDuration = useCallback(async (): Promise<number> => {
@@ -103,30 +156,34 @@ export const useSubtitlesProcess = () => {
       const job = await createSubtitleJob.mutateAsync(jobData);
       console.log("Subtitle job created:", job);
       
-      // Generate subtitles
+      // Generate subtitles - fix the parameter mismatch
       const result = await generateSubtitles({
-        audioUrl: uploadedFileUrl,
+        audioPath: uploadedFileUrl,
         modelName: values.model_name,
-        jobId: job.id
+        language: values.language,
+        vadFilter: values.vad_filter
       });
       
-      if (result.error) {
-        throw new Error(result.error);
+      // Cast the result to the extended interface with our additional properties
+      const extendedResult = result as ExtendedSubtitlesResult;
+      
+      if (extendedResult.error) {
+        throw new Error(extendedResult.error);
       }
       
       // Update UI with results
-      console.log("Subtitles generated:", result);
-      setSrtFileUrl(result.srtUrl || "");
-      setVttFileUrl(result.vttUrl || "");
-      setEditableText(result.text || "");
+      console.log("Subtitles generated:", extendedResult);
+      setSrtFileUrl(extendedResult.srtUrl || extendedResult.srt_file || "");
+      setVttFileUrl(extendedResult.vttUrl || extendedResult.vtt_file || "");
+      setEditableText(extendedResult.text || extendedResult.preview || "");
       
       // Update job status
       await updateStatus.mutateAsync({
         id: job.id,
         status: "completed",
-        srt_url: result.srtUrl,
-        vtt_url: result.vttUrl,
-        raw_text: result.text
+        srt_url: extendedResult.srtUrl || extendedResult.srt_file,
+        vtt_url: extendedResult.vttUrl || extendedResult.vtt_file,
+        raw_text: extendedResult.text || extendedResult.preview
       });
       
       toast.success("Subtitles generated successfully");
