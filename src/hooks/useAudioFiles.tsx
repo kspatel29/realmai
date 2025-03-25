@@ -40,7 +40,8 @@ export const useAudioFiles = () => {
         throw error;
       }
       
-      return data as AudioFile[] || [];
+      // Properly cast the data to AudioFile[] type
+      return (data || []) as AudioFile[];
     },
     enabled: !!user,
   });
@@ -76,8 +77,11 @@ export const useAudioFiles = () => {
         throw audioError;
       }
       
+      // Properly cast audioRecord to AudioFile
+      const typedAudioRecord = audioRecord as AudioFile;
+      
       // Upload the file to storage
-      const filePath = `${user.id}/${audioRecord.id}/${file.name}`;
+      const filePath = `${user.id}/${typedAudioRecord.id}/${file.name}`;
       const { error: uploadError } = await supabase.storage
         .from('audio')
         .upload(filePath, file);
@@ -89,7 +93,7 @@ export const useAudioFiles = () => {
         await supabase
           .from('audio_files' as any)
           .update({ status: 'failed' })
-          .eq('id', audioRecord.id);
+          .eq('id', typedAudioRecord.id);
           
         throw uploadError;
       }
@@ -101,14 +105,14 @@ export const useAudioFiles = () => {
           status: 'ready',
           updated_at: new Date().toISOString()
         })
-        .eq('id', audioRecord.id);
+        .eq('id', typedAudioRecord.id);
       
       if (updateError) {
         console.error('Error updating audio status:', updateError);
         throw updateError;
       }
       
-      return audioRecord;
+      return typedAudioRecord;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['audioFiles', user?.id] });
@@ -136,9 +140,12 @@ export const useAudioFiles = () => {
           throw fetchError;
         }
         
+        // Properly cast audioRecord to AudioFile
+        const typedAudioRecord = audioRecord as AudioFile;
+        
         // Delete the file from storage if it exists
-        if (audioRecord.filename) {
-          const filePath = `${user.id}/${audioId}/${audioRecord.filename}`;
+        if (typedAudioRecord.filename) {
+          const filePath = `${user.id}/${audioId}/${typedAudioRecord.filename}`;
           const { error: storageError } = await supabase.storage
             .from('audio')
             .remove([filePath]);
