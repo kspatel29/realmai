@@ -1,32 +1,50 @@
-
 import { useState, useEffect } from "react";
 import { loadStripe } from "@stripe/stripe-js";
 import type { Appearance, StripeElementsOptions } from '@stripe/stripe-js';
-
-// Use the publishable key directly for client-side operations
-const STRIPE_PUBLIC_KEY = "pk_test_51QRqRsRuznwovkUGautChTNVygE1HbSKiUgJc4frQjLeDYFF6Mq5BIHfqau9ribQgRSq7XRnSCDDmyGejFdXiafp00H5h8vS27";
+import { supabase } from "@/integrations/supabase/client";
+import { toast } from "sonner";
 
 export const useStripeSetup = () => {
-  const [stripePromise, setStripePromise] = useState(() => {
-    try {
-      console.log("Initializing Stripe with public key:", STRIPE_PUBLIC_KEY);
-      return loadStripe(STRIPE_PUBLIC_KEY);
-    } catch (error) {
-      console.error("Error loading Stripe:", error);
-      return null;
-    }
-  });
-  
+  const [stripePromise, setStripePromise] = useState<ReturnType<typeof loadStripe> | null>(null);
   const [stripeInitialized, setStripeInitialized] = useState(false);
   
   useEffect(() => {
-    if (stripePromise) {
-      console.log("Stripe initialization successful");
-      setStripeInitialized(true);
-    } else {
-      console.error("Failed to initialize Stripe with key:", STRIPE_PUBLIC_KEY);
-    }
-  }, [stripePromise]);
+    const fetchStripeConfig = async () => {
+      try {
+        console.log("Fetching Stripe configuration...");
+        const { data, error } = await supabase.functions.invoke('get-stripe-config');
+        
+        if (error) {
+          console.error("Error retrieving Stripe configuration:", error);
+          toast.error("Failed to load payment provider. Please try again later.");
+          return;
+        }
+        
+        if (!data || !data.publishableKey) {
+          console.error("Invalid Stripe configuration response:", data);
+          toast.error("Payment system misconfigured. Please contact support.");
+          return;
+        }
+        
+        console.log("Initializing Stripe with public key:", data.publishableKey.substring(0, 8) + "...");
+        const stripeInstance = await loadStripe(data.publishableKey);
+        
+        if (stripeInstance) {
+          setStripePromise(stripeInstance);
+          setStripeInitialized(true);
+          console.log("Stripe initialization successful");
+        } else {
+          console.error("Failed to initialize Stripe");
+          toast.error("Failed to initialize payment provider. Please try again later.");
+        }
+      } catch (error) {
+        console.error("Error setting up Stripe:", error);
+        toast.error("Payment system error. Please try again later.");
+      }
+    };
+    
+    fetchStripeConfig();
+  }, []);
 
   const getStripeElementsOptions = (clientSecret: string | null): StripeElementsOptions => {
     const appearance: Appearance = {

@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
@@ -13,7 +12,6 @@ import { useSearchParams } from "react-router-dom";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { AlertCircle } from "lucide-react";
 
-// Import the refactored components and hooks
 import PaymentMethodForm from "@/features/billing/components/PaymentMethodForm";
 import ChangePlanForm from "@/features/billing/components/ChangePlanForm";
 import CheckoutForm from "@/features/billing/components/CheckoutForm";
@@ -60,7 +58,6 @@ const Billing = () => {
   const [selectedPlanForChange, setSelectedPlanForChange] = useState<typeof SUBSCRIPTION_PLANS[0] | null>(null);
   const [showSuccessAlert, setShowSuccessAlert] = useState(false);
   
-  // Check if we've returned from Stripe Checkout
   useEffect(() => {
     const success = searchParams.get('success');
     const sessionId = searchParams.get('session_id');
