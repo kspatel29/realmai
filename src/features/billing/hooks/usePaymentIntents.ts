@@ -1,17 +1,63 @@
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { useSearchParams } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
 import { stripeService } from "@/services/api/stripeService";
 import { toast } from "sonner";
-import { CREDIT_PACKAGES } from "@/constants/pricing";
+import { CREDIT_PACKAGES, SUBSCRIPTION_PLANS } from "@/constants/pricing";
 
 export const usePaymentIntents = (checkPaymentMethod: () => Promise<void>, fetchPaymentHistory: () => Promise<void>) => {
   const { user } = useAuth();
+  const [searchParams, setSearchParams] = useSearchParams();
   const [selectedPackage, setSelectedPackage] = useState<typeof CREDIT_PACKAGES[0] | null>(null);
   const [paymentIntent, setPaymentIntent] = useState<{ clientSecret: string, id: string } | null>(null);
   const [setupIntent, setSetupIntent] = useState<{ clientSecret: string } | null>(null);
   const [isLoading, setIsLoading] = useState(false);
+  const [isProcessingCheckout, setIsProcessingCheckout] = useState(false);
   const [elementsKey, setElementsKey] = useState<string>(`setup-intent-${Date.now()}`);
+
+  // Check for return from checkout session
+  useEffect(() => {
+    const sessionId = searchParams.get('session_id');
+    const success = searchParams.get('success');
+    const canceled = searchParams.get('canceled');
+    
+    if (sessionId && success === 'true' && !isProcessingCheckout) {
+      setIsProcessingCheckout(true);
+      // Handle successful checkout
+      stripeService.verifyCheckoutSession(sessionId)
+        .then(result => {
+          if (result.success) {
+            toast.success(result.message || 'Payment completed successfully!');
+            fetchPaymentHistory();
+          } else {
+            toast.error(result.message || 'Payment was not completed.');
+          }
+        })
+        .catch(error => {
+          console.error('Error processing checkout result:', error);
+          toast.error('Failed to process payment confirmation.');
+        })
+        .finally(() => {
+          // Clear URL parameters
+          setSearchParams({});
+          setIsProcessingCheckout(false);
+        });
+    } else if (canceled === 'true') {
+      toast.info('Payment was canceled.');
+      // Clear URL parameters
+      setSearchParams({});
+    }
+  }, [searchParams, fetchPaymentHistory, isProcessingCheckout, setSearchParams]);
+
+  const redirectToCheckout = async (url: string) => {
+    if (!url) {
+      toast.error("Invalid checkout URL");
+      return;
+    }
+    
+    window.location.href = url;
+  };
 
   const handleBuyCredits = async (pkg: typeof CREDIT_PACKAGES[0]) => {
     if (!user) {
@@ -21,23 +67,64 @@ export const usePaymentIntents = (checkPaymentMethod: () => Promise<void>, fetch
     
     try {
       setIsLoading(true);
-      console.log("Creating payment intent for package:", pkg.id);
-      const result = await stripeService.createPaymentIntent({
-        packageId: pkg.id,
-        amount: pkg.price,
-        credits: pkg.credits,
-        userId: user.id
-      });
+      console.log("Creating checkout session for package:", pkg.id);
       
-      console.log("Payment intent created successfully");
-      setPaymentIntent({
-        clientSecret: result.clientSecret,
-        id: result.paymentIntentId
-      });
-      setSelectedPackage(pkg);
+      const result = await stripeService.createCheckoutSession(
+        user.id,
+        'payment',
+        {
+          packageId: pkg.id,
+          credits: pkg.credits,
+          price: pkg.price
+        }
+      );
+      
+      if (result && result.url) {
+        redirectToCheckout(result.url);
+      } else {
+        toast.error("Failed to create checkout session");
+      }
     } catch (err) {
-      console.error("Error creating payment intent:", err);
-      toast.error("Failed to initiate payment");
+      console.error("Error creating checkout session:", err);
+      toast.error("Failed to initialize checkout");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleSubscribeToPlan = async (plan: typeof SUBSCRIPTION_PLANS[0]) => {
+    if (!user) {
+      toast.error("You must be logged in to subscribe");
+      return;
+    }
+    
+    // Skip for custom priced plans that require contacting sales
+    if (plan.price === null) {
+      toast.info("Please contact sales to subscribe to this plan");
+      return;
+    }
+    
+    try {
+      setIsLoading(true);
+      console.log("Creating checkout session for plan:", plan.id);
+      
+      const result = await stripeService.createCheckoutSession(
+        user.id,
+        'subscription',
+        {
+          subscriptionPlanId: plan.id,
+          price: plan.price
+        }
+      );
+      
+      if (result && result.url) {
+        redirectToCheckout(result.url);
+      } else {
+        toast.error("Failed to create checkout session");
+      }
+    } catch (err) {
+      console.error("Error creating checkout session:", err);
+      toast.error("Failed to initialize checkout");
     } finally {
       setIsLoading(false);
     }
@@ -46,7 +133,7 @@ export const usePaymentIntents = (checkPaymentMethod: () => Promise<void>, fetch
   const handleUpdatePayment = async () => {
     if (!user) {
       toast.error("You must be logged in to add a payment method");
-      return;
+      return false;
     }
 
     try {
@@ -97,6 +184,7 @@ export const usePaymentIntents = (checkPaymentMethod: () => Promise<void>, fetch
     isLoading,
     elementsKey,
     handleBuyCredits,
+    handleSubscribeToPlan,
     handleUpdatePayment,
     handlePaymentSuccess,
     cancelPayment,

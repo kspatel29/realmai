@@ -16,7 +16,11 @@ serve(async (req) => {
   }
 
   try {
-    const STRIPE_SECRET_KEY = "sk_test_51QRqRsRuznwovkUG5E4UBy83IwsC5bjhwawLuGg28qf16r1FxzsPapwhVRBuJu8W4uLdBkh2pbiLC9nvfPwpNmMr00Uea9zXCq";
+    const STRIPE_SECRET_KEY = Deno.env.get("STRIPE_SECRET_KEY");
+    
+    if (!STRIPE_SECRET_KEY) {
+      throw new Error("Missing STRIPE_SECRET_KEY environment variable");
+    }
 
     const stripe = new Stripe(STRIPE_SECRET_KEY, {
       apiVersion: "2023-10-16",

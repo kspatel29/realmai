@@ -17,11 +17,11 @@ serve(async (req) => {
   }
 
   try {
-    const STRIPE_SECRET_KEY = "sk_test_51QRqRsRuznwovkUG5E4UBy83IwsC5bjhwawLuGg28qf16r1FxzsPapwhVRBuJu8W4uLdBkh2pbiLC9nvfPwpNmMr00Uea9zXCq";
+    const STRIPE_SECRET_KEY = Deno.env.get("STRIPE_SECRET_KEY");
     const SUPABASE_URL = Deno.env.get("SUPABASE_URL");
     const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
     
-    if (!SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY) {
+    if (!STRIPE_SECRET_KEY || !SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY) {
       throw new Error("Missing required environment variables");
     }
 
@@ -36,7 +36,7 @@ serve(async (req) => {
     
     if (!paymentIntentId) {
       return new Response(
-        JSON.stringify({ error: "Missing payment intent ID" }),
+        JSON.stringify({ error: "Missing payment intent ID or session ID" }),
         {
           headers: { ...corsHeaders, "Content-Type": "application/json" },
           status: 400,

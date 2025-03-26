@@ -3,6 +3,7 @@ import { useState, useEffect } from "react";
 import { loadStripe } from "@stripe/stripe-js";
 import type { Appearance, StripeElementsOptions } from '@stripe/stripe-js';
 
+// Use the publishable key directly for client-side operations
 const STRIPE_PUBLIC_KEY = "pk_test_51QRqRsRuznwovkUGautChTNVygE1HbSKiUgJc4frQjLeDYFF6Mq5BIHfqau9ribQgRSq7XRnSCDDmyGejFdXiafp00H5h8vS27";
 
 export const useStripeSetup = () => {

@@ -1,5 +1,5 @@
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -9,6 +9,9 @@ import { useCredits } from "@/hooks/useCredits";
 import ServiceCostDisplay from "@/components/ServiceCostDisplay";
 import { SUBSCRIPTION_PLANS } from "@/constants/pricing";
 import { Elements } from "@stripe/react-stripe-js";
+import { useSearchParams } from "react-router-dom";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { AlertCircle } from "lucide-react";
 
 // Import the refactored components and hooks
 import PaymentMethodForm from "@/features/billing/components/PaymentMethodForm";
@@ -25,6 +28,7 @@ import { usePaymentIntents } from "@/features/billing/hooks/usePaymentIntents";
 
 const Billing = () => {
   const { credits } = useCredits();
+  const [searchParams] = useSearchParams();
   const { stripePromise, stripeInitialized, getStripeElementsOptions } = useStripeSetup();
   const { 
     transactions, 
@@ -43,6 +47,7 @@ const Billing = () => {
     setupIntent,
     elementsKey,
     handleBuyCredits,
+    handleSubscribeToPlan,
     handleUpdatePayment,
     handlePaymentSuccess,
     cancelPayment,
@@ -53,6 +58,18 @@ const Billing = () => {
   const [isPaymentMethodModalOpen, setIsPaymentMethodModalOpen] = useState(false);
   const [isChangePlanModalOpen, setIsChangePlanModalOpen] = useState(false);
   const [selectedPlanForChange, setSelectedPlanForChange] = useState<typeof SUBSCRIPTION_PLANS[0] | null>(null);
+  const [showSuccessAlert, setShowSuccessAlert] = useState(false);
+  
+  // Check if we've returned from Stripe Checkout
+  useEffect(() => {
+    const success = searchParams.get('success');
+    const sessionId = searchParams.get('session_id');
+    
+    if (success === 'true' && sessionId) {
+      setShowSuccessAlert(true);
+      setTimeout(() => setShowSuccessAlert(false), 5000);
+    }
+  }, [searchParams]);
 
   const handlePaymentMethodSuccess = () => {
     setSetupIntent(null);
@@ -61,8 +78,11 @@ const Billing = () => {
   };
 
   const handleChangePlan = (plan: typeof SUBSCRIPTION_PLANS[0]) => {
-    setSelectedPlanForChange(plan);
-    setIsChangePlanModalOpen(true);
+    if (plan.price === null) {
+      window.open('mailto:sales@yourdomain.com?subject=Enterprise Plan Inquiry', '_blank');
+      return;
+    }
+    handleSubscribeToPlan(plan);
   };
 
   const handleChangePlanSuccess = () => {
@@ -96,6 +116,15 @@ const Billing = () => {
           <span className="font-medium">{credits} credits available</span>
         </div>
       </div>
+
+      {showSuccessAlert && (
+        <Alert className="bg-green-50 border-green-200 text-green-800">
+          <AlertCircle className="h-4 w-4" />
+          <AlertDescription>
+            Payment successful! Your account has been updated.
+          </AlertDescription>
+        </Alert>
+      )}
 
       <Tabs defaultValue="credits" value={activeTab} onValueChange={setActiveTab} className="w-full">
         <TabsList className="grid grid-cols-3 w-full max-w-md">
@@ -267,6 +296,30 @@ const Billing = () => {
           )}
         </DialogContent>
       </Dialog>
+      
+      <div className="rounded-lg border p-4 bg-gray-50 mt-8">
+        <h3 className="text-lg font-medium mb-2">Test Credit Card Information</h3>
+        <p className="mb-4 text-sm text-muted-foreground">
+          Use these test card numbers to try out the payment flow:
+        </p>
+        <div className="space-y-2 text-sm">
+          <div className="flex justify-between items-center p-2 bg-white rounded border">
+            <span className="font-mono">4242 4242 4242 4242</span>
+            <span>Valid card (Payment succeeds)</span>
+          </div>
+          <div className="flex justify-between items-center p-2 bg-white rounded border">
+            <span className="font-mono">4000 0027 6000 3184</span>
+            <span>3D Secure authentication</span>
+          </div>
+          <div className="flex justify-between items-center p-2 bg-white rounded border">
+            <span className="font-mono">4000 0000 0000 9995</span>
+            <span>Insufficient funds failure</span>
+          </div>
+        </div>
+        <p className="mt-4 text-xs text-muted-foreground">
+          For any test card, use any future expiration date, any 3-digit CVC, and any postal code.
+        </p>
+      </div>
     </div>
   );
 };

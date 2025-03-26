@@ -13,11 +13,24 @@ export interface SetupIntentResponse {
   clientSecret: string;
 }
 
+// Interface for checkout session response
+export interface CheckoutSessionResponse {
+  url: string;
+  sessionId: string;
+}
+
 // Interface for credit package purchase
 export interface CreditPackagePurchase {
   packageId: string;
   amount: number;
   credits: number;
+  userId: string;
+}
+
+// Interface for subscription purchase
+export interface SubscriptionPurchase {
+  planId: string;
+  price: number;
   userId: string;
 }
 
@@ -32,7 +45,73 @@ export interface DurationCostParams {
 }
 
 export const stripeService = {
-  // Create a payment intent for purchasing credits
+  // Create a checkout session for purchasing credits
+  createCheckoutSession: async (
+    userId: string, 
+    mode: 'payment' | 'subscription', 
+    params: {
+      packageId?: string;
+      credits?: number;
+      price: number;
+      subscriptionPlanId?: string;
+    }
+  ): Promise<CheckoutSessionResponse> => {
+    try {
+      console.log("Creating checkout session:", { userId, mode, params });
+      const { data, error } = await supabase.functions.invoke('create-checkout-session', {
+        body: { 
+          userId,
+          mode,
+          ...params
+        }
+      });
+      
+      if (error) {
+        console.error("Checkout session error response:", error);
+        throw new Error(error.message);
+      }
+      
+      if (!data || !data.url || !data.sessionId) {
+        console.error("Invalid checkout session response:", data);
+        throw new Error("Invalid response from checkout service");
+      }
+      
+      console.log("Checkout session created successfully:", { 
+        sessionId: data.sessionId,
+        url: data.url.substring(0, 30) + '...'
+      });
+      
+      return data;
+    } catch (error) {
+      console.error('Error creating checkout session:', error);
+      throw error;
+    }
+  },
+  
+  // Verify a checkout session after return from Stripe
+  verifyCheckoutSession: async (sessionId: string): Promise<any> => {
+    try {
+      console.log("Verifying checkout session:", sessionId);
+      const { data, error } = await supabase.functions.invoke('verify-checkout-session', {
+        body: { 
+          sessionId 
+        }
+      });
+      
+      if (error) {
+        console.error("Session verification error response:", error);
+        throw new Error(error.message);
+      }
+      
+      console.log("Checkout session verified:", data);
+      return data;
+    } catch (error) {
+      console.error('Error verifying checkout session:', error);
+      throw error;
+    }
+  },
+  
+  // Create a payment intent for purchasing credits (legacy method)
   createPaymentIntent: async (purchase: CreditPackagePurchase): Promise<PaymentIntentResponse> => {
     try {
       console.log("Creating payment intent for purchase:", purchase);
