@@ -19,9 +19,17 @@ serve(async (req) => {
     const STRIPE_SECRET_KEY = Deno.env.get("STRIPE_SECRET_KEY");
     
     if (!STRIPE_SECRET_KEY) {
-      throw new Error("Missing STRIPE_SECRET_KEY environment variable");
+      console.error("Missing STRIPE_SECRET_KEY environment variable");
+      return new Response(
+        JSON.stringify({ error: "Missing STRIPE_SECRET_KEY environment variable" }),
+        {
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+          status: 500,
+        }
+      );
     }
     
+    console.log("Creating Stripe instance with secret key");
     const stripe = new Stripe(STRIPE_SECRET_KEY, {
       apiVersion: "2023-10-16",
       httpClient: Stripe.createFetchHttpClient(),
@@ -30,6 +38,7 @@ serve(async (req) => {
     const { mode, price, userId, packageId, credits, subscriptionPlanId } = await req.json();
     
     if (!userId) {
+      console.error("Missing user ID in request");
       return new Response(
         JSON.stringify({ error: "Missing user ID" }),
         {
@@ -39,6 +48,8 @@ serve(async (req) => {
       );
     }
 
+    console.log(`Creating checkout session for user ${userId}, mode: ${mode}`);
+    
     // Common parameters for both one-time and subscription payments
     const baseParams = {
       payment_method_types: ['card'],
@@ -54,6 +65,7 @@ serve(async (req) => {
     if (mode === 'payment') {
       // One-time payment for credit packages
       if (!packageId || !credits || !price) {
+        console.error("Missing package details", { packageId, credits, price });
         return new Response(
           JSON.stringify({ error: "Missing package information for one-time payment" }),
           {
@@ -63,6 +75,7 @@ serve(async (req) => {
         );
       }
       
+      console.log(`Creating payment session for package ${packageId}, credits: ${credits}, price: ${price}`);
       sessionParams = {
         ...baseParams,
         line_items: [
@@ -88,6 +101,7 @@ serve(async (req) => {
     } else if (mode === 'subscription') {
       // Subscription payment
       if (!subscriptionPlanId || !price) {
+        console.error("Missing subscription details", { subscriptionPlanId, price });
         return new Response(
           JSON.stringify({ error: "Missing subscription information" }),
           {
@@ -96,6 +110,8 @@ serve(async (req) => {
           }
         );
       }
+      
+      console.log(`Creating subscription session for plan ${subscriptionPlanId}, price: ${price}`);
       
       // Create or retrieve the product for this subscription plan
       const product = await stripe.products.create({
@@ -126,6 +142,7 @@ serve(async (req) => {
         },
       };
     } else {
+      console.error("Invalid mode", { mode });
       return new Response(
         JSON.stringify({ error: "Invalid mode. Must be 'payment' or 'subscription'" }),
         {
@@ -135,8 +152,11 @@ serve(async (req) => {
       );
     }
 
+    console.log("Creating checkout session with params", JSON.stringify(sessionParams, null, 2));
+    
     // Create the checkout session
     const session = await stripe.checkout.sessions.create(sessionParams);
+    console.log("Checkout session created successfully", { id: session.id, url: session.url });
 
     return new Response(
       JSON.stringify({

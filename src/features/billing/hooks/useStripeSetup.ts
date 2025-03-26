@@ -7,7 +7,16 @@ import type { Appearance, StripeElementsOptions } from '@stripe/stripe-js';
 const STRIPE_PUBLIC_KEY = "pk_test_51QRqRsRuznwovkUGautChTNVygE1HbSKiUgJc4frQjLeDYFF6Mq5BIHfqau9ribQgRSq7XRnSCDDmyGejFdXiafp00H5h8vS27";
 
 export const useStripeSetup = () => {
-  const [stripePromise, setStripePromise] = useState(() => loadStripe(STRIPE_PUBLIC_KEY));
+  const [stripePromise, setStripePromise] = useState(() => {
+    try {
+      console.log("Initializing Stripe with public key:", STRIPE_PUBLIC_KEY);
+      return loadStripe(STRIPE_PUBLIC_KEY);
+    } catch (error) {
+      console.error("Error loading Stripe:", error);
+      return null;
+    }
+  });
+  
   const [stripeInitialized, setStripeInitialized] = useState(false);
   
   useEffect(() => {
