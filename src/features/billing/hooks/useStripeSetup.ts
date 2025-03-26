@@ -1,11 +1,12 @@
+
 import { useState, useEffect } from "react";
 import { loadStripe } from "@stripe/stripe-js";
-import type { Appearance, StripeElementsOptions } from '@stripe/stripe-js';
+import type { Appearance, StripeElementsOptions, Stripe } from '@stripe/stripe-js';
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 
 export const useStripeSetup = () => {
-  const [stripePromise, setStripePromise] = useState<ReturnType<typeof loadStripe> | null>(null);
+  const [stripePromise, setStripePromise] = useState<Stripe | null>(null);
   const [stripeInitialized, setStripeInitialized] = useState(false);
   
   useEffect(() => {
