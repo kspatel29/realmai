@@ -3,7 +3,7 @@ import { useState, useEffect } from "react";
 import { loadStripe } from "@stripe/stripe-js";
 import type { Appearance, StripeElementsOptions } from '@stripe/stripe-js';
 
-const STRIPE_PUBLIC_KEY = "pk_test_51P2bUaLa9IWKTtOjlG8PpZgHxfCjg1vQ18PQtJPrSWTDvhvZqy0JGAeQzWp15aVW62HsFaHCO46sFM8kl7Rp8GmJ00mquhDVLH";
+const STRIPE_PUBLIC_KEY = "pk_test_51QRqRsRuznwovkUGautChTNVygE1HbSKiUgJc4frQjLeDYFF6Mq5BIHfqau9ribQgRSq7XRnSCDDmyGejFdXiafp00H5h8vS27";
 
 export const useStripeSetup = () => {
   const [stripePromise, setStripePromise] = useState(() => loadStripe(STRIPE_PUBLIC_KEY));

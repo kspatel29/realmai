@@ -32,6 +32,7 @@ const CheckoutForm = ({ packageInfo, onSuccess, onCancel }: CheckoutFormProps) =
     setErrorMessage(null);
 
     try {
+      console.log("Starting payment confirmation...");
       const { error, paymentIntent } = await stripe.confirmPayment({
         elements,
         confirmParams: {
@@ -41,12 +42,16 @@ const CheckoutForm = ({ packageInfo, onSuccess, onCancel }: CheckoutFormProps) =
       });
 
       if (error) {
-        setErrorMessage(error.message || "Payment failed");
         console.error("Payment error:", error);
+        setErrorMessage(error.message || "Payment failed");
       } else if (paymentIntent && paymentIntent.status === 'succeeded') {
+        console.log("Payment succeeded:", paymentIntent.id);
         await stripeService.confirmCreditPurchase(paymentIntent.id);
         toast.success(`Successfully purchased ${packageInfo.credits} credits!`);
         onSuccess();
+      } else if (paymentIntent) {
+        console.log("Payment requires additional actions:", paymentIntent.status);
+        setErrorMessage(`Payment status: ${paymentIntent.status}. Please try again.`);
       }
     } catch (err) {
       console.error('Error processing payment:', err);
@@ -65,7 +70,12 @@ const CheckoutForm = ({ packageInfo, onSuccess, onCancel }: CheckoutFormProps) =
         </div>
       )}
       
-      <PaymentElement />
+      <PaymentElement options={{
+        layout: {
+          type: 'tabs',
+          defaultCollapsed: false,
+        }
+      }} />
       
       <div className="flex items-center justify-between pt-4">
         <Button type="button" variant="ghost" onClick={onCancel} disabled={isProcessing}>

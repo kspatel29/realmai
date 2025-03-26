@@ -18,26 +18,10 @@ export const usePaymentIntents = (checkPaymentMethod: () => Promise<void>, fetch
       toast.error("You must be logged in to purchase credits");
       return;
     }
-
-    await checkPaymentMethod();
     
-    const hasPaymentMethod = await stripeService.checkPaymentMethod(user.id)
-      .then(result => result?.hasPaymentMethod || false)
-      .catch(() => false);
-    
-    if (!hasPaymentMethod) {
-      toast.error("Please add a payment method before making a purchase", {
-        description: "You'll be redirected to add a payment method.",
-        action: {
-          label: "Add Payment Method",
-          onClick: () => handleUpdatePayment(),
-        },
-      });
-      return;
-    }
-
     try {
       setIsLoading(true);
+      console.log("Creating payment intent for package:", pkg.id);
       const result = await stripeService.createPaymentIntent({
         packageId: pkg.id,
         amount: pkg.price,
@@ -45,6 +29,7 @@ export const usePaymentIntents = (checkPaymentMethod: () => Promise<void>, fetch
         userId: user.id
       });
       
+      console.log("Payment intent created successfully");
       setPaymentIntent({
         clientSecret: result.clientSecret,
         id: result.paymentIntentId

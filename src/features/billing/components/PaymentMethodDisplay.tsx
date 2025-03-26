@@ -4,12 +4,11 @@ import { CreditCard } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 interface PaymentMethodDisplayProps {
-  hasPaymentMethod: boolean;
   isLoading: boolean;
   onUpdatePayment: () => void;
 }
 
-const PaymentMethodDisplay = ({ hasPaymentMethod, isLoading, onUpdatePayment }: PaymentMethodDisplayProps) => {
+const PaymentMethodDisplay = ({ isLoading, onUpdatePayment }: PaymentMethodDisplayProps) => {
   return (
     <div className="bg-gray-50 p-4 rounded-lg flex items-center justify-between">
       <div className="flex items-center gap-3">
@@ -17,17 +16,8 @@ const PaymentMethodDisplay = ({ hasPaymentMethod, isLoading, onUpdatePayment }: 
           <CreditCard className="h-6 w-6" />
         </div>
         <div>
-          {hasPaymentMethod ? (
-            <>
-              <p className="font-medium">Payment method on file</p>
-              <p className="text-sm text-muted-foreground">Credit card ending in ****</p>
-            </>
-          ) : (
-            <>
-              <p className="font-medium">No payment method</p>
-              <p className="text-sm text-muted-foreground">Add a payment method to make purchases</p>
-            </>
-          )}
+          <p className="font-medium">Payment Method</p>
+          <p className="text-sm text-muted-foreground">Add a payment method to make purchases</p>
         </div>
       </div>
       <Button 
@@ -36,7 +26,7 @@ const PaymentMethodDisplay = ({ hasPaymentMethod, isLoading, onUpdatePayment }: 
         onClick={onUpdatePayment}
         disabled={isLoading}
       >
-        {hasPaymentMethod ? "Update" : "Add"}
+        Add Payment Method
       </Button>
     </div>
   );
