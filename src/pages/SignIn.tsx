@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useAuth } from "@/hooks/useAuth";
 import { ArrowRight } from "lucide-react";
-import { toast as sonnerToast } from "sonner";
+import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 
 const SignIn = () => {
@@ -25,17 +25,20 @@ const SignIn = () => {
     
     try {
       await login(email, password);
-      // No need to navigate here as the useAuth hook will handle the redirect
+      // No need to navigate here as the useAuth hook handles navigation
     } catch (err) {
+      console.error("SignIn error:", err);
       setError(err instanceof Error ? err.message : "Failed to login");
-      sonnerToast.error("Login failed. Please check your credentials.");
+      toast.error("Login failed. Please check your credentials.");
+    } finally {
       setIsLoading(false);
     }
   };
 
   const handleGoogleSignIn = async () => {
+    setIsLoading(true);
     try {
-      const { error } = await supabase.auth.signInWithOAuth({
+      const { data, error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
         options: {
           redirectTo: `${window.location.origin}/dashboard`,
@@ -47,9 +50,14 @@ const SignIn = () => {
       });
       
       if (error) throw error;
+      
+      // Google OAuth will handle the redirect
     } catch (err) {
+      console.error("Google sign-in error:", err);
       setError(err instanceof Error ? err.message : "Failed to sign in with Google");
-      sonnerToast.error("Google sign-in failed. Please try again.");
+      toast.error("Google sign-in failed. Please try again.");
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -79,6 +87,7 @@ const SignIn = () => {
             variant="outline"
             className="w-full h-11 flex items-center justify-center gap-2"
             onClick={handleGoogleSignIn}
+            disabled={isLoading}
           >
             <svg viewBox="0 0 24 24" width="16" height="16">
               <g transform="matrix(1, 0, 0, 1, 27.009001, -39.238998)">
@@ -88,7 +97,7 @@ const SignIn = () => {
                 <path fill="#EA4335" d="M -14.754 43.989 C -12.984 43.989 -11.404 44.599 -10.154 45.789 L -6.734 42.369 C -8.804 40.429 -11.514 39.239 -14.754 39.239 C -19.444 39.239 -23.494 41.939 -25.464 45.859 L -21.484 48.949 C -20.534 46.099 -17.884 43.989 -14.754 43.989 Z"/>
               </g>
             </svg>
-            Continue with Google
+            {isLoading ? "Please wait..." : "Continue with Google"}
           </Button>
 
           <div className="relative">
@@ -112,6 +121,7 @@ const SignIn = () => {
                   placeholder="you@example.com"
                   required
                   className="h-11"
+                  disabled={isLoading}
                 />
               </div>
               <div className="space-y-2">
@@ -129,6 +139,7 @@ const SignIn = () => {
                   placeholder="••••••••"
                   required
                   className="h-11"
+                  disabled={isLoading}
                 />
               </div>
             </div>

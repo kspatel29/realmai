@@ -1,3 +1,4 @@
+
 import { createContext, useContext, useEffect, useState, ReactNode } from "react";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
@@ -45,6 +46,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     // Set up auth state listener
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (_event, session) => {
+        console.log("Auth state changed:", _event, session?.user?.email);
         setSession(session);
         setUser(formatUser(session));
         setIsLoading(false);
@@ -52,25 +54,37 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     );
 
     // Get initial session
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setSession(session);
-      setUser(formatUser(session));
-      setIsLoading(false);
-    });
+    const initializeAuth = async () => {
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        console.log("Initial session:", session?.user?.email);
+        setSession(session);
+        setUser(formatUser(session));
+      } catch (error) {
+        console.error("Error getting session:", error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
 
-    return () => subscription.unsubscribe();
+    initializeAuth();
+
+    return () => {
+      subscription.unsubscribe();
+    };
   }, []);
 
   const login = async (email: string, password: string) => {
     setIsLoading(true);
     try {
+      console.log("Attempting login with email:", email);
+      
       const { data, error } = await supabase.auth.signInWithPassword({
         email,
         password,
       });
       
       if (error) {
-        // Log the specific error for debugging
         console.error("Login error:", error);
         throw new Error(error.message);
       }
@@ -79,6 +93,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         throw new Error("User not found");
       }
       
+      console.log("Login successful for:", data.user.email);
       toast.success("Logged in successfully!");
       navigate("/dashboard");
     } catch (error) {
@@ -93,7 +108,9 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const signup = async (name: string, email: string, password: string) => {
     setIsLoading(true);
     try {
-      const { error } = await supabase.auth.signUp({
+      console.log("Attempting signup with email:", email);
+      
+      const { data, error } = await supabase.auth.signUp({
         email,
         password,
         options: {
@@ -103,10 +120,15 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         }
       });
       
-      if (error) throw error;
+      if (error) {
+        console.error("Signup error:", error);
+        throw error;
+      }
       
+      console.log("Signup result:", data);
       toast.success("Account created successfully! Please check your email for verification.");
     } catch (error) {
+      console.error("Signup error:", error);
       toast.error(error instanceof Error ? error.message : "Signup failed");
       throw error;
     } finally {
@@ -116,12 +138,19 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
   const logout = async () => {
     try {
+      console.log("Attempting logout");
       const { error } = await supabase.auth.signOut();
-      if (error) throw error;
       
+      if (error) {
+        console.error("Logout error:", error);
+        throw error;
+      }
+      
+      console.log("Logout successful");
       toast.success("Logged out successfully");
       navigate("/");
     } catch (error) {
+      console.error("Logout error:", error);
       toast.error(error instanceof Error ? error.message : "Logout failed");
     }
   };
@@ -129,13 +158,18 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   // Add the updateProfile method
   const updateProfile = async (data: { name?: string }) => {
     try {
+      console.log("Updating profile:", data);
+      
       const { error } = await supabase.auth.updateUser({
         data: {
           name: data.name
         }
       });
       
-      if (error) throw error;
+      if (error) {
+        console.error("Profile update error:", error);
+        throw error;
+      }
       
       // Update the local user state
       if (session && user) {
@@ -149,6 +183,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         setUser(updatedUser as UserWithMetadata);
       }
       
+      console.log("Profile updated successfully");
+      toast.success("Profile updated successfully");
       return Promise.resolve();
     } catch (error) {
       console.error("Error updating profile:", error);
