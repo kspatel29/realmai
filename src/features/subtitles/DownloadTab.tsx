@@ -1,28 +1,48 @@
-
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Download, FileText, Copy } from "lucide-react";
+import { Download, FileText, Copy, Eye } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { useSubtitleFiles } from "@/hooks/use-subtitle-files";
 
 interface DownloadTabProps {
   srtFileUrl: string | null;
   vttFileUrl: string | null;
-  subtitlesText: string;
+  subtitlesText: string | null;
 }
 
-const DownloadTab = ({ srtFileUrl, vttFileUrl, subtitlesText }: DownloadTabProps) => {
+const DownloadTab = ({ srtFileUrl, vttFileUrl }: DownloadTabProps) => {
   const { toast } = useToast();
+  const { previewContent, fetchAndPreviewFile, downloadFile } = useSubtitleFiles();
   
   const copyToClipboard = () => {
-    if (subtitlesText) {
-      navigator.clipboard.writeText(subtitlesText);
+    if (previewContent) {
+      navigator.clipboard.writeText(previewContent);
       toast({
         title: "Copied to clipboard",
         description: "The subtitles text has been copied to your clipboard."
       });
     }
+  };
+
+  const handlePreview = async (url: string) => {
+    const content = await fetchAndPreviewFile(url);
+    if (!content) {
+      toast({
+        title: "Error",
+        description: "Failed to load subtitle preview",
+        variant: "destructive"
+      });
+    }
+  };
+
+  const handleDownload = async (url: string, type: 'srt' | 'vtt') => {
+    await downloadFile(url, type);
+    toast({
+      title: "Download started",
+      description: `Your ${type.toUpperCase()} file download has started.`
+    });
   };
 
   return (
@@ -47,44 +67,69 @@ const DownloadTab = ({ srtFileUrl, vttFileUrl, subtitlesText }: DownloadTabProps
         ) : (
           <div className="space-y-6">
             <div className="grid grid-cols-2 gap-4">
-              <Button 
-                variant="outline" 
-                className="w-full" 
-                disabled={!srtFileUrl}
-                onClick={() => srtFileUrl && window.open(srtFileUrl, '_blank')}
-              >
-                <Download className="mr-2 h-4 w-4" />
-                Download SRT
-              </Button>
-              <Button 
-                variant="outline" 
-                className="w-full" 
-                disabled={!vttFileUrl}
-                onClick={() => vttFileUrl && window.open(vttFileUrl, '_blank')}
-              >
-                <Download className="mr-2 h-4 w-4" />
-                Download VTT
-              </Button>
+              {srtFileUrl && (
+                <div className="flex flex-col gap-2">
+                  <Button 
+                    variant="outline" 
+                    className="w-full" 
+                    onClick={() => handleDownload(srtFileUrl, 'srt')}
+                  >
+                    <Download className="mr-2 h-4 w-4" />
+                    Download SRT
+                  </Button>
+                  <Button 
+                    variant="ghost" 
+                    size="sm"
+                    className="w-full"
+                    onClick={() => handlePreview(srtFileUrl)}
+                  >
+                    <Eye className="mr-2 h-4 w-4" />
+                    Preview SRT
+                  </Button>
+                </div>
+              )}
+              {vttFileUrl && (
+                <div className="flex flex-col gap-2">
+                  <Button 
+                    variant="outline" 
+                    className="w-full"
+                    onClick={() => handleDownload(vttFileUrl, 'vtt')}
+                  >
+                    <Download className="mr-2 h-4 w-4" />
+                    Download VTT
+                  </Button>
+                  <Button 
+                    variant="ghost"
+                    size="sm"
+                    className="w-full"
+                    onClick={() => handlePreview(vttFileUrl)}
+                  >
+                    <Eye className="mr-2 h-4 w-4" />
+                    Preview VTT
+                  </Button>
+                </div>
+              )}
             </div>
             
-            <div className="space-y-2">
-              <div className="flex justify-between items-center">
-                <h3 className="text-sm font-medium">Subtitle Preview</h3>
-                <Button 
-                  variant="ghost" 
-                  size="sm" 
-                  onClick={copyToClipboard}
-                  disabled={!subtitlesText}
-                >
-                  <Copy className="h-4 w-4 mr-1" /> Copy
-                </Button>
+            {previewContent && (
+              <div className="space-y-2">
+                <div className="flex justify-between items-center">
+                  <h3 className="text-sm font-medium">Subtitle Preview</h3>
+                  <Button 
+                    variant="ghost" 
+                    size="sm" 
+                    onClick={copyToClipboard}
+                  >
+                    <Copy className="h-4 w-4 mr-1" /> Copy
+                  </Button>
+                </div>
+                <Textarea 
+                  value={previewContent} 
+                  readOnly 
+                  className="h-[300px] font-mono text-sm"
+                />
               </div>
-              <Textarea 
-                value={subtitlesText} 
-                readOnly 
-                className="h-[300px] font-mono text-sm"
-              />
-            </div>
+            )}
           </div>
         )}
       </CardContent>

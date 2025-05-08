@@ -293,30 +293,6 @@ const Billing = () => {
           )}
         </DialogContent>
       </Dialog>
-      
-      <div className="rounded-lg border p-4 bg-gray-50 mt-8">
-        <h3 className="text-lg font-medium mb-2">Test Credit Card Information</h3>
-        <p className="mb-4 text-sm text-muted-foreground">
-          Use these test card numbers to try out the payment flow:
-        </p>
-        <div className="space-y-2 text-sm">
-          <div className="flex justify-between items-center p-2 bg-white rounded border">
-            <span className="font-mono">4242 4242 4242 4242</span>
-            <span>Valid card (Payment succeeds)</span>
-          </div>
-          <div className="flex justify-between items-center p-2 bg-white rounded border">
-            <span className="font-mono">4000 0027 6000 3184</span>
-            <span>3D Secure authentication</span>
-          </div>
-          <div className="flex justify-between items-center p-2 bg-white rounded border">
-            <span className="font-mono">4000 0000 0000 9995</span>
-            <span>Insufficient funds failure</span>
-          </div>
-        </div>
-        <p className="mt-4 text-xs text-muted-foreground">
-          For any test card, use any future expiration date, any 3-digit CVC, and any postal code.
-        </p>
-      </div>
     </div>
   );
 };

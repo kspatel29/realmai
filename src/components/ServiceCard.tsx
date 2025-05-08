@@ -14,9 +14,10 @@ interface ServiceCardProps {
   cost?: number;
   href?: string;
   link?: string;
+  youtubeId?: string;
 }
 
-const ServiceCard = ({ title, description, icon, action, color, cost, href, link }: ServiceCardProps) => {
+const ServiceCard = ({ title, description, icon, action, color, cost, href, link, youtubeId }: ServiceCardProps) => {
   const [isHovered, setIsHovered] = useState(false);
   const navigateTo = href || link || '#';
 
@@ -51,9 +52,23 @@ const ServiceCard = ({ title, description, icon, action, color, cost, href, link
       </CardHeader>
       
       <CardContent className="relative z-10">
-        <div className="h-16 flex items-center justify-center border border-gray-200 rounded-lg bg-gray-50">
-          <p className="text-sm text-muted-foreground">Content preview area</p>
-        </div>
+        {youtubeId ? (
+          <div className="aspect-video w-full rounded-lg overflow-hidden">
+            <iframe
+              width="100%"
+              height="100%"
+              src={`https://www.youtube.com/embed/${youtubeId}`}
+              title="YouTube video player"
+              frameBorder="0"
+              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+              allowFullScreen
+            ></iframe>
+          </div>
+        ) : (
+          <div className="h-16 flex items-center justify-center border border-gray-200 rounded-lg bg-gray-50">
+            <p className="text-sm text-muted-foreground">Content preview area</p>
+          </div>
+        )}
       </CardContent>
       
       <CardFooter className="relative z-10">
