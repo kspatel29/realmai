@@ -145,6 +145,7 @@ const Dashboard = () => {
       link: "/dashboard/video-dubbing",
       action: "Start Dubbing",
       color: "#3B82F6",
+      youtudeId: "https://youtu.be/aVc7zHIuO_o?list=RDKe2ytIWeQ-o",
     },
     {
       title: "Subtitle Generator",
@@ -153,6 +154,7 @@ const Dashboard = () => {
       link: "/dashboard/subtitles",
       action: "Create Subtitles",
       color: "#8B5CF6",
+      youtudeId: "https://youtu.be/aVc7zHIuO_o?list=RDKe2ytIWeQ-o",
     },
     {
       title: "Clips Generator",
@@ -162,6 +164,7 @@ const Dashboard = () => {
       link: "/dashboard/clips",
       action: "Generate Clips",
       color: "#F59E0B",
+      youtudeId: "https://youtu.be/aVc7zHIuO_o?list=RDKe2ytIWeQ-o",
     },
   ];
 
@@ -245,6 +248,7 @@ const Dashboard = () => {
               action={service.action}
               link={service.link}
               color={service.color}
+              youtubeId={service.youtudeId}
             />
           ))}
         </div>
