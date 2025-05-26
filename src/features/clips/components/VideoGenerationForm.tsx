@@ -9,7 +9,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Wand2 } from "lucide-react";
+import { Wand2, Upload, X } from "lucide-react";
 import ServiceCostDisplay from "@/components/ServiceCostDisplay";
 
 export const videoGenerationSchema = z.object({
@@ -48,6 +48,22 @@ const VideoGenerationForm = ({
   cost
 }: VideoGenerationFormProps) => {
   const useExistingVideo = form.watch("use_existing_video");
+
+  const removeStartFrame = () => {
+    // Create a fake event to clear the frame
+    const fakeEvent = {
+      target: { files: null }
+    } as React.ChangeEvent<HTMLInputElement>;
+    onStartFrameUpload(fakeEvent);
+  };
+
+  const removeEndFrame = () => {
+    // Create a fake event to clear the frame
+    const fakeEvent = {
+      target: { files: null }
+    } as React.ChangeEvent<HTMLInputElement>;
+    onEndFrameUpload(fakeEvent);
+  };
 
   return (
     <Card>
@@ -191,43 +207,75 @@ const VideoGenerationForm = ({
               />
             )}
 
-            {useExistingVideo && (
-              <div className="space-y-4 border rounded-lg p-4">
-                <h4 className="font-medium">Frame Upload</h4>
-                
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {/* Always show frame upload options */}
+            <div className="space-y-4 border rounded-lg p-4">
+              <div className="flex items-center justify-between">
+                <h4 className="font-medium">Custom Start & End Frames</h4>
+                <p className="text-sm text-muted-foreground">Optional: Upload your own images</p>
+              </div>
+              
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">Start Frame</label>
                   <div className="space-y-2">
-                    <label className="text-sm font-medium">Start Frame</label>
-                    <div className="space-y-2">
+                    <div className="flex items-center gap-2">
                       <input
                         type="file"
                         accept="image/*"
                         onChange={onStartFrameUpload}
                         className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded file:border-0 file:text-sm file:font-semibold file:bg-primary file:text-primary-foreground hover:file:bg-primary/90"
+                        id="start-frame-upload"
                       />
                       {startFrame && (
-                        <img src={startFrame} alt="Start frame" className="w-full h-32 object-cover rounded" />
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          onClick={removeStartFrame}
+                        >
+                          <X className="h-4 w-4" />
+                        </Button>
                       )}
                     </div>
+                    {startFrame && (
+                      <img src={startFrame} alt="Start frame" className="w-full h-32 object-cover rounded" />
+                    )}
                   </div>
+                </div>
 
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">End Frame</label>
                   <div className="space-y-2">
-                    <label className="text-sm font-medium">End Frame</label>
-                    <div className="space-y-2">
+                    <div className="flex items-center gap-2">
                       <input
                         type="file"
                         accept="image/*"
                         onChange={onEndFrameUpload}
                         className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded file:border-0 file:text-sm file:font-semibold file:bg-primary file:text-primary-foreground hover:file:bg-primary/90"
+                        id="end-frame-upload"
                       />
                       {endFrame && (
-                        <img src={endFrame} alt="End frame" className="w-full h-32 object-cover rounded" />
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          onClick={removeEndFrame}
+                        >
+                          <X className="h-4 w-4" />
+                        </Button>
                       )}
                     </div>
+                    {endFrame && (
+                      <img src={endFrame} alt="End frame" className="w-full h-32 object-cover rounded" />
+                    )}
                   </div>
                 </div>
               </div>
-            )}
+              
+              <p className="text-xs text-muted-foreground">
+                You can upload any image to use as start/end frames, or extract frames from an uploaded video using the frame selector panel.
+              </p>
+            </div>
 
             <Button 
               type="submit" 

@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useForm } from "react-hook-form";
@@ -115,6 +114,9 @@ const ClipsGenerator = () => {
         }
       };
       fileReader.readAsDataURL(e.target.files[0]);
+    } else {
+      // Clear the frame if no file is selected
+      setStartFrame(null);
     }
   };
 
@@ -127,6 +129,9 @@ const ClipsGenerator = () => {
         }
       };
       fileReader.readAsDataURL(e.target.files[0]);
+    } else {
+      // Clear the frame if no file is selected
+      setEndFrame(null);
     }
   };
 

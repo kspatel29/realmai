@@ -3,6 +3,7 @@ import { useRef, useState, useEffect } from 'react';
 import { Button } from "@/components/ui/button";
 import { Slider } from "@/components/ui/slider";
 import { Play, Pause, Camera, SkipForward, SkipBack } from 'lucide-react';
+import { toast } from "sonner";
 
 interface VideoFrameSelectorProps {
   videoUrl: string;
@@ -56,11 +57,6 @@ const VideoFrameSelector = ({
     }
   };
 
-  const seekVideo = (time: number) => {
-    if (!videoRef.current) return;
-    videoRef.current.currentTime = time;
-  };
-
   const handleSliderChange = (values: number[]) => {
     if (!videoRef.current) return;
     videoRef.current.currentTime = values[0];
@@ -77,27 +73,34 @@ const VideoFrameSelector = ({
   };
 
   const captureFrame = () => {
-    if (!videoRef.current || !canvasRef.current) return;
+    if (!videoRef.current || !canvasRef.current) return null;
     
     const video = videoRef.current;
     const canvas = canvasRef.current;
     
-    canvas.width = video.videoWidth;
-    canvas.height = video.videoHeight;
-    
-    const ctx = canvas.getContext('2d');
-    if (!ctx) return;
-    
-    ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-    const dataUrl = canvas.toDataURL('image/jpeg');
-    
-    return dataUrl;
+    try {
+      canvas.width = video.videoWidth;
+      canvas.height = video.videoHeight;
+      
+      const ctx = canvas.getContext('2d');
+      if (!ctx) return null;
+      
+      ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+      
+      // Try to export the canvas data
+      return canvas.toDataURL('image/jpeg');
+    } catch (error) {
+      console.error('Canvas taint error:', error);
+      toast.error('Cannot capture frame due to CORS restrictions. Please upload your own image instead.');
+      return null;
+    }
   };
 
   const captureStartFrame = () => {
     const dataUrl = captureFrame();
     if (dataUrl) {
       onStartFrameSelected(dataUrl);
+      toast.success('Start frame captured!');
     }
   };
 
@@ -105,6 +108,7 @@ const VideoFrameSelector = ({
     const dataUrl = captureFrame();
     if (dataUrl) {
       onEndFrameSelected(dataUrl);
+      toast.success('End frame captured!');
     }
   };
 
@@ -122,6 +126,7 @@ const VideoFrameSelector = ({
           src={videoUrl} 
           className="w-full h-full object-contain" 
           playsInline
+          crossOrigin="anonymous"
         />
         
         {/* Hidden canvas for frame capture */}
