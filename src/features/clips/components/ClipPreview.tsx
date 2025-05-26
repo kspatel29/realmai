@@ -133,9 +133,11 @@ const ClipPreview = ({ clips, onBackToGeneration }: ClipPreviewProps) => {
               <div className="flex items-start justify-between">
                 <div className="space-y-1">
                   <CardTitle className="text-base line-clamp-2">{clip.title}</CardTitle>
-                  <CardDescription>
-                    <Badge variant="secondary">{clip.duration}</Badge>
-                  </CardDescription>
+                  <div className="text-sm text-muted-foreground">
+                    <span className="inline-flex items-center rounded-md bg-secondary px-2 py-1 text-xs font-medium text-secondary-foreground">
+                      {clip.duration}
+                    </span>
+                  </div>
                 </div>
                 <Button
                   variant="ghost"
