@@ -3,8 +3,9 @@ import { useState } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { ArrowLeft, Play, Pause, Download, Share2, Trash2 } from "lucide-react";
+import { ArrowLeft, Play, Pause, Download, Share2, Trash2, Maximize2 } from "lucide-react";
 import { toast } from "sonner";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 
 export interface ClipData {
   id: string;
@@ -21,6 +22,7 @@ interface ClipPreviewProps {
 
 const ClipPreview = ({ clips, onBackToGeneration }: ClipPreviewProps) => {
   const [playingVideo, setPlayingVideo] = useState<string | null>(null);
+  const [fullscreenVideo, setFullscreenVideo] = useState<ClipData | null>(null);
 
   const handleDownload = async (clip: ClipData) => {
     try {
@@ -84,6 +86,10 @@ const ClipPreview = ({ clips, onBackToGeneration }: ClipPreviewProps) => {
     } else {
       setPlayingVideo(videoId);
     }
+  };
+
+  const openFullscreen = (clip: ClipData) => {
+    setFullscreenVideo(clip);
   };
 
   if (clips.length === 0) {
@@ -156,14 +162,24 @@ const ClipPreview = ({ clips, onBackToGeneration }: ClipPreviewProps) => {
                 </video>
                 
                 {playingVideo !== clip.id && (
-                  <Button
-                    variant="secondary"
-                    size="sm"
-                    className="absolute inset-0 m-auto w-12 h-12 rounded-full opacity-80 group-hover:opacity-100 transition-opacity"
-                    onClick={() => toggleVideoPlay(clip.id)}
-                  >
-                    <Play className="h-5 w-5 ml-0.5" />
-                  </Button>
+                  <div className="absolute inset-0 flex items-center justify-center gap-2">
+                    <Button
+                      variant="secondary"
+                      size="sm"
+                      className="w-12 h-12 rounded-full opacity-80 group-hover:opacity-100 transition-opacity"
+                      onClick={() => toggleVideoPlay(clip.id)}
+                    >
+                      <Play className="h-5 w-5 ml-0.5" />
+                    </Button>
+                    <Button
+                      variant="secondary"
+                      size="sm"
+                      className="w-12 h-12 rounded-full opacity-80 group-hover:opacity-100 transition-opacity"
+                      onClick={() => openFullscreen(clip)}
+                    >
+                      <Maximize2 className="h-4 w-4" />
+                    </Button>
+                  </div>
                 )}
               </div>
 
@@ -191,6 +207,27 @@ const ClipPreview = ({ clips, onBackToGeneration }: ClipPreviewProps) => {
           </Card>
         ))}
       </div>
+
+      {/* Fullscreen Video Dialog */}
+      <Dialog open={!!fullscreenVideo} onOpenChange={() => setFullscreenVideo(null)}>
+        <DialogContent className="max-w-4xl w-full">
+          <DialogHeader>
+            <DialogTitle>{fullscreenVideo?.title}</DialogTitle>
+          </DialogHeader>
+          {fullscreenVideo && (
+            <div className="w-full">
+              <video
+                src={fullscreenVideo.url}
+                className="w-full h-auto max-h-[70vh] object-contain"
+                controls
+                autoPlay
+              >
+                Your browser does not support the video tag.
+              </video>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };

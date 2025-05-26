@@ -6,7 +6,7 @@ import { ClipData } from "../components/ClipPreview";
 import { useToast } from "@/hooks/use-toast";
 import { useCredits } from "@/hooks/credits";
 import { createReplicateVideoClip } from "@/services/replicateService";
-import { calculateVideoGenerationCost, calculateCostFromFileDuration } from "@/services/api/pricingService";
+import { calculateCostFromFileDuration } from "@/services/api/pricingService";
 import { SERVICE_CREDIT_COSTS } from "@/constants/pricing";
 
 type VideoGenerationFormValues = z.infer<typeof videoGenerationSchema>;
@@ -20,7 +20,7 @@ export const useVideoGeneration = () => {
 
   const calculateCost = async (durationSeconds: number): Promise<number> => {
     try {
-      console.log(`Calculating cost for video_generation with duration ${durationSeconds} seconds: {}`);
+      console.log(`Calculating cost for video_generation with duration ${durationSeconds} seconds`);
       
       // Try to get cost from the edge function
       const cost = await calculateCostFromFileDuration(
@@ -67,30 +67,28 @@ export const useVideoGeneration = () => {
     setIsProcessing(true);
     
     try {
-      // Make sure values are properly structured before sending to the API
+      // Make sure values are properly structured for the new Luma API
       const input: {
         prompt: string,
-        negative_prompt: string,
         aspect_ratio: string,
         duration: number,
-        cfg_scale: number,
-        start_image?: string,
-        end_image?: string
+        loop: boolean,
+        start_image_url?: string,
+        end_image_url?: string
       } = {
         prompt: values.prompt,
-        negative_prompt: values.negative_prompt || "",
         aspect_ratio: values.aspect_ratio,
         duration: parseInt(values.duration),
-        cfg_scale: values.cfg_scale,
+        loop: values.loop,
       };
       
       // Only add valid start and end frames
       if (values.use_existing_video && startFrame && typeof startFrame === 'string') {
-        input.start_image = startFrame;
+        input.start_image_url = startFrame;
       }
       
       if (values.use_existing_video && endFrame && typeof endFrame === 'string') {
-        input.end_image = endFrame;
+        input.end_image_url = endFrame;
       }
       
       console.log("Generating video with inputs:", input);
@@ -126,15 +124,21 @@ export const useVideoGeneration = () => {
               
               setIsProcessing(false);
               
-              setGeneratedClips([
-                { 
-                  id: `clip-${Date.now()}`, 
-                  title: values.prompt.substring(0, 30) + "...", 
-                  duration: values.duration + "s", 
-                  thumbnail: startFrame || "", 
-                  url: videoOutput
-                }
-              ]);
+              const newClip = { 
+                id: `clip-${Date.now()}`, 
+                title: values.prompt.substring(0, 30) + "...", 
+                duration: values.duration + "s", 
+                thumbnail: startFrame || "", 
+                url: videoOutput
+              };
+              
+              setGeneratedClips([newClip]);
+              
+              // Save to localStorage for history
+              const savedClips = localStorage.getItem('generatedVideoClips');
+              const existingClips = savedClips ? JSON.parse(savedClips) : [];
+              const updatedClips = [newClip, ...existingClips];
+              localStorage.setItem('generatedVideoClips', JSON.stringify(updatedClips));
               
               toast({
                 title: "Clip generated",

@@ -7,18 +7,16 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Slider } from "@/components/ui/slider";
 import { Switch } from "@/components/ui/switch";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Upload, Wand2 } from "lucide-react";
+import { Wand2 } from "lucide-react";
 import ServiceCostDisplay from "@/components/ServiceCostDisplay";
 
 export const videoGenerationSchema = z.object({
   prompt: z.string().min(1, "Prompt is required").max(500, "Prompt must be less than 500 characters"),
-  negative_prompt: z.string().optional(),
-  aspect_ratio: z.enum(["16:9", "9:16", "1:1"]),
-  duration: z.enum(["5", "10"]), // Only allow 5 or 10 seconds as per Replicate API
-  cfg_scale: z.number().min(0.1).max(1),
+  aspect_ratio: z.enum(["1:1", "3:4", "4:3", "9:16", "16:9", "9:21", "21:9"]),
+  duration: z.enum(["5", "9"]),
+  loop: z.boolean(),
   use_existing_video: z.boolean(),
   upload_start_frame: z.boolean(),
   upload_end_frame: z.boolean(),
@@ -91,26 +89,6 @@ const VideoGenerationForm = ({
               )}
             />
 
-            <FormField
-              control={form.control}
-              name="negative_prompt"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Negative Prompt (Optional)</FormLabel>
-                  <FormControl>
-                    <Input
-                      placeholder="What you don't want in the video (e.g., 'blurry, low quality')"
-                      {...field}
-                    />
-                  </FormControl>
-                  <FormDescription>
-                    Specify what to avoid in the generated video
-                  </FormDescription>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <FormField
                 control={form.control}
@@ -128,6 +106,10 @@ const VideoGenerationForm = ({
                         <SelectItem value="16:9">16:9 (Landscape)</SelectItem>
                         <SelectItem value="9:16">9:16 (Portrait)</SelectItem>
                         <SelectItem value="1:1">1:1 (Square)</SelectItem>
+                        <SelectItem value="4:3">4:3 (Classic)</SelectItem>
+                        <SelectItem value="3:4">3:4 (Portrait Classic)</SelectItem>
+                        <SelectItem value="21:9">21:9 (Ultrawide)</SelectItem>
+                        <SelectItem value="9:21">9:21 (Ultrawide Portrait)</SelectItem>
                       </SelectContent>
                     </Select>
                     <FormMessage />
@@ -149,11 +131,11 @@ const VideoGenerationForm = ({
                       </FormControl>
                       <SelectContent>
                         <SelectItem value="5">5 seconds</SelectItem>
-                        <SelectItem value="10">10 seconds</SelectItem>
+                        <SelectItem value="9">9 seconds</SelectItem>
                       </SelectContent>
                     </Select>
                     <FormDescription>
-                      Available durations: 5 or 10 seconds
+                      Available durations: 5 or 9 seconds
                     </FormDescription>
                     <FormMessage />
                   </FormItem>
@@ -163,23 +145,23 @@ const VideoGenerationForm = ({
 
             <FormField
               control={form.control}
-              name="cfg_scale"
+              name="loop"
               render={({ field }) => (
-                <FormItem>
-                  <FormLabel>CFG Scale: {field.value}</FormLabel>
+                <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4">
+                  <div className="space-y-0.5">
+                    <FormLabel className="text-base">
+                      Loop Video
+                    </FormLabel>
+                    <FormDescription>
+                      Whether the video should loop seamlessly
+                    </FormDescription>
+                  </div>
                   <FormControl>
-                    <Slider
-                      min={0.1}
-                      max={1}
-                      step={0.1}
-                      value={[field.value]}
-                      onValueChange={(vals) => field.onChange(vals[0])}
-                      className="w-full"
+                    <Switch
+                      checked={field.value}
+                      onCheckedChange={field.onChange}
                     />
                   </FormControl>
-                  <FormDescription>
-                    Controls how closely the AI follows your prompt (0.1 = creative, 1.0 = precise)
-                  </FormDescription>
                 </FormItem>
               )}
             />

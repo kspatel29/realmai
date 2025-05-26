@@ -79,40 +79,35 @@ serve(async (req) => {
 
     console.log("Processing input for video generation:", JSON.stringify(body));
     
-    // Process input based on schema
+    // Process input based on Luma Ray Flash schema
     const input: Record<string, any> = {
       prompt: body.prompt,
-      negative_prompt: body.negative_prompt || "",
       duration: body.duration ? parseInt(String(body.duration), 10) : 5,
-      cfg_scale: typeof body.cfg_scale === 'number' ? body.cfg_scale : 0.5,
+      aspect_ratio: body.aspect_ratio || "16:9",
+      loop: body.loop || false,
     };
     
-    // Add aspect ratio if provided
-    if (body.aspect_ratio) {
-      input.aspect_ratio = body.aspect_ratio;
-    } else {
-      input.aspect_ratio = "16:9"; // Default aspect ratio
+    // Add optional fields if provided
+    if (body.start_image_url && typeof body.start_image_url === 'string') {
+      input.start_image_url = body.start_image_url;
     }
     
-    // Add start_image if provided
-    if (body.start_image && typeof body.start_image === 'string') {
-      input.start_image = body.start_image;
+    if (body.end_image_url && typeof body.end_image_url === 'string') {
+      input.end_image_url = body.end_image_url;
+    }
+
+    if (body.concepts && Array.isArray(body.concepts)) {
+      input.concepts = body.concepts;
     }
     
-    // Add end_image if provided
-    if (body.end_image && typeof body.end_image === 'string') {
-      input.end_image = body.end_image;
-    }
-    
-    console.log("Using Replicate official model: kwaivgi/kling-v1.6-pro");
+    console.log("Using Luma Ray Flash model: luma/ray-flash-2-720p");
     console.log("With input:", JSON.stringify(input));
 
-    // Create prediction using the official model approach (no version needed)
+    // Create prediction using the Luma Ray Flash model
     try {
       console.log("Creating prediction...");
-      // For official models, we use the run method directly with the model name
       const prediction = await replicate.predictions.create({
-        model: "kwaivgi/kling-v1.6-pro",
+        model: "luma/ray-flash-2-720p",
         input
       });
       
