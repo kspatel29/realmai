@@ -24,8 +24,23 @@ const ClipPreview = ({ clips, onBackToGeneration }: ClipPreviewProps) => {
   const [playingVideo, setPlayingVideo] = useState<string | null>(null);
   const [fullscreenVideo, setFullscreenVideo] = useState<ClipData | null>(null);
 
+  const handleVideoError = (clip: ClipData, error: any) => {
+    console.error('Video playback error for clip:', clip.id, error);
+    console.log('Video URL:', clip.url);
+    toast.error(`Failed to load video: ${clip.title}`);
+  };
+
+  const handleVideoLoadStart = (clip: ClipData) => {
+    console.log('Video load started for clip:', clip.id, 'URL:', clip.url);
+  };
+
+  const handleVideoCanPlay = (clip: ClipData) => {
+    console.log('Video can play for clip:', clip.id);
+  };
+
   const handleDownload = async (clip: ClipData) => {
     try {
+      console.log('Attempting to download:', clip.url);
       const response = await fetch(clip.url);
       const blob = await response.blob();
       const url = window.URL.createObjectURL(blob);
@@ -81,6 +96,7 @@ const ClipPreview = ({ clips, onBackToGeneration }: ClipPreviewProps) => {
   };
 
   const toggleVideoPlay = (videoId: string) => {
+    console.log('Toggling video play for:', videoId);
     if (playingVideo === videoId) {
       setPlayingVideo(null);
     } else {
@@ -89,6 +105,7 @@ const ClipPreview = ({ clips, onBackToGeneration }: ClipPreviewProps) => {
   };
 
   const openFullscreen = (clip: ClipData) => {
+    console.log('Opening fullscreen for clip:', clip.id);
     setFullscreenVideo(clip);
   };
 
@@ -152,13 +169,18 @@ const ClipPreview = ({ clips, onBackToGeneration }: ClipPreviewProps) => {
             <CardContent className="space-y-4">
               <div className="relative group">
                 <video
+                  key={clip.id}
                   src={clip.url}
                   poster={clip.thumbnail}
                   className="w-full aspect-video object-cover rounded-md"
                   controls={playingVideo === clip.id}
                   onPlay={() => setPlayingVideo(clip.id)}
                   onPause={() => setPlayingVideo(null)}
+                  onError={(e) => handleVideoError(clip, e)}
+                  onLoadStart={() => handleVideoLoadStart(clip)}
+                  onCanPlay={() => handleVideoCanPlay(clip)}
                   preload="metadata"
+                  crossOrigin="anonymous"
                 >
                   Your browser does not support the video tag.
                 </video>
@@ -219,10 +241,13 @@ const ClipPreview = ({ clips, onBackToGeneration }: ClipPreviewProps) => {
           {fullscreenVideo && (
             <div className="w-full">
               <video
+                key={`fullscreen-${fullscreenVideo.id}`}
                 src={fullscreenVideo.url}
                 className="w-full h-auto max-h-[70vh] object-contain"
                 controls
                 autoPlay
+                onError={(e) => handleVideoError(fullscreenVideo, e)}
+                crossOrigin="anonymous"
               >
                 Your browser does not support the video tag.
               </video>
