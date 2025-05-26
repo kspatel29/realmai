@@ -1,4 +1,3 @@
-
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from "@/components/ui/card";
@@ -19,7 +18,7 @@ interface GenerateTabProps {
   uploadedFileName: string | null;
   uploadedFileUrl: string | null;
   isProcessing: boolean;
-  estimatedWaitTime: number | null;
+  estimatedWaitTime: string;
   totalCost: number;
   onSubmit: (values: SubtitlesFormValues) => void;
 }
@@ -68,7 +67,7 @@ const GenerateTab = ({
                   <div>
                     <h3 className="font-medium">Processing your audio</h3>
                     <p className="text-sm text-muted-foreground">
-                      Estimated wait time: {estimatedWaitTime ? `${estimatedWaitTime} minutes` : "Calculating..."}
+                      Estimated wait time: {estimatedWaitTime || "Calculating..."}
                     </p>
                   </div>
                 </div>

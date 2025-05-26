@@ -11,6 +11,17 @@ import { SERVICE_CREDIT_COSTS } from "@/constants/pricing";
 
 type VideoGenerationFormValues = z.infer<typeof videoGenerationSchema>;
 
+interface VideoGenerationInput {
+  prompt: string;
+  aspect_ratio: string;
+  duration: number;
+  loop: boolean;
+  start_image_url?: string;
+  end_image_url?: string;
+  cfg_scale?: number;
+  concepts?: string[];
+}
+
 export const useVideoGeneration = () => {
   const [isProcessing, setIsProcessing] = useState(false);
   const [generatedClips, setGeneratedClips] = useState<ClipData[]>([]);
@@ -68,18 +79,12 @@ export const useVideoGeneration = () => {
     
     try {
       // Make sure values are properly structured for the new Luma API
-      const input: {
-        prompt: string,
-        aspect_ratio: string,
-        duration: number,
-        loop: boolean,
-        start_image_url?: string,
-        end_image_url?: string
-      } = {
+      const input: VideoGenerationInput = {
         prompt: values.prompt,
         aspect_ratio: values.aspect_ratio,
         duration: parseInt(values.duration),
         loop: values.loop,
+        cfg_scale: 1.0, // Default value for cfg_scale
       };
       
       // Only add valid start and end frames

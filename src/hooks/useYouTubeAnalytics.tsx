@@ -29,6 +29,15 @@ export interface YouTubeChannel {
   created_at?: string;
 }
 
+export interface ChannelAnalytics {
+  revenue: number;
+  engagement: number;
+  growth: number;
+  cpm: number;
+  ctr: number;
+  avgViewDuration: number;
+}
+
 export const useYouTubeAnalytics = () => {
   const { user } = useAuth();
   const queryClient = useQueryClient();
@@ -58,6 +67,39 @@ export const useYouTubeAnalytics = () => {
     },
     enabled: !!user,
   });
+
+  // Mock data for additional features
+  const channels: YouTubeChannel[] = [
+    {
+      id: '1',
+      channel_name: 'TechReview Pro',
+      channel_id: 'UC123456789',
+      subscriber_count: 125000,
+      thumbnail: '/placeholder.svg',
+      view_count: 5000000,
+      video_count: 250
+    },
+    {
+      id: '2',
+      channel_name: 'CreativeStudio',
+      channel_id: 'UC987654321',
+      subscriber_count: 89000,
+      thumbnail: '/placeholder.svg',
+      view_count: 3200000,
+      video_count: 180
+    }
+  ];
+
+  const channelDetails: YouTubeChannel | null = channels[0] || null;
+
+  const analytics: ChannelAnalytics = {
+    revenue: 5420.50,
+    engagement: 8.5,
+    growth: 12.3,
+    cpm: 2.85,
+    ctr: 4.2,
+    avgViewDuration: 3.45
+  };
 
   // Enhanced mock function with more realistic data
   const fetchYouTubeStats = async () => {
@@ -97,6 +139,29 @@ export const useYouTubeAnalytics = () => {
     ];
     
     return mockVideos;
+  };
+
+  // Mock functions for additional features
+  const searchChannels = async (query: string): Promise<YouTubeChannel[]> => {
+    return channels.filter(channel => 
+      channel.channel_name.toLowerCase().includes(query.toLowerCase())
+    );
+  };
+
+  const getChannelDetails = async (channelId: string): Promise<YouTubeChannel | null> => {
+    return channels.find(channel => channel.channel_id === channelId) || null;
+  };
+
+  const getChannelAnalytics = async (channelId: string): Promise<ChannelAnalytics> => {
+    // Mock analytics data
+    return {
+      revenue: Math.random() * 10000,
+      engagement: Math.random() * 15,
+      growth: Math.random() * 20,
+      cpm: Math.random() * 5,
+      ctr: Math.random() * 8,
+      avgViewDuration: Math.random() * 5
+    };
   };
 
   // Sync YouTube analytics with enhanced error handling
@@ -189,6 +254,13 @@ export const useYouTubeAnalytics = () => {
     syncYouTubeAnalytics,
     totalStats,
     trendingVideos,
-    isSyncing: syncYouTubeAnalytics.isPending
+    isSyncing: syncYouTubeAnalytics.isPending,
+    // Additional properties for enhanced analytics
+    searchChannels,
+    getChannelDetails,
+    getChannelAnalytics,
+    channels,
+    channelDetails,
+    analytics
   };
 };

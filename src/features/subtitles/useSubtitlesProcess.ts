@@ -1,7 +1,7 @@
 
 import { useState, useCallback } from "react";
 import { useToast } from "@/hooks/use-toast";
-import { useSpendCreditsForService } from "@/hooks/useSpendCreditsForService";
+import { useCredits } from "@/hooks/credits";
 import { 
   generateSubtitles, 
   checkSubtitlesStatus, 
@@ -10,6 +10,21 @@ import {
   updateSubtitleJob 
 } from "@/services/api/subtitlesService";
 import { SubtitlesFormValues } from "./subtitlesSchema";
+
+interface GenerationResult {
+  predictionId?: string;
+  status?: string;
+  output?: {
+    srt_file: string;
+    vtt_file: string;
+    preview?: string;
+    text?: string;
+  };
+  preview?: string;
+  srt_file?: string;
+  vtt_file?: string;
+  text?: string;
+}
 
 export const useSubtitlesProcess = () => {
   const [isUploading, setIsUploading] = useState(false);
@@ -24,16 +39,33 @@ export const useSubtitlesProcess = () => {
   const [predictionId, setPredictionId] = useState<string | null>(null);
   
   const { toast } = useToast();
-  const { spendCredits } = useSpendCreditsForService();
+  const { useCredits: spendCredits } = useCredits();
 
-  const handleFileUploaded = useCallback((url: string, fileName: string) => {
-    console.log("File uploaded:", { url, fileName });
-    setUploadedFileUrl(url);
-    setUploadedFileName(fileName);
-    setSrtFileUrl(null);
-    setVttFileUrl(null);
-    setEditableText("");
-  }, []);
+  const handleFileUploaded = useCallback(async (file: File) => {
+    console.log("File uploaded:", { fileName: file.name });
+    
+    setIsUploading(true);
+    try {
+      // Upload the file and get the URL
+      const fileUrl = await uploadAudioFile(file);
+      console.log("File uploaded to:", fileUrl);
+      
+      setUploadedFileUrl(fileUrl);
+      setUploadedFileName(file.name);
+      setSrtFileUrl(null);
+      setVttFileUrl(null);
+      setEditableText("");
+    } catch (error) {
+      console.error("Error uploading file:", error);
+      toast({
+        title: "Upload failed",
+        description: "There was an error uploading your file.",
+        variant: "destructive"
+      });
+    } finally {
+      setIsUploading(false);
+    }
+  }, [toast]);
 
   const getUploadedFileDuration = useCallback(async (): Promise<number> => {
     return new Promise((resolve, reject) => {
@@ -223,66 +255,105 @@ export const useSubtitlesProcess = () => {
 
       setEstimatedWaitTime("2-3 minutes");
 
-      const result = await generateSubtitles({
-        audioPath: uploadedFileUrl,
-        modelName: values.model_name,
-        language: values.language,
-        vadFilter: true,
-      });
+      // Use credits first
+      spendCredits.mutate(
+        {
+          amount: totalCost,
+          service: "Subtitle Generation",
+          description: `Generated subtitles: ${uploadedFileName || 'audio file'}`
+        },
+        {
+          onSuccess: async () => {
+            try {
+              const result = await generateSubtitles({
+                audioPath: uploadedFileUrl,
+                modelName: values.model_name,
+                language: values.language,
+                vadFilter: true,
+              }) as GenerationResult;
 
-      if (result.predictionId) {
-        console.log("Got prediction ID, starting polling:", result.predictionId);
-        setPredictionId(result.predictionId);
-        
-        // Update job with prediction ID
-        await updateSubtitleJob(jobId, {
-          prediction_id: result.predictionId,
-          status: 'processing'
-        });
-        
-        // Start polling for results
-        pollForResult(result.predictionId, jobId);
-      } else if (result.preview || result.srt_file) {
-        // Direct result
-        console.log("Got direct result:", result);
-        setSrtFileUrl(result.srt_file);
-        setVttFileUrl(result.vtt_file);
-        setEditableText(result.preview || result.text || "");
-        setIsProcessing(false);
-        
-        await updateSubtitleJob(jobId, {
-          status: 'completed',
-          srt_url: result.srt_file,
-          vtt_url: result.vtt_file,
-          preview_text: result.preview || result.text || ""
-        });
+              if (result.predictionId) {
+                console.log("Got prediction ID, starting polling:", result.predictionId);
+                setPredictionId(result.predictionId);
+                
+                // Update job with prediction ID
+                await updateSubtitleJob(jobId, {
+                  prediction_id: result.predictionId,
+                  status: 'processing'
+                });
+                
+                // Start polling for results
+                pollForResult(result.predictionId, jobId);
+              } else if (result.preview || result.srt_file) {
+                // Direct result
+                console.log("Got direct result:", result);
+                setSrtFileUrl(result.srt_file || '');
+                setVttFileUrl(result.vtt_file || '');
+                setEditableText(result.preview || result.text || "");
+                setIsProcessing(false);
+                
+                await updateSubtitleJob(jobId, {
+                  status: 'completed',
+                  srt_url: result.srt_file || '',
+                  vtt_url: result.vtt_file || '',
+                  preview_text: result.preview || result.text || ""
+                });
 
-        // Save to localStorage for history
-        const subtitleEntry = {
-          id: jobId,
-          type: 'subtitle',
-          title: uploadedFileName || 'Subtitle Job',
-          status: 'completed',
-          created_at: new Date().toISOString(),
-          srt_url: result.srt_file,
-          vtt_url: result.vtt_file,
-          preview_text: result.preview || result.text || "",
-          original_filename: uploadedFileName
-        };
+                // Save to localStorage for history
+                const subtitleEntry = {
+                  id: jobId,
+                  type: 'subtitle',
+                  title: uploadedFileName || 'Subtitle Job',
+                  status: 'completed',
+                  created_at: new Date().toISOString(),
+                  srt_url: result.srt_file || '',
+                  vtt_url: result.vtt_file || '',
+                  preview_text: result.preview || result.text || "",
+                  original_filename: uploadedFileName
+                };
 
-        const savedJobs = localStorage.getItem('subtitleJobs');
-        const existingJobs = savedJobs ? JSON.parse(savedJobs) : [];
-        const updatedJobs = [subtitleEntry, ...existingJobs.filter((job: any) => job.id !== jobId)];
-        localStorage.setItem('subtitleJobs', JSON.stringify(updatedJobs));
-        
-        setCurrentJobId(null);
-        localStorage.removeItem('currentSubtitleJob');
-        
-        toast({
-          title: "Subtitles generated",
-          description: "Your subtitles are ready for download."
-        });
-      }
+                const savedJobs = localStorage.getItem('subtitleJobs');
+                const existingJobs = savedJobs ? JSON.parse(savedJobs) : [];
+                const updatedJobs = [subtitleEntry, ...existingJobs.filter((job: any) => job.id !== jobId)];
+                localStorage.setItem('subtitleJobs', JSON.stringify(updatedJobs));
+                
+                setCurrentJobId(null);
+                localStorage.removeItem('currentSubtitleJob');
+                
+                toast({
+                  title: "Subtitles generated",
+                  description: "Your subtitles are ready for download."
+                });
+              }
+            } catch (error) {
+              console.error("Error processing subtitles:", error);
+              setIsProcessing(false);
+              setCurrentJobId(null);
+              setPredictionId(null);
+              localStorage.removeItem('currentSubtitleJob');
+              
+              toast({
+                title: "Processing failed",
+                description: error instanceof Error ? error.message : "There was an error processing your audio.",
+                variant: "destructive"
+              });
+            }
+          },
+          onError: (error) => {
+            console.error("Credit deduction failed:", error);
+            setIsProcessing(false);
+            setCurrentJobId(null);
+            setPredictionId(null);
+            localStorage.removeItem('currentSubtitleJob');
+            
+            toast({
+              title: "Credit deduction failed",
+              description: "There was an error processing your credits.",
+              variant: "destructive"
+            });
+          }
+        }
+      );
 
     } catch (error) {
       console.error("Error processing subtitles:", error);
@@ -297,7 +368,7 @@ export const useSubtitlesProcess = () => {
         variant: "destructive"
       });
     }
-  }, [uploadedFileUrl, uploadedFileName, pollForResult, toast]);
+  }, [uploadedFileUrl, uploadedFileName, pollForResult, toast, spendCredits]);
 
   return {
     isUploading,
