@@ -50,9 +50,9 @@ export const useVideoUploadManager = () => {
         console.warn('Could not get video duration:', error);
       }
 
-      // Create video record in database
+      // Create video record in database using raw query since types aren't updated yet
       const { data, error } = await supabase
-        .from('videos')
+        .from('videos' as any)
         .insert({
           user_id: user.id,
           title,
@@ -100,7 +100,7 @@ export const useVideoUploadManager = () => {
 
     try {
       const { data, error } = await supabase
-        .from('videos')
+        .from('videos' as any)
         .select('filename')
         .eq('id', videoId)
         .eq('user_id', user.id)
