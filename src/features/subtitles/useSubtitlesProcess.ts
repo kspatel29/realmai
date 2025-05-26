@@ -90,7 +90,7 @@ export const useSubtitlesProcess = () => {
   }, [uploadedFileUrl]);
 
   const pollForResult = useCallback(async (predictionId: string, jobId: string) => {
-    const maxAttempts = 60;
+    const maxAttempts = 120; // Increased from 60 to 120 (6 minutes instead of 3)
     let attempts = 0;
     
     const poll = async (): Promise<void> => {
@@ -101,21 +101,28 @@ export const useSubtitlesProcess = () => {
         const result = await checkSubtitlesStatus(predictionId);
         console.log("Polling result:", result);
         
-        if (result.status === "succeeded" && result.output) {
+        // Check for succeeded status with various possible formats
+        if ((result.status === "succeeded" || result.status === "completed") && result.output) {
           console.log("Subtitles generation completed successfully");
           
           const output = result.output;
-          setSrtFileUrl(output.srt_file);
-          setVttFileUrl(output.vtt_file);
-          setEditableText(output.preview || output.text || "");
+          
+          // Handle different output formats
+          let srtUrl = output.srt_file || output.srt_url || '';
+          let vttUrl = output.vtt_file || output.vtt_url || '';
+          let previewText = output.preview || output.text || output.preview_text || '';
+          
+          setSrtFileUrl(srtUrl);
+          setVttFileUrl(vttUrl);
+          setEditableText(previewText);
           setIsProcessing(false);
           
           // Update the job in database
           await updateSubtitleJob(jobId, {
             status: 'completed',
-            srt_url: output.srt_file,
-            vtt_url: output.vtt_file,
-            preview_text: output.preview || output.text || ""
+            srt_url: srtUrl,
+            vtt_url: vttUrl,
+            preview_text: previewText
           });
 
           // Save to localStorage for history
@@ -125,9 +132,9 @@ export const useSubtitlesProcess = () => {
             title: uploadedFileName || 'Subtitle Job',
             status: 'completed',
             created_at: new Date().toISOString(),
-            srt_url: output.srt_file,
-            vtt_url: output.vtt_file,
-            preview_text: output.preview || output.text || "",
+            srt_url: srtUrl,
+            vtt_url: vttUrl,
+            preview_text: previewText,
             original_filename: uploadedFileName
           };
 
@@ -149,7 +156,8 @@ export const useSubtitlesProcess = () => {
           return;
         }
         
-        if (result.status === "failed") {
+        // Check for failed status
+        if (result.status === "failed" || result.status === "error") {
           console.error("Subtitles generation failed:", result.error);
           setIsProcessing(false);
           
@@ -171,37 +179,88 @@ export const useSubtitlesProcess = () => {
           return;
         }
         
-        if (attempts < maxAttempts) {
-          setTimeout(poll, 3000);
-        } else {
-          console.error("Polling timeout reached");
+        // Continue polling if still processing
+        if (attempts < maxAttempts && (result.status === "processing" || result.status === "starting" || result.status === "queued")) {
+          // Use exponential backoff: start with 2 seconds, max 10 seconds
+          const delay = Math.min(2000 + (attempts * 500), 10000);
+          setTimeout(poll, delay);
+        } else if (attempts >= maxAttempts) {
+          console.error("Polling timeout reached after", maxAttempts, "attempts");
           setIsProcessing(false);
           
-          await updateSubtitleJob(jobId, {
-            status: 'failed',
-            error: "Processing timeout"
-          });
+          // Before marking as failed, try one final check
+          try {
+            const finalResult = await checkSubtitlesStatus(predictionId);
+            if (finalResult.output && (finalResult.status === "succeeded" || finalResult.status === "completed")) {
+              // Success on final check - process the result
+              const output = finalResult.output;
+              let srtUrl = output.srt_file || output.srt_url || '';
+              let vttUrl = output.vtt_file || output.vtt_url || '';
+              let previewText = output.preview || output.text || output.preview_text || '';
+              
+              setSrtFileUrl(srtUrl);
+              setVttFileUrl(vttUrl);
+              setEditableText(previewText);
+              
+              await updateSubtitleJob(jobId, {
+                status: 'completed',
+                srt_url: srtUrl,
+                vtt_url: vttUrl,
+                preview_text: previewText
+              });
+              
+              toast({
+                title: "Subtitles generated",
+                description: "Your subtitles are ready for download."
+              });
+            } else {
+              // Still not ready, mark as timeout
+              await updateSubtitleJob(jobId, {
+                status: 'failed',
+                error: "Processing timeout - please try again"
+              });
+              
+              toast({
+                title: "Processing timeout",
+                description: "The subtitle generation took longer than expected. Please try again.",
+                variant: "destructive"
+              });
+            }
+          } catch (finalCheckError) {
+            console.error("Final check failed:", finalCheckError);
+            await updateSubtitleJob(jobId, {
+              status: 'failed',
+              error: "Processing timeout"
+            });
+            
+            toast({
+              title: "Processing timeout",
+              description: "The subtitle generation took too long. Please try again.",
+              variant: "destructive"
+            });
+          }
           
           setCurrentJobId(null);
           setPredictionId(null);
           localStorage.removeItem('currentSubtitleJob');
-          
-          toast({
-            title: "Processing timeout",
-            description: "The subtitle generation took too long. Please try again.",
-            variant: "destructive"
-          });
         }
       } catch (error) {
         console.error("Error during polling:", error);
         attempts++;
         if (attempts < maxAttempts) {
-          setTimeout(poll, 3000);
+          // Retry with longer delay on error
+          setTimeout(poll, 5000);
         } else {
           setIsProcessing(false);
           setCurrentJobId(null);
           setPredictionId(null);
           localStorage.removeItem('currentSubtitleJob');
+          
+          await updateSubtitleJob(jobId, {
+            status: 'failed',
+            error: "Polling error: " + (error instanceof Error ? error.message : 'Unknown error')
+          });
+          
           toast({
             title: "Polling error",
             description: "There was an error checking the generation status.",
@@ -211,6 +270,7 @@ export const useSubtitlesProcess = () => {
       }
     };
     
+    // Start polling immediately
     poll();
   }, [uploadedFileName, toast]);
 

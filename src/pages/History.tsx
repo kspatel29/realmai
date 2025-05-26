@@ -1,10 +1,10 @@
-
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import DubbingJobsList from "@/components/DubbingJobsList";
 import SubtitleJobsList from "@/components/SubtitleJobsList";
 import { useDubbingJobs } from "@/hooks/dubbingJobs";
 import { useSubtitleJobs } from "@/hooks/useSubtitleJobs";
 import { useSubtitleJobsSync } from "@/hooks/useSubtitleJobsSync";
+import { useSubtitleJobsRecovery } from "@/hooks/useSubtitleJobsRecovery";
 import ClipPreview from "@/features/clips/components/ClipPreview";
 import { useState, useEffect } from "react";
 
@@ -28,6 +28,9 @@ const History = () => {
 
   // Sync completed subtitle jobs from database
   useSubtitleJobsSync();
+  
+  // Add recovery mechanism for missed completed jobs
+  useSubtitleJobsRecovery();
 
   // Retrieve saved video clips from localStorage
   useEffect(() => {
