@@ -346,7 +346,7 @@ const VideoDubbing = () => {
               <Checkbox
                 id="voice-cloning"
                 checked={enableVoiceCloning}
-                onCheckedChange={setEnableVoiceCloning}
+                onCheckedChange={(checked) => setEnableVoiceCloning(checked === true)}
               />
               <Label htmlFor="voice-cloning">Enable Voice Cloning</Label>
             </div>
@@ -355,7 +355,7 @@ const VideoDubbing = () => {
               <Checkbox
                 id="lipsyncing"
                 checked={enableLipsyncing}
-                onCheckedChange={setEnableLipsyncing}
+                onCheckedChange={(checked) => setEnableLipsyncing(checked === true)}
               />
               <Label htmlFor="lipsyncing">Enable Lip Syncing</Label>
             </div>
@@ -364,7 +364,7 @@ const VideoDubbing = () => {
               <Checkbox
                 id="background-audio"
                 checked={preserveBackgroundAudio}
-                onCheckedChange={setPreserveBackgroundAudio}
+                onCheckedChange={(checked) => setPreserveBackgroundAudio(checked === true)}
               />
               <Label htmlFor="background-audio">Preserve Background Audio</Label>
             </div>

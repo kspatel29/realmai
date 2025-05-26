@@ -71,13 +71,13 @@ export const useVideoUploadManager = () => {
       setUploadProgress(100);
 
       const result: UploadedVideo = {
-        id: data.id,
-        title: data.title,
-        filename: data.filename,
-        file_size: data.file_size,
-        duration: data.duration || undefined,
+        id: (data as any).id,
+        title: (data as any).title,
+        filename: (data as any).filename,
+        file_size: (data as any).file_size,
+        duration: (data as any).duration || undefined,
         url: uploadResult.publicUrl,
-        created_at: data.created_at
+        created_at: (data as any).created_at
       };
 
       console.log('Video upload completed:', result);
@@ -108,7 +108,7 @@ export const useVideoUploadManager = () => {
 
       if (error) throw error;
 
-      const filePath = `${user.id}/${videoId}/${data.filename}`;
+      const filePath = `${user.id}/${videoId}/${(data as any).filename}`;
       return await fileManager.getSignedUrl('videos', filePath);
     } catch (error) {
       console.error('Error getting video URL:', error);

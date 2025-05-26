@@ -39,7 +39,7 @@ export const useVideos = () => {
         throw error;
       }
       
-      return data as Video[] || [];
+      return (data as any[]) as Video[] || [];
     },
     enabled: !!user,
   });
@@ -76,7 +76,7 @@ export const useVideos = () => {
       }
       
       // Upload the file to storage
-      const filePath = `${user.id}/${videoRecord.id}/${file.name}`;
+      const filePath = `${user.id}/${(videoRecord as any).id}/${file.name}`;
       const { error: uploadError } = await supabase.storage
         .from('videos')
         .upload(filePath, file);
@@ -88,7 +88,7 @@ export const useVideos = () => {
         await supabase
           .from('videos' as any)
           .update({ status: 'failed' })
-          .eq('id', videoRecord.id);
+          .eq('id', (videoRecord as any).id);
           
         throw uploadError;
       }
@@ -100,7 +100,7 @@ export const useVideos = () => {
           status: 'ready',
           updated_at: new Date().toISOString()
         })
-        .eq('id', videoRecord.id);
+        .eq('id', (videoRecord as any).id);
       
       if (updateError) {
         console.error('Error updating video status:', updateError);
@@ -136,8 +136,8 @@ export const useVideos = () => {
         }
         
         // Delete the file from storage if it exists
-        if (videoRecord.filename) {
-          const filePath = `${user.id}/${videoId}/${videoRecord.filename}`;
+        if ((videoRecord as any).filename) {
+          const filePath = `${user.id}/${videoId}/${(videoRecord as any).filename}`;
           const { error: storageError } = await supabase.storage
             .from('videos')
             .remove([filePath]);
@@ -197,7 +197,7 @@ export const useVideos = () => {
         }
         
         // Delete each unused video
-        const deletePromises = unusedVideos?.map(video => deleteVideo.mutateAsync(video.id)) || [];
+        const deletePromises = (unusedVideos as any[])?.map(video => deleteVideo.mutateAsync(video.id)) || [];
         await Promise.all(deletePromises);
         
         return unusedVideos?.length || 0;
