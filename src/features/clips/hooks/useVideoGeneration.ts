@@ -16,8 +16,9 @@ interface VideoGenerationInput {
   aspect_ratio: string;
   duration: number;
   loop: boolean;
-  start_image_url?: string;
-  end_image_url?: string;
+  cfg_scale: number;
+  start_image?: string;
+  end_image?: string;
   concepts?: string[];
 }
 
@@ -78,7 +79,7 @@ export const useVideoGeneration = () => {
     
     try {
       // Make sure values are properly structured for the Luma API
-      const input = {
+      const input: VideoGenerationInput = {
         prompt: values.prompt,
         aspect_ratio: values.aspect_ratio,
         duration: parseInt(values.duration),
