@@ -78,20 +78,21 @@ export const useVideoGeneration = () => {
     
     try {
       // Make sure values are properly structured for the Luma API
-      const input: VideoGenerationInput = {
+      const input = {
         prompt: values.prompt,
         aspect_ratio: values.aspect_ratio,
         duration: parseInt(values.duration),
         loop: values.loop,
+        cfg_scale: 7.5, // Add required cfg_scale property with default value
       };
       
       // Only add valid start and end frames
       if (values.use_existing_video && startFrame && typeof startFrame === 'string') {
-        input.start_image_url = startFrame;
+        input.start_image = startFrame;
       }
       
       if (values.use_existing_video && endFrame && typeof endFrame === 'string') {
-        input.end_image_url = endFrame;
+        input.end_image = endFrame;
       }
       
       console.log("Generating video with inputs:", input);
