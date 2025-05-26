@@ -1,3 +1,4 @@
+
 import {
   Card,
   CardContent,
@@ -20,11 +21,8 @@ import { useToast } from "@/hooks/use-toast";
 import {
   Search,
   MessageSquare,
-  Mail,
-  Phone,
   Video,
   Scissors,
-  Globe,
 } from "lucide-react";
 import { useState } from "react";
 
@@ -36,10 +34,19 @@ const Support = () => {
 
   const handleSubmitContact = (e: React.FormEvent) => {
     e.preventDefault();
+    
+    // Create mailto link to realmaidevs@gmail.com
+    const subject = encodeURIComponent(contactSubject);
+    const body = encodeURIComponent(contactMessage);
+    const mailtoLink = `mailto:realmaidevs@gmail.com?subject=${subject}&body=${body}`;
+    
+    window.open(mailtoLink, '_blank');
+    
     toast({
-      title: "Message sent",
-      description: "We've received your message and will get back to you soon.",
+      title: "Email client opened",
+      description: "Your default email client has been opened with your message pre-filled.",
     });
+    
     setContactSubject("");
     setContactMessage("");
   };
@@ -163,7 +170,7 @@ const Support = () => {
               <CardFooter className="p-4 pt-0">
                 <Button variant="link" className="px-0 text-purple-600" asChild>
                   <a
-                    href="https://www.youtube.com/watch?v=194769JxDzE&list=RDKe2ytIWeQ-o&index=5&ab_channel=MEntertainments"
+                    href="https://www.youtube.com/watch?v=194769JxDzE"
                     target="_blank"
                     rel="noopener noreferrer"
                   >
@@ -187,7 +194,7 @@ const Support = () => {
               <CardFooter className="p-4 pt-0">
                 <Button variant="link" className="px-0 text-purple-600" asChild>
                   <a
-                    href="https://www.youtube.com/watch?v=194769JxDzE&list=RDKe2ytIWeQ-o&index=5&ab_channel=MEntertainments"
+                    href="https://www.youtube.com/watch?v=194769JxDzE"
                     target="_blank"
                     rel="noopener noreferrer"
                   >
@@ -210,7 +217,7 @@ const Support = () => {
               <CardFooter className="p-4 pt-0">
                 <Button variant="link" className="px-0 text-purple-600" asChild>
                   <a
-                    href="https://www.youtube.com/watch?v=194769JxDzE&list=RDKe2ytIWeQ-o&index=5&ab_channel=MEntertainments"
+                    href="https://www.youtube.com/watch?v=194769JxDzE"
                     target="_blank"
                     rel="noopener noreferrer"
                   >
@@ -263,52 +270,6 @@ const Support = () => {
                   Send Message
                 </Button>
               </form>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader>
-              <CardTitle>Alternative Contact Methods</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="flex items-center gap-3">
-                <div className="h-10 w-10 rounded-full bg-muted flex items-center justify-center">
-                  <Mail className="h-5 w-5 text-muted-foreground" />
-                </div>
-                <div>
-                  <p className="font-medium">Email Support</p>
-                  <p className="text-sm text-muted-foreground">
-                    support@realmaiapp.com
-                  </p>
-                </div>
-              </div>
-
-              <div className="flex items-center gap-3">
-                <div className="h-10 w-10 rounded-full bg-muted flex items-center justify-center">
-                  <Phone className="h-5 w-5 text-muted-foreground" />
-                </div>
-                <div>
-                  <p className="font-medium">Phone Support</p>
-                  <p className="text-sm text-muted-foreground">
-                    +1 (800) 123-4567
-                  </p>
-                  <p className="text-xs text-muted-foreground">
-                    Available Mon-Fri, 9am-5pm PST
-                  </p>
-                </div>
-              </div>
-
-              <div className="flex items-center gap-3">
-                <div className="h-10 w-10 rounded-full bg-muted flex items-center justify-center">
-                  <Globe className="h-5 w-5 text-muted-foreground" />
-                </div>
-                <div>
-                  <p className="font-medium">Live Chat</p>
-                  <Button variant="link" className="p-0 h-auto text-sm">
-                    Start Live Chat
-                  </Button>
-                </div>
-              </div>
             </CardContent>
           </Card>
         </div>
