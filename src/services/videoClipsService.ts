@@ -47,9 +47,16 @@ export const saveVideoClip = async (clipData: Omit<VideoClip, 'id' | 'user_id' |
 };
 
 export const getUserVideoClips = async () => {
+  const { data: { user } } = await supabase.auth.getUser();
+  
+  if (!user) {
+    throw new Error('User not authenticated');
+  }
+
   const { data, error } = await supabase
     .from('video_clips')
     .select('*')
+    .eq('user_id', user.id)
     .order('created_at', { ascending: false });
 
   if (error) {
@@ -61,13 +68,63 @@ export const getUserVideoClips = async () => {
 };
 
 export const deleteVideoClip = async (clipId: string) => {
+  const { data: { user } } = await supabase.auth.getUser();
+  
+  if (!user) {
+    throw new Error('User not authenticated');
+  }
+
   const { error } = await supabase
     .from('video_clips')
     .delete()
-    .eq('id', clipId);
+    .eq('id', clipId)
+    .eq('user_id', user.id);
 
   if (error) {
     console.error('Error deleting video clip:', error);
     throw error;
+  }
+};
+
+export const downloadAndStoreVideo = async (videoUrl: string, fileName: string): Promise<string> => {
+  try {
+    // Download the video from external URL
+    const response = await fetch(videoUrl);
+    if (!response.ok) {
+      throw new Error(`Failed to download video: ${response.statusText}`);
+    }
+
+    const videoBlob = await response.blob();
+    const { data: { user } } = await supabase.auth.getUser();
+    
+    if (!user) {
+      throw new Error('User not authenticated');
+    }
+
+    // Upload to Supabase storage
+    const filePath = `${user.id}/${Date.now()}-${fileName}`;
+    
+    const { data, error } = await supabase.storage
+      .from('video-clips')
+      .upload(filePath, videoBlob, {
+        contentType: 'video/mp4',
+        cacheControl: '3600'
+      });
+
+    if (error) {
+      console.error('Error uploading video to storage:', error);
+      throw error;
+    }
+
+    // Get public URL
+    const { data: { publicUrl } } = supabase.storage
+      .from('video-clips')
+      .getPublicUrl(data.path);
+
+    return publicUrl;
+  } catch (error) {
+    console.error('Error in downloadAndStoreVideo:', error);
+    // Fallback to original URL if storage fails
+    return videoUrl;
   }
 };
