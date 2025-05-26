@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -354,7 +353,7 @@ const Analytics = () => {
               </p>
             </div>
           </CardContent>
-        </div>
+        </Card>
       )}
     </div>
   );
