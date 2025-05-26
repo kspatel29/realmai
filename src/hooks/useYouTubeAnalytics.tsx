@@ -36,6 +36,9 @@ export interface ChannelAnalytics {
   cpm: number;
   ctr: number;
   avgViewDuration: number;
+  views: number;
+  likes: number;
+  comments: number;
 }
 
 export const useYouTubeAnalytics = () => {
@@ -98,7 +101,10 @@ export const useYouTubeAnalytics = () => {
     growth: 12.3,
     cpm: 2.85,
     ctr: 4.2,
-    avgViewDuration: 3.45
+    avgViewDuration: 3.45,
+    views: 1250000,
+    likes: 89400,
+    comments: 12800
   };
 
   // Enhanced mock function with more realistic data
@@ -160,7 +166,10 @@ export const useYouTubeAnalytics = () => {
       growth: Math.random() * 20,
       cpm: Math.random() * 5,
       ctr: Math.random() * 8,
-      avgViewDuration: Math.random() * 5
+      avgViewDuration: Math.random() * 5,
+      views: Math.floor(Math.random() * 1000000),
+      likes: Math.floor(Math.random() * 50000),
+      comments: Math.floor(Math.random() * 10000)
     };
   };
 

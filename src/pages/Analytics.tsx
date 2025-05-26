@@ -344,18 +344,18 @@ const Analytics = () => {
                             {channel.thumbnail && (
                               <img 
                                 src={channel.thumbnail} 
-                                alt={channel.title}
+                                alt={channel.channel_name}
                                 className="w-12 h-12 rounded-full"
                               />
                             )}
                             <div className="flex-1">
-                              <h3 className="font-medium truncate">{channel.title}</h3>
+                              <h3 className="font-medium truncate">{channel.channel_name}</h3>
                               <p className="text-sm text-muted-foreground truncate">
                                 {channel.description || 'No description'}
                               </p>
-                              {channel.subscriberCount && (
+                              {channel.subscriber_count && (
                                 <Badge variant="secondary" className="mt-1">
-                                  {Number(channel.subscriberCount).toLocaleString()} subscribers
+                                  {Number(channel.subscriber_count).toLocaleString()} subscribers
                                 </Badge>
                               )}
                             </div>
@@ -380,7 +380,7 @@ const Analytics = () => {
                       <Users className="h-4 w-4 text-muted-foreground" />
                       <div>
                         <p className="text-sm text-muted-foreground">Subscribers</p>
-                        <p className="font-medium">{Number(channelDetails.subscriberCount || 0).toLocaleString()}</p>
+                        <p className="font-medium">{Number(channelDetails.subscriber_count || 0).toLocaleString()}</p>
                       </div>
                     </div>
                     
@@ -388,7 +388,7 @@ const Analytics = () => {
                       <PlayCircle className="h-4 w-4 text-muted-foreground" />
                       <div>
                         <p className="text-sm text-muted-foreground">Total Videos</p>
-                        <p className="font-medium">{Number(channelDetails.videoCount || 0).toLocaleString()}</p>
+                        <p className="font-medium">{Number(channelDetails.video_count || 0).toLocaleString()}</p>
                       </div>
                     </div>
                     
@@ -396,7 +396,7 @@ const Analytics = () => {
                       <Eye className="h-4 w-4 text-muted-foreground" />
                       <div>
                         <p className="text-sm text-muted-foreground">Total Views</p>
-                        <p className="font-medium">{Number(channelDetails.viewCount || 0).toLocaleString()}</p>
+                        <p className="font-medium">{Number(channelDetails.view_count || 0).toLocaleString()}</p>
                       </div>
                     </div>
                     
@@ -405,7 +405,7 @@ const Analytics = () => {
                       <div>
                         <p className="text-sm text-muted-foreground">Created</p>
                         <p className="font-medium">
-                          {channelDetails.publishedAt ? new Date(channelDetails.publishedAt).getFullYear() : 'Unknown'}
+                          {channelDetails.created_at ? new Date(channelDetails.created_at).getFullYear() : 'Unknown'}
                         </p>
                       </div>
                     </div>

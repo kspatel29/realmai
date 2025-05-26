@@ -18,7 +18,6 @@ interface VideoGenerationInput {
   loop: boolean;
   start_image_url?: string;
   end_image_url?: string;
-  cfg_scale?: number;
   concepts?: string[];
 }
 
@@ -78,13 +77,12 @@ export const useVideoGeneration = () => {
     setIsProcessing(true);
     
     try {
-      // Make sure values are properly structured for the new Luma API
+      // Make sure values are properly structured for the Luma API
       const input: VideoGenerationInput = {
         prompt: values.prompt,
         aspect_ratio: values.aspect_ratio,
         duration: parseInt(values.duration),
         loop: values.loop,
-        cfg_scale: 1.0, // Default value for cfg_scale
       };
       
       // Only add valid start and end frames
