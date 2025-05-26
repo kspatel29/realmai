@@ -10,10 +10,18 @@ import { BarChart3, TrendingUp, Activity } from "lucide-react";
 const Analytics = () => {
   const { allJobs, isLoading } = useUnifiedJobManager();
 
-  const handleJobAction = (jobId: string, action: string) => {
-    console.log(`Job action: ${action} for job ${jobId}`);
-    // Handle job actions like view, download, retry, cancel
+  const handleJobClick = (job: any) => {
+    console.log(`Job clicked: ${job.id}`);
+    // Handle job click actions like view details, download, etc.
   };
+
+  // Transform unified jobs to match OptimizedJobsList expected format
+  const transformedJobs = allJobs.map(job => ({
+    ...job,
+    service: job.service || 'unknown',
+    created_at: job.created_at,
+    updated_at: job.updated_at || job.created_at
+  }));
 
   return (
     <div className="space-y-8 animate-fade-in">
@@ -97,8 +105,8 @@ const Analytics = () => {
               </CardHeader>
               <CardContent>
                 <OptimizedJobsList 
-                  jobs={allJobs.slice(0, 10)} 
-                  onJobAction={handleJobAction}
+                  jobs={transformedJobs.slice(0, 10)} 
+                  onJobClick={handleJobClick}
                   isLoading={isLoading}
                 />
               </CardContent>
@@ -118,8 +126,8 @@ const Analytics = () => {
             </CardHeader>
             <CardContent>
               <OptimizedJobsList 
-                jobs={allJobs} 
-                onJobAction={handleJobAction}
+                jobs={transformedJobs} 
+                onJobClick={handleJobClick}
                 isLoading={isLoading}
               />
             </CardContent>
