@@ -2,6 +2,7 @@
 import DashboardStatsCards from "@/components/DashboardStatsCards";
 import DashboardServiceTutorials from "@/components/DashboardServiceTutorials";
 import DashboardCreditsCard from "@/components/DashboardCreditsCard";
+import JobProgressTracker from "@/components/JobProgressTracker";
 
 const Dashboard = () => {
   return (
@@ -16,20 +17,20 @@ const Dashboard = () => {
       {/* Stats Cards */}
       <DashboardStatsCards />
 
-      {/* Service Tutorials */}
-      <div>
-        <h2 className="text-xl font-semibold mb-4">Learn How to Use Our Services</h2>
-        <DashboardServiceTutorials />
-      </div>
-
-      {/* Credits Card */}
+      {/* Job Progress and Credits */}
       <div className="grid md:grid-cols-3 gap-6">
         <div className="md:col-span-2">
-          {/* Space for future content */}
+          <JobProgressTracker />
         </div>
         <div>
           <DashboardCreditsCard />
         </div>
+      </div>
+
+      {/* Service Tutorials */}
+      <div>
+        <h2 className="text-xl font-semibold mb-4">Learn How to Use Our Services</h2>
+        <DashboardServiceTutorials />
       </div>
     </div>
   );

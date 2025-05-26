@@ -159,37 +159,66 @@ export class JobManagerService {
   }
 
   private async checkJobStatus(jobId: string, jobType: string): Promise<JobStatus> {
-    let tableName: string;
-    
-    switch (jobType) {
-      case 'dubbing':
-        tableName = 'dubbing_jobs';
-        break;
-      case 'subtitles':
-        tableName = 'subtitle_jobs';
-        break;
-      case 'video_generation':
-        tableName = 'service_usage_logs';
-        break;
-      default:
-        throw new Error(`Unknown job type: ${jobType}`);
+    try {
+      switch (jobType) {
+        case 'dubbing': {
+          const { data, error } = await supabase
+            .from('dubbing_jobs')
+            .select('*')
+            .eq('id', jobId)
+            .single();
+
+          if (error) throw error;
+
+          return {
+            id: data.id,
+            status: data.status as JobStatus['status'],
+            error: data.error || undefined,
+            createdAt: data.created_at,
+            updatedAt: data.updated_at
+          };
+        }
+        case 'subtitles': {
+          const { data, error } = await supabase
+            .from('subtitle_jobs')
+            .select('*')
+            .eq('id', jobId)
+            .single();
+
+          if (error) throw error;
+
+          return {
+            id: data.id,
+            status: data.status as JobStatus['status'],
+            error: data.error || undefined,
+            createdAt: data.created_at,
+            updatedAt: data.updated_at
+          };
+        }
+        case 'video_generation': {
+          const { data, error } = await supabase
+            .from('service_usage_logs')
+            .select('*')
+            .eq('id', jobId)
+            .single();
+
+          if (error) throw error;
+
+          return {
+            id: data.id,
+            status: data.status as JobStatus['status'],
+            error: undefined, // service_usage_logs doesn't have error field
+            createdAt: data.created_at,
+            updatedAt: data.created_at // service_usage_logs doesn't have updated_at
+          };
+        }
+        default:
+          throw new Error(`Unknown job type: ${jobType}`);
+      }
+    } catch (error) {
+      console.error('Error checking job status:', error);
+      throw error;
     }
-
-    const { data, error } = await supabase
-      .from(tableName)
-      .select('*')
-      .eq('id', jobId)
-      .single();
-
-    if (error) throw error;
-
-    return {
-      id: data.id,
-      status: data.status,
-      error: data.error,
-      createdAt: data.created_at,
-      updatedAt: data.updated_at
-    };
   }
 
   stopPolling(jobId: string): void {
