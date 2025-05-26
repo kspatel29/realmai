@@ -19,9 +19,22 @@ export interface VideoClip {
 }
 
 export const saveVideoClip = async (clipData: Omit<VideoClip, 'id' | 'user_id' | 'created_at' | 'updated_at'>) => {
+  // Get the current user
+  const { data: { user } } = await supabase.auth.getUser();
+  
+  if (!user) {
+    throw new Error('User not authenticated');
+  }
+
+  // Add the user_id to the clip data
+  const clipWithUserId = {
+    ...clipData,
+    user_id: user.id
+  };
+
   const { data, error } = await supabase
     .from('video_clips')
-    .insert([clipData])
+    .insert(clipWithUserId)
     .select()
     .single();
 
