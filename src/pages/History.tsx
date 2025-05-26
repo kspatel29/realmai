@@ -7,10 +7,23 @@ import { useSubtitleJobs } from "@/hooks/useSubtitleJobs";
 import ClipPreview from "@/features/clips/components/ClipPreview";
 import { useState, useEffect } from "react";
 
+interface SubtitleHistoryJob {
+  id: string;
+  type: string;
+  title: string;
+  status: string;
+  created_at: string;
+  srt_url?: string;
+  vtt_url?: string;
+  preview_text?: string;
+  original_filename?: string;
+}
+
 const History = () => {
   const { jobs, isLoading, refetch } = useDubbingJobs();
   const { jobs: subtitleJobs, isLoading: isSubtitlesLoading, refreshJobs } = useSubtitleJobs();
   const [videoClips, setVideoClips] = useState<any[]>([]);
+  const [localSubtitleJobs, setLocalSubtitleJobs] = useState<SubtitleHistoryJob[]>([]);
 
   // Retrieve saved video clips from localStorage
   useEffect(() => {
@@ -25,6 +38,28 @@ const History = () => {
     }
   }, []);
 
+  // Retrieve saved subtitle jobs from localStorage
+  useEffect(() => {
+    const savedSubtitleJobs = localStorage.getItem('subtitleJobs');
+    if (savedSubtitleJobs) {
+      try {
+        const parsedJobs = JSON.parse(savedSubtitleJobs);
+        setLocalSubtitleJobs(parsedJobs);
+      } catch (error) {
+        console.error("Error parsing saved subtitle jobs:", error);
+      }
+    }
+  }, []);
+
+  // Combine database subtitle jobs with local subtitle jobs
+  const allSubtitleJobs = [...subtitleJobs, ...localSubtitleJobs].reduce((acc, job) => {
+    const exists = acc.find(existingJob => existingJob.id === job.id);
+    if (!exists) {
+      acc.push(job);
+    }
+    return acc;
+  }, [] as any[]);
+
   return (
     <div className="space-y-8 animate-fade-in">
       <div>
@@ -37,8 +72,8 @@ const History = () => {
       <Tabs defaultValue="dubbing" className="w-full">
         <TabsList className="grid w-full max-w-md grid-cols-3">
           <TabsTrigger value="dubbing">Dubbing</TabsTrigger>
-          <TabsTrigger value="subtitles">Subtitles</TabsTrigger>
-          <TabsTrigger value="videos">Video Clips</TabsTrigger>
+          <TabsTrigger value="subtitles">Subtitles ({allSubtitleJobs.length})</TabsTrigger>
+          <TabsTrigger value="videos">Video Clips ({videoClips.length})</TabsTrigger>
         </TabsList>
         
         <TabsContent value="dubbing" className="mt-6">
