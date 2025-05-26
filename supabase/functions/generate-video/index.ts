@@ -79,7 +79,7 @@ serve(async (req) => {
 
     console.log("Processing input for video generation:", JSON.stringify(body));
     
-    // Process input based on Luma Ray Flash schema
+    // Process input based on Luma Ray Flash schema - map fields correctly
     const input: Record<string, any> = {
       prompt: body.prompt.trim(),
       duration: body.duration ? parseInt(String(body.duration), 10) : 5,
@@ -87,13 +87,15 @@ serve(async (req) => {
       loop: body.loop || false,
     };
     
-    // Add optional fields if provided
+    // Add optional fields if provided - map to correct API field names
     if (body.start_image_url && typeof body.start_image_url === 'string') {
       input.start_image_url = body.start_image_url;
+      console.log("Added start_image_url to input");
     }
     
     if (body.end_image_url && typeof body.end_image_url === 'string') {
       input.end_image_url = body.end_image_url;
+      console.log("Added end_image_url to input");
     }
 
     if (body.concepts && Array.isArray(body.concepts)) {
@@ -101,7 +103,7 @@ serve(async (req) => {
     }
     
     console.log("Using Luma Ray Flash model: luma/ray-flash-2-720p");
-    console.log("With input:", JSON.stringify(input));
+    console.log("Final input for API:", JSON.stringify(input));
 
     // Create prediction using the Luma Ray Flash model
     try {
