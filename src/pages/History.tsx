@@ -4,6 +4,7 @@ import DubbingJobsList from "@/components/DubbingJobsList";
 import SubtitleJobsList from "@/components/SubtitleJobsList";
 import { useDubbingJobs } from "@/hooks/dubbingJobs";
 import { useSubtitleJobs } from "@/hooks/useSubtitleJobs";
+import { useSubtitleJobsSync } from "@/hooks/useSubtitleJobsSync";
 import ClipPreview from "@/features/clips/components/ClipPreview";
 import { useState, useEffect } from "react";
 
@@ -24,6 +25,9 @@ const History = () => {
   const { jobs: subtitleJobs, isLoading: isSubtitlesLoading, refreshJobs } = useSubtitleJobs();
   const [videoClips, setVideoClips] = useState<any[]>([]);
   const [localSubtitleJobs, setLocalSubtitleJobs] = useState<SubtitleHistoryJob[]>([]);
+
+  // Sync completed subtitle jobs from database
+  useSubtitleJobsSync();
 
   // Retrieve saved video clips from localStorage
   useEffect(() => {

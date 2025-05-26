@@ -2,6 +2,7 @@
 import { useState, useCallback } from "react";
 import { useToast } from "@/hooks/use-toast";
 import { useCredits } from "@/hooks/credits";
+import { useAuth } from "@/hooks/useAuth";
 import { 
   generateSubtitles, 
   checkSubtitlesStatus, 
@@ -40,6 +41,7 @@ export const useSubtitlesProcess = () => {
   
   const { toast } = useToast();
   const { useCredits: spendCredits } = useCredits();
+  const { user } = useAuth();
 
   const handleFileUploaded = useCallback(async (file: File) => {
     console.log("File uploaded:", { fileName: file.name });
@@ -222,12 +224,21 @@ export const useSubtitlesProcess = () => {
       return;
     }
 
+    if (!user) {
+      toast({
+        title: "Authentication required",
+        description: "Please log in to use this service.",
+        variant: "destructive"
+      });
+      return;
+    }
+
     try {
       setIsProcessing(true);
       
-      // Create job entry in database
+      // Create job entry in database with actual user ID
       const jobId = await createSubtitleJob({
-        userId: "current-user", // This should come from auth context
+        userId: user.id,
         modelName: values.model_name,
         language: values.language,
         originalFilename: uploadedFileName || undefined
@@ -368,7 +379,7 @@ export const useSubtitlesProcess = () => {
         variant: "destructive"
       });
     }
-  }, [uploadedFileUrl, uploadedFileName, pollForResult, toast, spendCredits]);
+  }, [uploadedFileUrl, uploadedFileName, pollForResult, toast, spendCredits, user]);
 
   return {
     isUploading,
