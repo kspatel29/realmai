@@ -1,4 +1,3 @@
-
 import { useForm, UseFormReturn } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -13,7 +12,7 @@ import { Wand2, Upload, X } from "lucide-react";
 import ServiceCostDisplay from "@/components/ServiceCostDisplay";
 
 export const videoGenerationSchema = z.object({
-  prompt: z.string().min(1, "Prompt is required").max(500, "Prompt must be less than 500 characters"),
+  prompt: z.string().min(3, "Prompt must be at least 3 characters").max(500, "Prompt must be less than 500 characters"),
   aspect_ratio: z.enum(["1:1", "3:4", "4:3", "9:16", "16:9", "9:21", "21:9"]),
   duration: z.enum(["5", "9"]),
   loop: z.boolean(),
@@ -89,7 +88,7 @@ const VideoGenerationForm = ({
               name="prompt"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Prompt</FormLabel>
+                  <FormLabel>Prompt *</FormLabel>
                   <FormControl>
                     <Textarea
                       placeholder="Describe the video you want to generate (e.g., 'a cat playing with yarn in slow motion')"
@@ -98,7 +97,7 @@ const VideoGenerationForm = ({
                     />
                   </FormControl>
                   <FormDescription>
-                    Be specific and descriptive for better results
+                    Be specific and descriptive for better results (minimum 3 characters)
                   </FormDescription>
                   <FormMessage />
                 </FormItem>

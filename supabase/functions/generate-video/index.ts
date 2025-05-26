@@ -72,16 +72,16 @@ serve(async (req) => {
       }
     }
 
-    // Validate input for video generation
-    if (!body.prompt) {
-      throw new Error("Missing required field: prompt is required");
+    // Validate input for video generation - check if prompt exists and is not empty
+    if (!body.prompt || body.prompt.trim() === '') {
+      throw new Error("Missing required field: prompt is required and cannot be empty");
     }
 
     console.log("Processing input for video generation:", JSON.stringify(body));
     
     // Process input based on Luma Ray Flash schema
     const input: Record<string, any> = {
-      prompt: body.prompt,
+      prompt: body.prompt.trim(),
       duration: body.duration ? parseInt(String(body.duration), 10) : 5,
       aspect_ratio: body.aspect_ratio || "16:9",
       loop: body.loop || false,
