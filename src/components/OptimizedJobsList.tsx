@@ -1,183 +1,92 @@
 
-import { memo, useMemo } from "react";
+import React, { useMemo } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
-import { Play, Download, AlertCircle, CheckCircle, Clock } from "lucide-react";
-import { format } from "date-fns";
 import { useIntersectionObserver } from "@/hooks/usePerformanceOptimization";
+import { Clock, PlayCircle, FileText, Zap, AlertCircle, CheckCircle, XCircle } from "lucide-react";
 
 interface Job {
   id: string;
-  type: 'dubbing' | 'subtitles' | 'video_generation';
+  service: string;
   status: string;
   created_at: string;
   updated_at?: string;
-  metadata?: any;
+  progress?: number;
   error?: string;
 }
 
 interface OptimizedJobsListProps {
   jobs: Job[];
-  onJobAction?: (jobId: string, action: string) => void;
-  isLoading?: boolean;
+  isLoading: boolean;
+  onJobClick?: (job: Job) => void;
 }
 
-const JobItem = memo(({ job, onJobAction }: { job: Job; onJobAction?: (jobId: string, action: string) => void }) => {
-  const intersectionRef = useIntersectionObserver(() => {
-    // Could be used for analytics or lazy loading additional data
+const OptimizedJobsList = ({ jobs, isLoading, onJobClick }: OptimizedJobsListProps) => {
+  const targetRef = useIntersectionObserver((isVisible) => {
+    // Handle intersection if needed
   });
 
-  const statusColor = useMemo(() => {
-    switch (job.status) {
-      case 'completed':
-      case 'succeeded':
-        return 'bg-green-500';
-      case 'failed':
-        return 'bg-red-500';
-      case 'processing':
-      case 'running':
-        return 'bg-blue-500';
-      default:
-        return 'bg-gray-500';
-    }
-  }, [job.status]);
+  const sortedJobs = useMemo(() => {
+    return [...jobs].sort((a, b) => 
+      new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+    );
+  }, [jobs]);
 
-  const statusIcon = useMemo(() => {
-    switch (job.status) {
-      case 'completed':
-      case 'succeeded':
-        return <CheckCircle className="h-4 w-4" />;
-      case 'failed':
-        return <AlertCircle className="h-4 w-4" />;
-      case 'processing':
-      case 'running':
-        return <Clock className="h-4 w-4" />;
+  const getServiceIcon = (service: string) => {
+    switch (service) {
+      case 'dubbing':
+        return <PlayCircle className="h-4 w-4" />;
+      case 'subtitles':
+        return <FileText className="h-4 w-4" />;
+      case 'video_generation':
+        return <Zap className="h-4 w-4" />;
       default:
         return <Clock className="h-4 w-4" />;
     }
-  }, [job.status]);
+  };
 
-  const progress = useMemo(() => {
-    switch (job.status) {
+  const getStatusIcon = (status: string) => {
+    switch (status) {
       case 'completed':
       case 'succeeded':
-        return 100;
+        return <CheckCircle className="h-4 w-4 text-green-500" />;
+      case 'failed':
+      case 'error':
+        return <XCircle className="h-4 w-4 text-red-500" />;
       case 'processing':
       case 'running':
-        return 50;
-      case 'starting':
-        return 25;
+        return <Clock className="h-4 w-4 text-blue-500" />;
       default:
-        return 0;
+        return <AlertCircle className="h-4 w-4 text-yellow-500" />;
     }
-  }, [job.status]);
+  };
 
-  return (
-    <Card ref={intersectionRef} className="transition-all duration-200 hover:shadow-md">
-      <CardHeader className="pb-3">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <div className={`w-2 h-2 rounded-full ${statusColor}`} />
-            <CardTitle className="text-sm capitalize">{job.type.replace('_', ' ')}</CardTitle>
-            <Badge variant="outline" className="text-xs">
-              {statusIcon}
-              <span className="ml-1 capitalize">{job.status}</span>
-            </Badge>
-          </div>
-          <span className="text-xs text-muted-foreground">
-            {format(new Date(job.created_at), 'MMM dd, HH:mm')}
-          </span>
-        </div>
-        {job.metadata?.prompt && (
-          <CardDescription className="text-xs truncate">
-            {job.metadata.prompt}
-          </CardDescription>
-        )}
-      </CardHeader>
-      
-      <CardContent className="pt-0">
-        <div className="space-y-3">
-          <Progress value={progress} className="h-2" />
-          
-          {job.error && (
-            <div className="text-xs text-red-600 bg-red-50 p-2 rounded">
-              {job.error}
-            </div>
-          )}
-
-          <div className="flex gap-2">
-            {job.status === 'completed' || job.status === 'succeeded' ? (
-              <>
-                <Button
-                  size="sm"
-                  variant="outline"
-                  onClick={() => onJobAction?.(job.id, 'view')}
-                  className="text-xs"
-                >
-                  <Play className="h-3 w-3 mr-1" />
-                  View
-                </Button>
-                <Button
-                  size="sm"
-                  variant="outline"
-                  onClick={() => onJobAction?.(job.id, 'download')}
-                  className="text-xs"
-                >
-                  <Download className="h-3 w-3 mr-1" />
-                  Download
-                </Button>
-              </>
-            ) : job.status === 'failed' ? (
-              <Button
-                size="sm"
-                variant="outline"
-                onClick={() => onJobAction?.(job.id, 'retry')}
-                className="text-xs"
-              >
-                Retry
-              </Button>
-            ) : (
-              <Button
-                size="sm"
-                variant="outline"
-                onClick={() => onJobAction?.(job.id, 'cancel')}
-                className="text-xs"
-              >
-                Cancel
-              </Button>
-            )}
-          </div>
-        </div>
-      </CardContent>
-    </Card>
-  );
-});
-
-JobItem.displayName = 'JobItem';
-
-const OptimizedJobsList = memo(({ jobs, onJobAction, isLoading }: OptimizedJobsListProps) => {
-  const sortedJobs = useMemo(() => 
-    [...jobs].sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()),
-    [jobs]
-  );
+  const getStatusColor = (status: string) => {
+    switch (status) {
+      case 'completed':
+      case 'succeeded':
+        return 'bg-green-100 text-green-800';
+      case 'failed':
+      case 'error':
+        return 'bg-red-100 text-red-800';
+      case 'processing':
+      case 'running':
+        return 'bg-blue-100 text-blue-800';
+      default:
+        return 'bg-yellow-100 text-yellow-800';
+    }
+  };
 
   if (isLoading) {
     return (
       <div className="space-y-4">
-        {[...Array(3)].map((_, i) => (
-          <Card key={i}>
-            <CardHeader className="animate-pulse">
-              <div className="h-4 bg-gray-200 rounded w-3/4"></div>
+        {[1, 2, 3].map((i) => (
+          <Card key={i} className="animate-pulse">
+            <CardContent className="p-4">
+              <div className="h-4 bg-gray-200 rounded w-3/4 mb-2"></div>
               <div className="h-3 bg-gray-200 rounded w-1/2"></div>
-            </CardHeader>
-            <CardContent className="animate-pulse">
-              <div className="h-2 bg-gray-200 rounded w-full mb-2"></div>
-              <div className="flex gap-2">
-                <div className="h-8 bg-gray-200 rounded w-16"></div>
-                <div className="h-8 bg-gray-200 rounded w-20"></div>
-              </div>
             </CardContent>
           </Card>
         ))}
@@ -185,33 +94,57 @@ const OptimizedJobsList = memo(({ jobs, onJobAction, isLoading }: OptimizedJobsL
     );
   }
 
-  if (sortedJobs.length === 0) {
-    return (
-      <Card>
-        <CardContent className="flex flex-col items-center justify-center py-8">
-          <Clock className="h-12 w-12 text-muted-foreground mb-4" />
-          <h3 className="text-lg font-medium mb-2">No jobs yet</h3>
-          <p className="text-muted-foreground text-center">
-            Start using our AI services to see your job history here.
-          </p>
-        </CardContent>
-      </Card>
-    );
-  }
-
   return (
-    <div className="space-y-4">
+    <div className="space-y-4" ref={targetRef as React.RefObject<HTMLDivElement>}>
       {sortedJobs.map((job) => (
-        <JobItem
-          key={job.id}
-          job={job}
-          onJobAction={onJobAction}
-        />
+        <Card 
+          key={job.id} 
+          className="cursor-pointer hover:shadow-md transition-shadow"
+          onClick={() => onJobClick?.(job)}
+        >
+          <CardHeader className="pb-2">
+            <div className="flex items-center justify-between">
+              <CardTitle className="text-sm font-medium flex items-center gap-2">
+                {getServiceIcon(job.service)}
+                {job.service.charAt(0).toUpperCase() + job.service.slice(1)}
+              </CardTitle>
+              <div className="flex items-center gap-2">
+                {getStatusIcon(job.status)}
+                <Badge className={getStatusColor(job.status)}>
+                  {job.status}
+                </Badge>
+              </div>
+            </div>
+            <CardDescription className="text-xs">
+              Started {new Date(job.created_at).toLocaleString()}
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="pt-0">
+            {job.progress !== undefined && (
+              <div className="mb-2">
+                <Progress value={job.progress} className="h-2" />
+                <p className="text-xs text-muted-foreground mt-1">
+                  {job.progress}% complete
+                </p>
+              </div>
+            )}
+            {job.error && (
+              <div className="bg-red-50 border border-red-200 text-red-700 p-2 rounded text-xs">
+                {job.error}
+              </div>
+            )}
+          </CardContent>
+        </Card>
       ))}
+      {sortedJobs.length === 0 && (
+        <Card>
+          <CardContent className="p-8 text-center">
+            <p className="text-muted-foreground">No jobs found</p>
+          </CardContent>
+        </Card>
+      )}
     </div>
   );
-});
-
-OptimizedJobsList.displayName = 'OptimizedJobsList';
+};
 
 export default OptimizedJobsList;
