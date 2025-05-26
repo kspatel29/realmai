@@ -1,3 +1,4 @@
+
 import { useState, useEffect, useRef } from "react";
 import {
   Card,
@@ -107,10 +108,12 @@ const VideoDubbing = () => {
     try {
       if (!user || !video.video_url) return;
 
-      // For video_clips, we already have the video_url, so we can use it directly
+      // Use the stored video URL directly
       setVideoURL(video.video_url);
 
+      // Load video metadata using the actual video URL
       const videoElement = document.createElement("video");
+      videoElement.crossOrigin = "anonymous";
       videoElement.src = video.video_url;
 
       videoElement.onloadedmetadata = () => {
@@ -118,9 +121,15 @@ const VideoDubbing = () => {
         setFileDuration(videoElement.duration);
       };
 
-      videoElement.onerror = () => {
-        console.error("Error loading video metadata");
-        toast.error("Could not determine video duration");
+      videoElement.onerror = (error) => {
+        console.error("Error loading video metadata:", error);
+        // Fallback to stored duration if available
+        if (video.duration) {
+          console.log(`Using stored duration: ${video.duration} seconds`);
+          setFileDuration(video.duration);
+        } else {
+          toast.error("Could not determine video duration");
+        }
       };
     } catch (error) {
       console.error("Error loading video URL:", error);
@@ -388,6 +397,7 @@ const VideoDubbing = () => {
                         src={videoURL}
                         className="w-full h-full object-contain"
                         controls
+                        crossOrigin="anonymous"
                       />
                     ) : (
                       <div className="flex items-center justify-center h-full">
