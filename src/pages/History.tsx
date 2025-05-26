@@ -23,7 +23,7 @@ interface SubtitleHistoryJob {
 }
 
 const History = () => {
-  const { jobs, isLoading, refetch } = useDubbingJobs();
+  const { jobs: dubbingJobs, isLoading: isDubbingLoading, refetch: refetchDubbing } = useDubbingJobs();
   const { jobs: subtitleJobs, isLoading: isSubtitlesLoading, refreshJobs } = useSubtitleJobs();
   const { clips: videoClips, isLoading: isVideoClipsLoading } = useVideoClips();
   const [localSubtitleJobs, setLocalSubtitleJobs] = useState<SubtitleHistoryJob[]>([]);
@@ -57,7 +57,7 @@ const History = () => {
     return acc;
   }, [] as any[]);
 
-  // Convert database video clips to ClipPreview format
+  // Convert video clips to proper format for ClipPreview
   const formattedVideoClips = videoClips.map(clip => ({
     id: clip.id,
     title: clip.title,
@@ -71,22 +71,28 @@ const History = () => {
       <div>
         <h1 className="text-2xl font-bold tracking-tight mb-2">History</h1>
         <p className="text-muted-foreground">
-          View your past jobs and their status.
+          View your past jobs and their results across all services.
         </p>
       </div>
 
       <Tabs value={currentTab} onValueChange={setCurrentTab} className="w-full">
         <TabsList className="grid w-full max-w-md grid-cols-3">
-          <TabsTrigger value="dubbing">Dubbing</TabsTrigger>
-          <TabsTrigger value="subtitles">Subtitles ({allSubtitleJobs.length})</TabsTrigger>
-          <TabsTrigger value="videos">Video Clips ({formattedVideoClips.length})</TabsTrigger>
+          <TabsTrigger value="dubbing">
+            Video Dubbing ({dubbingJobs.length})
+          </TabsTrigger>
+          <TabsTrigger value="subtitles">
+            Subtitles ({allSubtitleJobs.length})
+          </TabsTrigger>
+          <TabsTrigger value="video-clips">
+            Video Clips ({formattedVideoClips.length})
+          </TabsTrigger>
         </TabsList>
         
         <TabsContent value="dubbing" className="mt-6">
           <DubbingJobsList 
-            jobs={jobs} 
-            onRefresh={refetch} 
-            isLoading={isLoading} 
+            jobs={dubbingJobs} 
+            onRefresh={refetchDubbing} 
+            isLoading={isDubbingLoading} 
           />
         </TabsContent>
         
@@ -94,7 +100,7 @@ const History = () => {
           <SubtitleJobsList />
         </TabsContent>
         
-        <TabsContent value="videos" className="mt-6">
+        <TabsContent value="video-clips" className="mt-6">
           {isVideoClipsLoading ? (
             <div className="flex items-center justify-center py-8">
               <div className="text-muted-foreground">Loading video clips...</div>
