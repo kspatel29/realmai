@@ -1,452 +1,709 @@
-
-import { useState, useRef, useEffect } from "react";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { useState, useEffect, useRef } from "react";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardFooter,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Checkbox } from "@/components/ui/checkbox";
-import { Upload, Play, AlertCircle, Loader2 } from "lucide-react";
-import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Progress } from "@/components/ui/progress";
+import { Upload, Play, Video, Loader2 } from "lucide-react";
 import { toast } from "sonner";
-import { submitVideoDubbing } from "@/services/api";
+import ServiceCostDisplay from "@/components/ServiceCostDisplay";
+import CreditConfirmDialog from "@/components/CreditConfirmDialog";
+import { useCredits } from "@/hooks/useCredits";
+import { useVideos, type Video as VideoType } from "@/hooks/useVideos";
 import { useDubbingJobs } from "@/hooks/dubbingJobs";
-import { useDubbingVideos } from "@/hooks/useDubbingVideos";
-import { useToast } from "@/hooks/use-toast";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
+import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/hooks/useAuth";
+import VideoDubbingForm from "@/components/VideoDubbingForm";
+import DubbingJobsList from "@/components/DubbingJobsList";
+import { submitVideoDubbing } from "@/services/api";
+import { useInterval } from "@/hooks/useInterval";
+import { calculateCostFromFileDuration } from "@/services/api/pricingService";
 
 const VideoDubbing = () => {
-  const { jobs, createJob, refreshJobStatus, isUpdating } = useDubbingJobs();
-  const { 
-    videos: dubbingVideos, 
-    isLoading: isLoadingVideos, 
-    uploadVideo,
-    markAsUsed,
-    getVideoUrl
-  } = useDubbingVideos();
-  
-  const { toast: showToast } = useToast();
-  const [selectedFile, setSelectedFile] = useState<File | null>(null);
-  const [selectedVideo, setSelectedVideo] = useState<string>("");
-  const [targetLanguage, setTargetLanguage] = useState("english");
-  const [enableVoiceCloning, setEnableVoiceCloning] = useState(true);
-  const [enableLipsyncing, setEnableLipsyncing] = useState(false);
-  const [preserveBackgroundAudio, setPreserveBackgroundAudio] = useState(true);
+  const { user } = useAuth();
+  const [selectedVideo, setSelectedVideo] = useState<VideoType | null>(null);
+  const [videoURL, setVideoURL] = useState<string | null>(null);
+  const [isUploading, setIsUploading] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
-  const [uploadProgress, setUploadProgress] = useState(0);
-  const [videoDuration, setVideoDuration] = useState<number | null>(null);
-  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [isVoiceCloning, setIsVoiceCloning] = useState(true);
+  const [progress, setProgress] = useState(0);
+  const [showCreditConfirm, setShowCreditConfirm] = useState(false);
+  const [uploadDialogOpen, setUploadDialogOpen] = useState(false);
+  const [videoSelectOpen, setVideoSelectOpen] = useState(false);
+  const [currentForm, setCurrentForm] = useState<any>(null);
+  const [fileDuration, setFileDuration] = useState<number | null>(null);
+  const [totalCost, setTotalCost] = useState<number>(0);
+  const [isCalculatingCost, setIsCalculatingCost] = useState(false);
+  const [activeTab, setActiveTab] = useState("upload");
+  const hasCleanedUpRef = useRef(false);
 
-  // Get videos that haven't been used in jobs yet
-  const availableVideos = dubbingVideos.filter(video => !video.used_in_dubbing_job);
+  const { credits, useCredits: spendCredits, hasEnoughCredits } = useCredits();
+  const {
+    videos,
+    isLoading: isLoadingVideos,
+    uploadVideo,
+    deleteVideo,
+  } = useVideos();
+  const {
+    jobs: dubbingJobs,
+    isLoading: isLoadingJobs,
+    createJob,
+    refreshJobStatus,
+    isUpdating,
+  } = useDubbingJobs();
 
   useEffect(() => {
-    const interval = setInterval(() => {
+    if (selectedVideo) {
+      loadVideoURL(selectedVideo);
+    } else {
+      setVideoURL(null);
+      setFileDuration(null);
+    }
+  }, [selectedVideo]);
+
+  const handleTabChange = (value: string) => {
+    if ((value === "dub" || value === "preview") && !selectedVideo) {
+      toast.error("Please select a video first");
+      return;
+    }
+
+    setActiveTab(value);
+  };
+
+  useInterval(() => {
+    if (
+      dubbingJobs.some(
+        (job) => job.status === "queued" || job.status === "running"
+      )
+    ) {
+      console.log("Interval triggered: Refreshing active job statuses");
       refreshJobStatus();
-    }, 10000);
+    }
+  }, 5000);
 
-    return () => clearInterval(interval);
-  }, [refreshJobStatus]);
+  useEffect(() => {
+    if (dubbingJobs.length > 0) {
+      console.log("Initial refresh of job statuses");
+      refreshJobStatus();
+    }
+  }, [dubbingJobs.length]);
 
-  const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    if (file) {
-      if (file.type.startsWith('video/')) {
-        setSelectedFile(file);
-        setSelectedVideo("");
-        
-        // Get video duration
-        const video = document.createElement('video');
-        video.preload = 'metadata';
-        video.onloadedmetadata = () => {
-          setVideoDuration(video.duration);
-          URL.revokeObjectURL(video.src);
-        };
-        video.onerror = () => {
-          console.error("Error loading video metadata");
-          URL.revokeObjectURL(video.src);
-        };
-        video.src = URL.createObjectURL(file);
-      } else {
-        toast.error("Please select a valid video file.");
+  const loadVideoURL = async (video: VideoType) => {
+    try {
+      if (!user || !video.video_url) return;
+
+      // For video_clips, we already have the video_url, so we can use it directly
+      setVideoURL(video.video_url);
+
+      const videoElement = document.createElement("video");
+      videoElement.src = video.video_url;
+
+      videoElement.onloadedmetadata = () => {
+        console.log(`Video duration loaded: ${videoElement.duration} seconds`);
+        setFileDuration(videoElement.duration);
+      };
+
+      videoElement.onerror = () => {
+        console.error("Error loading video metadata");
+        toast.error("Could not determine video duration");
+      };
+    } catch (error) {
+      console.error("Error loading video URL:", error);
+      toast.error("Failed to load video");
+    }
+  };
+
+  useEffect(() => {
+    const updateCost = async () => {
+      if (!fileDuration || !currentForm) {
+        return;
       }
+
+      setIsCalculatingCost(true);
+
+      try {
+        const enableLipSync = currentForm.enable_lipsyncing || false;
+        const languages = currentForm.target_languages || [];
+
+        const cost = await calculateCostFromFileDuration(
+          fileDuration,
+          "dubbing",
+          {
+            enableLipSync,
+            languages,
+          }
+        );
+
+        console.log(
+          `Dubbing cost calculation: ${fileDuration / 60} minutes with ${
+            languages.length
+          } languages, lip sync: ${enableLipSync} = ${cost} credits`
+        );
+        setTotalCost(cost);
+      } catch (error) {
+        console.error("Error calculating dubbing cost:", error);
+      } finally {
+        setIsCalculatingCost(false);
+      }
+    };
+
+    updateCost();
+  }, [fileDuration, currentForm]);
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files[0]) {
+      const file = e.target.files[0];
+
+      setIsUploading(true);
+
+      let uploadProgress = 0;
+      const progressInterval = setInterval(() => {
+        uploadProgress += 5;
+        setProgress(uploadProgress);
+
+        if (uploadProgress >= 95) {
+          clearInterval(progressInterval);
+        }
+      }, 300);
+
+      const fileNameWithoutExt = file.name.split(".").slice(0, -1).join(".");
+
+      uploadVideo.mutate({
+        title: fileNameWithoutExt,
+        prompt: fileNameWithoutExt,
+        file: file  // Pass the actual file instead of blob URL
+      }, {
+        onSuccess: (newVideo) => {
+          setProgress(100);
+          setTimeout(() => {
+            setIsUploading(false);
+            setProgress(0);
+            setSelectedVideo(newVideo as VideoType);
+            setUploadDialogOpen(false);
+          }, 500);
+        },
+        onError: () => {
+          clearInterval(progressInterval);
+          setIsUploading(false);
+          setProgress(0);
+        },
+      });
     }
   };
 
-  const handleVideoSelect = async (videoId: string) => {
-    const video = dubbingVideos.find(v => v.id === videoId);
-    if (video) {
-      setSelectedVideo(videoId);
-      setSelectedFile(null);
-      setVideoDuration(video.duration || null);
+  const handleProcessVideo = (formValues: any) => {
+    if (!selectedVideo) {
+      toast.error("Please select a video first.");
+      return;
     }
+
+    if (
+      !formValues.target_languages ||
+      formValues.target_languages.length === 0
+    ) {
+      toast.error("Please select at least one language for dubbing.");
+      return;
+    }
+
+    setCurrentForm(formValues);
+    setShowCreditConfirm(true);
   };
 
-  const uploadAndSubmitDubbing = async () => {
-    if (!selectedFile) return;
+  const confirmAndProcess = async () => {
+    if (!videoURL || !currentForm || !selectedVideo) return;
 
     setIsProcessing(true);
-    setUploadProgress(0);
+    let creditTransaction = null;
 
     try {
-      const fileNameWithoutExt = selectedFile.name.split('.').slice(0, -1).join('.');
-      
-      // Upload video for dubbing
-      const uploadedVideo = await uploadVideo.mutateAsync({
-        file: selectedFile,
-        title: fileNameWithoutExt
+      // First deduct the credits
+      creditTransaction = await spendCredits.mutateAsync({
+        amount: totalCost,
+        service: "Video Dubbing",
+        description: `Dubbed video in ${
+          currentForm.target_languages.length
+        } languages, ${
+          isVoiceCloning ? "with voice cloning" : "with AI voice"
+        }`,
       });
 
-      // Use the uploaded video URL for dubbing
-      await submitDubbingWithVideo(uploadedVideo.video_url, uploadedVideo.id);
-      
+      const languages = currentForm.target_languages.join(",");
+
+      console.log("Submitting dubbing job with languages:", languages);
+      const response = await submitVideoDubbing(videoURL, {
+        target_language: languages,
+        enable_voice_cloning: currentForm.enable_voice_cloning,
+        preserve_background_audio: currentForm.preserve_background_audio,
+        enable_lipsyncing: currentForm.enable_lipsyncing,
+        safewords: currentForm.safewords,
+        translation_dictionary: currentForm.translation_dictionary || "",
+        start_time: currentForm.start_time,
+        end_time: currentForm.end_time,
+      });
+
+      console.log(
+        "Dubbing job submitted successfully, Sieve job ID:",
+        response.id
+      );
+
+      const newJob = await createJob.mutateAsync({
+        sieve_job_id: response.id,
+        status: response.status,
+        languages: currentForm.target_languages,
+      });
+
+      // Record the credit transaction
+      await supabase.from("credit_transactions").insert({
+        user_id: user?.id,
+        amount: totalCost,
+        type: "usage",
+        service: "Video Dubbing",
+        description: `Dubbed video in ${
+          currentForm.target_languages.length
+        } languages, ${
+          isVoiceCloning ? "with voice cloning" : "with AI voice"
+        }`,
+        status: "completed",
+      });
+
+      console.log("Job created in database:", newJob);
+
+      toast.success(`Dubbing job submitted successfully!`);
+      setTimeout(() => {
+        console.log("Initial status check after job creation");
+        refreshJobStatus();
+        setActiveTab("preview");
+      }, 1000);
     } catch (error) {
-      console.error('Upload and dubbing error:', error);
-      toast.error(`Failed to upload and process video: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      console.error("Error in dubbing process:", error);
+
+      // If credits were deducted and there was an error, refund them
+      if (creditTransaction) {
+        try {
+          await spendCredits.mutateAsync({
+            amount: -totalCost, // Negative amount for refund
+            service: "Video Dubbing Refund",
+            description: `Refund for failed dubbing job: ${
+              error.message || "Unknown error"
+            }`,
+          });
+          toast.info("Credits have been refunded due to the error");
+        } catch (refundError) {
+          console.error("Error refunding credits:", refundError);
+          toast.error("Error processing refund. Please contact support.");
+        }
+      }
+
+      toast.error(`Failed to process: ${error.message}`);
     } finally {
       setIsProcessing(false);
-      setUploadProgress(0);
     }
   };
 
-  const submitDubbingWithVideo = async (videoUrl: string, videoId?: string) => {
-    try {
-      const dubbingOptions = {
-        target_language: targetLanguage,
-        enable_voice_cloning: enableVoiceCloning,
-        preserve_background_audio: preserveBackgroundAudio,
-        enable_lipsyncing: enableLipsyncing,
-      };
-
-      console.log('Submitting dubbing job with languages:', targetLanguage);
-      
-      const dubbingResponse = await submitVideoDubbing(videoUrl, dubbingOptions);
-      console.log('Dubbing job submitted successfully:', dubbingResponse);
-      console.log('Dubbing job submitted successfully, Sieve job ID:', dubbingResponse.id);
-
-      // Create job record in database
-      const jobData = {
-        sieve_job_id: dubbingResponse.id,
-        status: dubbingResponse.status || 'queued',
-        languages: [targetLanguage],
-      };
-
-      const dbJob = await createJob.mutateAsync(jobData);
-      console.log('Job created in database:', dbJob);
-
-      // Mark video as used if it's from library
-      if (videoId) {
-        await markAsUsed.mutateAsync({ 
-          videoId: videoId, 
-          dubbingJobId: dbJob.id 
-        });
-      }
-
-      // Clear selections
-      setSelectedFile(null);
-      setSelectedVideo("");
-      setVideoDuration(null);
-      if (fileInputRef.current) {
-        fileInputRef.current.value = "";
-      }
-
-      showToast({
-        title: "Dubbing job submitted",
-        description: "Your video is being processed. Check the History tab for updates.",
+  const handleDeleteVideo = (video: VideoType) => {
+    if (window.confirm(`Are you sure you want to delete "${video.title}"?`)) {
+      deleteVideo.mutate(video.id, {
+        onSuccess: () => {
+          if (selectedVideo?.id === video.id) {
+            setSelectedVideo(null);
+          }
+        },
       });
-
-      // Refresh job statuses
-      setTimeout(() => {
-        refreshJobStatus();
-      }, 2000);
-
-    } catch (error) {
-      console.error('Dubbing submission error:', error);
-      toast.error(`Failed to submit dubbing job: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
   };
 
-  const handleSubmitDubbing = async () => {
-    if (selectedFile) {
-      await uploadAndSubmitDubbing();
-    } else if (selectedVideo) {
-      try {
-        const videoUrl = await getVideoUrl(selectedVideo);
-        await submitDubbingWithVideo(videoUrl, selectedVideo);
-      } catch (error) {
-        console.error('Error getting video URL:', error);
-        toast.error('Failed to get video URL for dubbing');
-      }
-    } else {
-      toast.error("Please select a video file or choose from your library.");
+  const goToNextStep = () => {
+    if (activeTab === "upload" && selectedVideo) {
+      setActiveTab("dub");
     }
   };
-
-  const formatFileSize = (bytes: number) => {
-    if (bytes === 0) return '0 Bytes';
-    const k = 1024;
-    const sizes = ['Bytes', 'KB', 'MB', 'GB'];
-    const i = Math.floor(Math.log(bytes) / Math.log(k));
-    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
-  };
-
-  const formatDuration = (seconds: number) => {
-    const minutes = Math.floor(seconds / 60);
-    const secs = Math.floor(seconds % 60);
-    return `${minutes}:${secs.toString().padStart(2, '0')}`;
-  };
-
-  const canSubmit = (selectedFile || selectedVideo) && targetLanguage;
 
   return (
     <div className="space-y-8 animate-fade-in">
       <div>
-        <h1 className="text-2xl font-bold tracking-tight mb-2">Video Dubbing</h1>
+        <h1 className="text-2xl font-bold tracking-tight mb-2">
+          Video Dubbing
+        </h1>
         <p className="text-muted-foreground">
-          Upload a video or select from your library to create dubbed versions in different languages.
+          Convert your videos into multiple languages with AI-powered voice
+          cloning.
         </p>
       </div>
 
-      <div className="grid gap-6 md:grid-cols-2">
-        <Card>
-          <CardHeader>
-            <CardTitle>Upload New Video</CardTitle>
-            <CardDescription>
-              Upload a video file from your device
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="flex items-center justify-center w-full">
-              <label
-                htmlFor="video-upload"
-                className="flex flex-col items-center justify-center w-full h-64 border-2 border-gray-300 border-dashed rounded-lg cursor-pointer bg-gray-50 hover:bg-gray-100"
-              >
-                <div className="flex flex-col items-center justify-center pt-5 pb-6">
-                  <Upload className="w-8 h-8 mb-4 text-gray-500" />
-                  <p className="mb-2 text-sm text-gray-500">
-                    <span className="font-semibold">Click to upload</span> a video file
-                  </p>
-                  <p className="text-xs text-gray-500">MP4, AVI, MOV (MAX. 100MB)</p>
-                </div>
-                <input
-                  ref={fileInputRef}
-                  id="video-upload"
-                  type="file"
-                  className="hidden"
-                  accept="video/*"
-                  onChange={handleFileSelect}
-                />
-              </label>
-            </div>
+      <CreditConfirmDialog
+        open={showCreditConfirm}
+        setOpen={setShowCreditConfirm}
+        serviceName="Video Dubbing"
+        creditCost={totalCost}
+        onConfirm={confirmAndProcess}
+        description={`This will use ${totalCost} credits to dub your video in ${
+          currentForm?.target_languages?.length || 0
+        } languages ${
+          currentForm?.enable_voice_cloning
+            ? "with voice cloning"
+            : "with AI voice"
+        }.`}
+      />
 
-            {selectedFile && (
-              <div className="mt-4 p-3 bg-blue-50 rounded-lg">
-                <div className="flex items-center gap-2">
-                  <Play className="h-4 w-4 text-blue-600" />
-                  <span className="text-sm font-medium text-blue-900">{selectedFile.name}</span>
-                </div>
-                <div className="text-xs text-blue-700 mt-1">
-                  {formatFileSize(selectedFile.size)}
-                  {videoDuration && ` • ${formatDuration(videoDuration)}`}
-                </div>
-              </div>
-            )}
+      <Tabs
+        value={activeTab}
+        onValueChange={handleTabChange}
+        className="w-full"
+      >
+        <TabsList className="grid grid-cols-3 w-full max-w-md">
+          <TabsTrigger value="upload">Select Video</TabsTrigger>
+          <TabsTrigger value="dub">Dub</TabsTrigger>
+          <TabsTrigger value="preview">Preview</TabsTrigger>
+        </TabsList>
 
-            {isProcessing && (
-              <div className="mt-4">
-                <div className="flex justify-between text-sm mb-1">
-                  <span>Uploading...</span>
-                  <span>{uploadProgress}%</span>
-                </div>
-                <Progress value={uploadProgress} />
-              </div>
-            )}
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader>
-            <CardTitle>Select from Library</CardTitle>
-            <CardDescription>
-              Choose a previously uploaded video
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            {isLoadingVideos ? (
-              <div className="flex items-center justify-center h-32">
-                <Loader2 className="h-6 w-6 animate-spin" />
-              </div>
-            ) : availableVideos.length > 0 ? (
-              <div className="space-y-2">
-                <Label>Available Videos</Label>
-                <Select value={selectedVideo} onValueChange={handleVideoSelect}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select a video" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {availableVideos.map((video) => (
-                      <SelectItem key={video.id} value={video.id}>
-                        <div className="flex flex-col">
-                          <span>{video.title}</span>
-                          <span className="text-xs text-muted-foreground">
-                            {formatFileSize(video.file_size)}
-                            {video.duration && ` • ${formatDuration(video.duration)}`}
-                          </span>
-                        </div>
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-            ) : (
-              <div className="text-center py-8 text-muted-foreground">
-                <p>No videos available in your library.</p>
-                <p className="text-sm">Upload a video to get started.</p>
-              </div>
-            )}
-          </CardContent>
-        </Card>
-      </div>
-
-      <Card>
-        <CardHeader>
-          <CardTitle>Dubbing Settings</CardTitle>
-          <CardDescription>
-            Configure your dubbing preferences
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-6">
-          <div className="grid gap-4 md:grid-cols-2">
-            <div className="space-y-2">
-              <Label htmlFor="target-language">Target Language</Label>
-              <Select value={targetLanguage} onValueChange={setTargetLanguage}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Select target language" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="english">English</SelectItem>
-                  <SelectItem value="spanish">Spanish</SelectItem>
-                  <SelectItem value="french">French</SelectItem>
-                  <SelectItem value="german">German</SelectItem>
-                  <SelectItem value="italian">Italian</SelectItem>
-                  <SelectItem value="portuguese">Portuguese</SelectItem>
-                  <SelectItem value="russian">Russian</SelectItem>
-                  <SelectItem value="japanese">Japanese</SelectItem>
-                  <SelectItem value="korean">Korean</SelectItem>
-                  <SelectItem value="chinese">Chinese</SelectItem>
-                  <SelectItem value="hindi">Hindi</SelectItem>
-                  <SelectItem value="arabic">Arabic</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
-
-          <div className="grid gap-4 md:grid-cols-2">
-            <div className="flex items-center space-x-2">
-              <Checkbox
-                id="voice-cloning"
-                checked={enableVoiceCloning}
-                onCheckedChange={(checked) => setEnableVoiceCloning(checked === true)}
-              />
-              <Label htmlFor="voice-cloning">Enable Voice Cloning</Label>
-            </div>
-
-            <div className="flex items-center space-x-2">
-              <Checkbox
-                id="lipsyncing"
-                checked={enableLipsyncing}
-                onCheckedChange={(checked) => setEnableLipsyncing(checked === true)}
-              />
-              <Label htmlFor="lipsyncing">Enable Lip Syncing</Label>
-            </div>
-
-            <div className="flex items-center space-x-2">
-              <Checkbox
-                id="background-audio"
-                checked={preserveBackgroundAudio}
-                onCheckedChange={(checked) => setPreserveBackgroundAudio(checked === true)}
-              />
-              <Label htmlFor="background-audio">Preserve Background Audio</Label>
-            </div>
-          </div>
-
-          <Button
-            onClick={handleSubmitDubbing}
-            disabled={!canSubmit || isProcessing}
-            className="w-full"
-          >
-            {isProcessing ? (
-              <>
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                Processing...
-              </>
-            ) : (
-              "Start Dubbing"
-            )}
-          </Button>
-        </CardContent>
-      </Card>
-
-      {jobs.length > 0 && (
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between">
-            <div>
-              <CardTitle>Recent Dubbing Jobs</CardTitle>
+        <TabsContent value="upload" className="mt-6">
+          <Card>
+            <CardHeader>
+              <CardTitle>Select Video</CardTitle>
               <CardDescription>
-                Your latest dubbing requests and their status
+                Select a video to dub or upload a new one.
               </CardDescription>
-            </div>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={refreshJobStatus}
-              disabled={isUpdating}
-            >
-              {isUpdating ? (
-                <Loader2 className="h-4 w-4 animate-spin" />
-              ) : (
-                "Refresh"
-              )}
-            </Button>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-4">
-              {jobs.slice(0, 3).map((job) => (
-                <div key={job.id} className="flex items-center justify-between p-4 border rounded-lg">
-                  <div>
-                    <p className="font-medium">Languages: {job.languages.join(", ")}</p>
-                    <p className="text-sm text-muted-foreground">
-                      Created: {new Date(job.created_at).toLocaleDateString()}
-                    </p>
-                  </div>
-                  <div className="text-right">
-                    <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-                      job.status === "succeeded" ? "bg-green-100 text-green-800" :
-                      job.status === "failed" ? "bg-red-100 text-red-800" :
-                      job.status === "running" ? "bg-blue-100 text-blue-800" :
-                      "bg-gray-100 text-gray-800"
-                    }`}>
-                      {job.status}
-                    </span>
-                    {job.output_url && (
-                      <div className="mt-2">
-                        <Button 
-                          size="sm" 
-                          variant="outline"
-                          onClick={() => window.open(job.output_url, '_blank')}
-                        >
-                          <Play className="h-4 w-4 mr-1" />
-                          Play
-                        </Button>
+            </CardHeader>
+            <CardContent className="space-y-6">
+              {selectedVideo ? (
+                <div className="space-y-4">
+                  <div className="relative aspect-video bg-black rounded-lg overflow-hidden">
+                    {videoURL ? (
+                      <video
+                        src={videoURL}
+                        className="w-full h-full object-contain"
+                        controls
+                      />
+                    ) : (
+                      <div className="flex items-center justify-center h-full">
+                        <Play className="h-12 w-12 text-muted-foreground" />
                       </div>
                     )}
                   </div>
+                  <div>
+                    <h3 className="font-medium text-lg">
+                      {selectedVideo.title}
+                    </h3>
+                    <p className="text-sm text-muted-foreground">
+                      Duration: {selectedVideo.duration}s
+                    </p>
+                    <p className="text-sm text-muted-foreground">
+                      Uploaded:{" "}
+                      {new Date(selectedVideo.created_at).toLocaleDateString()}
+                    </p>
+                  </div>
                 </div>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
-      )}
+              ) : (
+                <div className="space-y-4 text-center py-8">
+                  <div className="mx-auto w-16 h-16 rounded-full bg-muted flex items-center justify-center">
+                    <Video className="h-8 w-8 text-muted-foreground" />
+                  </div>
+                  <div>
+                    <h3 className="font-medium">No video selected</h3>
+                    <p className="text-sm text-muted-foreground mt-1">
+                      Please select a video from your library or upload a new
+                      one
+                    </p>
+                  </div>
+                  <div className="flex flex-col sm:flex-row gap-2 justify-center">
+                    <Dialog
+                      open={videoSelectOpen}
+                      onOpenChange={setVideoSelectOpen}
+                    >
+                      <DialogTrigger asChild>
+                        <Button variant="outline">Select from Library</Button>
+                      </DialogTrigger>
+                      <DialogContent>
+                        <DialogHeader>
+                          <DialogTitle>Your Videos</DialogTitle>
+                          <DialogDescription>
+                            Select a video from your library to dub
+                          </DialogDescription>
+                        </DialogHeader>
+
+                        <div className="py-4">
+                          {isLoadingVideos ? (
+                            <div className="text-center py-8">
+                              <p className="text-muted-foreground">
+                                Loading your videos...
+                              </p>
+                            </div>
+                          ) : videos && videos.length > 0 ? (
+                            <div className="space-y-4">
+                              {videos.map((video) => (
+                                <div
+                                  key={video.id}
+                                  className="flex items-center justify-between p-3 border rounded-lg hover:bg-muted/50 cursor-pointer"
+                                  onClick={() => {
+                                    setSelectedVideo(video);
+                                    setVideoSelectOpen(false);
+                                  }}
+                                >
+                                  <div className="flex items-center gap-3">
+                                    <div className="w-10 h-10 rounded bg-gray-100 flex items-center justify-center shrink-0">
+                                      <Video className="h-5 w-5 text-gray-500" />
+                                    </div>
+                                    <div>
+                                      <p className="font-medium">
+                                        {video.title}
+                                      </p>
+                                      <p className="text-xs text-muted-foreground">
+                                        {new Date(
+                                          video.created_at
+                                        ).toLocaleDateString()}
+                                      </p>
+                                    </div>
+                                  </div>
+                                  <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      handleDeleteVideo(video);
+                                    }}
+                                  >
+                                    <svg
+                                      xmlns="http://www.w3.org/2000/svg"
+                                      width="24"
+                                      height="24"
+                                      viewBox="0 0 24 24"
+                                      fill="none"
+                                      stroke="currentColor"
+                                      strokeWidth="2"
+                                      strokeLinecap="round"
+                                      strokeLinejoin="round"
+                                      className="lucide lucide-trash-2 h-4 w-4 text-muted-foreground hover:text-red-500"
+                                    >
+                                      <path d="M3 6h18"></path>
+                                      <path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"></path>
+                                      <path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"></path>
+                                      <line
+                                        x1="10"
+                                        x2="10"
+                                        y1="11"
+                                        y2="17"
+                                      ></line>
+                                      <line
+                                        x1="14"
+                                        x2="14"
+                                        y1="11"
+                                        y2="17"
+                                      ></line>
+                                    </svg>
+                                  </Button>
+                                </div>
+                              ))}
+                            </div>
+                          ) : (
+                            <div className="text-center py-8">
+                              <p className="text-muted-foreground">
+                                No videos found in your library
+                              </p>
+                            </div>
+                          )}
+                        </div>
+
+                        <DialogFooter>
+                          <Button
+                            variant="outline"
+                            onClick={() => setVideoSelectOpen(false)}
+                          >
+                            Cancel
+                          </Button>
+                          <Button
+                            onClick={() => {
+                              setVideoSelectOpen(false);
+                              setUploadDialogOpen(true);
+                            }}
+                          >
+                            Upload New
+                          </Button>
+                        </DialogFooter>
+                      </DialogContent>
+                    </Dialog>
+
+                    <Dialog
+                      open={uploadDialogOpen}
+                      onOpenChange={setUploadDialogOpen}
+                    >
+                      <DialogTrigger asChild>
+                        <Button className="bg-youtube-red hover:bg-youtube-darkred">
+                          Upload New Video
+                        </Button>
+                      </DialogTrigger>
+                      <DialogContent>
+                        <DialogHeader>
+                          <DialogTitle>Upload New Video</DialogTitle>
+                          <DialogDescription>
+                            Upload a video to get started with dubbing
+                          </DialogDescription>
+                        </DialogHeader>
+
+                        <div className="py-4">
+                          <div className="border-2 border-dashed border-gray-200 dark:border-gray-800 rounded-lg p-8 text-center">
+                            {isUploading ? (
+                              <div className="space-y-4">
+                                <div className="mx-auto w-12 h-12 rounded-full bg-muted flex items-center justify-center">
+                                  <span className="animate-spin">⟳</span>
+                                </div>
+                                <div>
+                                  <p className="font-medium">
+                                    Uploading video...
+                                  </p>
+                                  <p className="text-sm text-muted-foreground mt-1">
+                                    {progress}% complete
+                                  </p>
+                                </div>
+                                <div className="w-full bg-gray-200 rounded-full h-2.5">
+                                  <div
+                                    className="bg-youtube-red h-2.5 rounded-full"
+                                    style={{ width: `${progress}%` }}
+                                  ></div>
+                                </div>
+                              </div>
+                            ) : (
+                              <div className="space-y-4">
+                                <div className="mx-auto w-12 h-12 rounded-full bg-muted flex items-center justify-center">
+                                  <Upload className="h-6 w-6 text-muted-foreground" />
+                                </div>
+                                <div>
+                                  <p className="font-medium">
+                                    Drag and drop or click to upload
+                                  </p>
+                                  <p className="text-sm text-muted-foreground mt-1">
+                                    Supports MP4, MOV, AVI up to 500MB
+                                  </p>
+                                </div>
+                                <Input
+                                  id="video-upload"
+                                  type="file"
+                                  accept="video/*"
+                                  className="hidden"
+                                  onChange={handleFileChange}
+                                />
+                                <Button
+                                  variant="outline"
+                                  onClick={() =>
+                                    document
+                                      .getElementById("video-upload")
+                                      ?.click()
+                                  }
+                                >
+                                  Select Video
+                                </Button>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+
+                        <DialogFooter>
+                          <Button
+                            variant="outline"
+                            onClick={() => setUploadDialogOpen(false)}
+                            disabled={isUploading}
+                          >
+                            Cancel
+                          </Button>
+                        </DialogFooter>
+                      </DialogContent>
+                    </Dialog>
+                  </div>
+                </div>
+              )}
+            </CardContent>
+            <CardFooter className="flex justify-between">
+              <Button
+                variant="outline"
+                onClick={() => setSelectedVideo(null)}
+                disabled={!selectedVideo}
+              >
+                Deselect
+              </Button>
+              <Button
+                variant="default"
+                disabled={!selectedVideo}
+                className="bg-youtube-red hover:bg-youtube-darkred"
+                onClick={goToNextStep}
+              >
+                Next Step
+              </Button>
+            </CardFooter>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="dub" className="mt-6">
+          <Card>
+            <CardHeader>
+              <CardTitle>Dubbing Settings</CardTitle>
+              <CardDescription>
+                Configure languages and voice settings for your video
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              {!selectedVideo ? (
+                <div className="text-center py-12">
+                  <div className="mx-auto w-12 h-12 rounded-full bg-muted flex items-center justify-center mb-4">
+                    <Video className="h-6 w-6 text-muted-foreground" />
+                  </div>
+                  <h3 className="font-medium">No video selected</h3>
+                  <p className="text-sm text-muted-foreground mt-1">
+                    Select a video from the "Select Video" tab first
+                  </p>
+                  <Button
+                    variant="outline"
+                    className="mt-4"
+                    onClick={() => setActiveTab("upload")}
+                  >
+                    Go to Select Video
+                  </Button>
+                </div>
+              ) : (
+                <VideoDubbingForm
+                  onSubmit={handleProcessVideo}
+                  isProcessing={isProcessing}
+                  isVoiceCloning={isVoiceCloning}
+                  setIsVoiceCloning={setIsVoiceCloning}
+                  cost={totalCost}
+                  fileDuration={fileDuration || undefined}
+                />
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="preview" className="mt-6">
+          <Card>
+            <CardHeader>
+              <CardTitle>Preview Dubbed Videos</CardTitle>
+              <CardDescription>
+                View and download your dubbed videos
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <DubbingJobsList
+                jobs={dubbingJobs}
+                onRefresh={refreshJobStatus}
+                isLoading={isLoadingJobs || isUpdating}
+              />
+            </CardContent>
+          </Card>
+        </TabsContent>
+      </Tabs>
     </div>
   );
 };

@@ -9,7 +9,7 @@ import { createReplicateVideoClip } from "@/services/replicateService";
 import { calculateCostFromFileDuration } from "@/services/api/pricingService";
 import { SERVICE_CREDIT_COSTS } from "@/constants/pricing";
 import { uploadImageFromDataUrl } from "@/services/imageUploadService";
-import { saveVideoClip } from "@/services/videoClipsService";
+import { saveVideoClip, downloadAndStoreVideo } from "@/services/videoClipsService";
 
 type VideoGenerationFormValues = z.infer<typeof videoGenerationSchema>;
 
@@ -149,6 +149,10 @@ export const useVideoGeneration = () => {
                 throw new Error("No video output received from the API");
               }
               
+              // Download and store video in Supabase
+              console.log("Downloading and storing video...");
+              const storedVideoUrl = await downloadAndStoreVideo(videoOutput, `${values.prompt.substring(0, 20)}.mp4`);
+              
               setIsProcessing(false);
               
               const newClip = { 
@@ -156,19 +160,19 @@ export const useVideoGeneration = () => {
                 title: values.prompt.substring(0, 50) + (values.prompt.length > 50 ? "..." : ""), 
                 duration: values.duration + "s", 
                 thumbnail: startFrame || "", 
-                url: videoOutput
+                url: storedVideoUrl
               };
               
               setGeneratedClips([newClip]);
               
-              // Save to database instead of localStorage
+              // Save to database with stored video URL
               try {
                 await saveVideoClip({
                   title: newClip.title,
                   prompt: values.prompt,
                   duration: durationSeconds,
                   aspect_ratio: values.aspect_ratio,
-                  video_url: videoOutput,
+                  video_url: storedVideoUrl,
                   thumbnail_url: startFrame || undefined,
                   start_frame_url: startImageUrl,
                   end_frame_url: endImageUrl,
