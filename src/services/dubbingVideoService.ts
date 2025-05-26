@@ -25,7 +25,7 @@ export const uploadDubbingVideo = async (file: File, title: string): Promise<Dub
 
   // Create a database entry for the dubbing video
   const { data: videoRecord, error: videoError } = await supabase
-    .from('videos' as any)
+    .from('videos')
     .insert({
       user_id: user.id,
       title,
@@ -44,16 +44,16 @@ export const uploadDubbingVideo = async (file: File, title: string): Promise<Dub
 
   try {
     // Upload file to the videos bucket (for dubbing)
-    const uploadResult = await fileManager.uploadFile(file, 'videos', user.id, videoRecord.id);
+    const uploadResult = await fileManager.uploadFile(file, 'videos', user.id, (videoRecord as any).id);
     
     // Update the video record with the completed status
     const { error: updateError } = await supabase
-      .from('videos' as any)
+      .from('videos')
       .update({ 
         status: 'ready',
         updated_at: new Date().toISOString()
       })
-      .eq('id', videoRecord.id);
+      .eq('id', (videoRecord as any).id);
     
     if (updateError) {
       console.error('Error updating dubbing video status:', updateError);
@@ -61,22 +61,22 @@ export const uploadDubbingVideo = async (file: File, title: string): Promise<Dub
     }
 
     return {
-      id: videoRecord.id,
-      user_id: videoRecord.user_id,
-      title: videoRecord.title,
-      filename: videoRecord.filename || file.name,
-      file_size: videoRecord.file_size || file.size,
-      duration: videoRecord.duration || undefined,
+      id: (videoRecord as any).id,
+      user_id: (videoRecord as any).user_id,
+      title: (videoRecord as any).title,
+      filename: (videoRecord as any).filename || file.name,
+      file_size: (videoRecord as any).file_size || file.size,
+      duration: (videoRecord as any).duration || undefined,
       video_url: uploadResult.publicUrl,
-      created_at: videoRecord.created_at,
-      used_in_dubbing_job: videoRecord.used_in_job
+      created_at: (videoRecord as any).created_at,
+      used_in_dubbing_job: (videoRecord as any).used_in_job
     };
   } catch (uploadError) {
     // Update status to failed if upload failed
     await supabase
-      .from('videos' as any)
+      .from('videos')
       .update({ status: 'failed' })
-      .eq('id', videoRecord.id);
+      .eq('id', (videoRecord as any).id);
     
     throw uploadError;
   }
@@ -90,7 +90,7 @@ export const getDubbingVideos = async (): Promise<DubbingVideo[]> => {
   }
 
   const { data, error } = await supabase
-    .from('videos' as any)
+    .from('videos')
     .select('*')
     .eq('user_id', user.id)
     .eq('status', 'ready')
@@ -101,7 +101,7 @@ export const getDubbingVideos = async (): Promise<DubbingVideo[]> => {
     throw error;
   }
 
-  return (data || []).map(video => ({
+  return ((data as any[]) || []).map(video => ({
     id: video.id,
     user_id: video.user_id,
     title: video.title,
@@ -123,7 +123,7 @@ export const getVideoUrl = async (videoId: string): Promise<string> => {
 
   try {
     const { data, error } = await supabase
-      .from('videos' as any)
+      .from('videos')
       .select('filename')
       .eq('id', videoId)
       .eq('user_id', user.id)
@@ -131,7 +131,7 @@ export const getVideoUrl = async (videoId: string): Promise<string> => {
 
     if (error) throw error;
 
-    return `https://ptihuoxqjymxvvaotzaw.supabase.co/storage/v1/object/public/videos/${user.id}/${videoId}/${data.filename}`;
+    return `https://ptihuoxqjymxvvaotzaw.supabase.co/storage/v1/object/public/videos/${user.id}/${videoId}/${(data as any).filename}`;
   } catch (error) {
     console.error('Error getting video URL:', error);
     throw error;
@@ -140,7 +140,7 @@ export const getVideoUrl = async (videoId: string): Promise<string> => {
 
 export const markVideoAsUsedInDubbing = async (videoId: string, dubbingJobId: string) => {
   const { error } = await supabase
-    .from('videos' as any)
+    .from('videos')
     .update({ 
       used_in_job: dubbingJobId,
       updated_at: new Date().toISOString()

@@ -28,7 +28,7 @@ export const useVideos = () => {
       if (!user) return [];
       
       const { data, error } = await supabase
-        .from('videos' as any)
+        .from('videos')
         .select('*')
         .eq('user_id', user.id)
         .order('created_at', { ascending: false });
@@ -39,7 +39,7 @@ export const useVideos = () => {
         throw error;
       }
       
-      return data as Video[] || [];
+      return (data as any[] || []) as Video[];
     },
     enabled: !!user,
   });
@@ -58,7 +58,7 @@ export const useVideos = () => {
       
       // First create a database entry for the video
       const { data: videoRecord, error: videoError } = await supabase
-        .from('videos' as any)
+        .from('videos')
         .insert({
           user_id: user.id,
           title,
@@ -76,7 +76,7 @@ export const useVideos = () => {
       }
       
       // Upload the file to storage
-      const filePath = `${user.id}/${videoRecord.id}/${file.name}`;
+      const filePath = `${user.id}/${(videoRecord as any).id}/${file.name}`;
       const { error: uploadError } = await supabase.storage
         .from('videos')
         .upload(filePath, file);
@@ -86,21 +86,21 @@ export const useVideos = () => {
         
         // Update the status to 'failed' if upload failed
         await supabase
-          .from('videos' as any)
+          .from('videos')
           .update({ status: 'failed' })
-          .eq('id', videoRecord.id);
+          .eq('id', (videoRecord as any).id);
           
         throw uploadError;
       }
       
       // Update the video record with the completed status
       const { error: updateError } = await supabase
-        .from('videos' as any)
+        .from('videos')
         .update({ 
           status: 'ready',
           updated_at: new Date().toISOString()
         })
-        .eq('id', videoRecord.id);
+        .eq('id', (videoRecord as any).id);
       
       if (updateError) {
         console.error('Error updating video status:', updateError);
@@ -125,7 +125,7 @@ export const useVideos = () => {
       try {
         // First get the video record to get the filename
         const { data: videoRecord, error: fetchError } = await supabase
-          .from('videos' as any)
+          .from('videos')
           .select('*')
           .eq('id', videoId)
           .single();
@@ -136,8 +136,8 @@ export const useVideos = () => {
         }
         
         // Delete the file from storage if it exists
-        if (videoRecord.filename) {
-          const filePath = `${user.id}/${videoId}/${videoRecord.filename}`;
+        if ((videoRecord as any).filename) {
+          const filePath = `${user.id}/${videoId}/${(videoRecord as any).filename}`;
           const { error: storageError } = await supabase.storage
             .from('videos')
             .remove([filePath]);
@@ -150,7 +150,7 @@ export const useVideos = () => {
         
         // Delete the database record
         const { error: deleteError } = await supabase
-          .from('videos' as any)
+          .from('videos')
           .delete()
           .eq('id', videoId);
         
@@ -185,7 +185,7 @@ export const useVideos = () => {
       try {
         // Get videos that are in the 'ready' state but haven't been used
         const { data: unusedVideos, error } = await supabase
-          .from('videos' as any)
+          .from('videos')
           .select('*')
           .eq('user_id', user.id)
           .eq('status', 'ready')
@@ -197,10 +197,10 @@ export const useVideos = () => {
         }
         
         // Delete each unused video
-        const deletePromises = unusedVideos?.map(video => deleteVideo.mutateAsync(video.id)) || [];
+        const deletePromises = (unusedVideos as any[])?.map(video => deleteVideo.mutateAsync(video.id)) || [];
         await Promise.all(deletePromises);
         
-        return unusedVideos?.length || 0;
+        return (unusedVideos as any[])?.length || 0;
       } catch (error) {
         console.error('Error cleaning up unused videos:', error);
         return 0;
@@ -213,7 +213,7 @@ export const useVideos = () => {
       if (!user) throw new Error('User not authenticated');
       
       const { error } = await supabase
-        .from('videos' as any)
+        .from('videos')
         .update({ 
           used_in_job: jobId,
           updated_at: new Date().toISOString()
