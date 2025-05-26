@@ -495,6 +495,57 @@ export type Database = {
         }
         Relationships: []
       }
+      video_clips: {
+        Row: {
+          aspect_ratio: string
+          cost_credits: number
+          created_at: string
+          duration: number
+          end_frame_url: string | null
+          id: string
+          prompt: string
+          start_frame_url: string | null
+          status: string
+          thumbnail_url: string | null
+          title: string
+          updated_at: string
+          user_id: string
+          video_url: string
+        }
+        Insert: {
+          aspect_ratio: string
+          cost_credits?: number
+          created_at?: string
+          duration: number
+          end_frame_url?: string | null
+          id?: string
+          prompt: string
+          start_frame_url?: string | null
+          status?: string
+          thumbnail_url?: string | null
+          title: string
+          updated_at?: string
+          user_id: string
+          video_url: string
+        }
+        Update: {
+          aspect_ratio?: string
+          cost_credits?: number
+          created_at?: string
+          duration?: number
+          end_frame_url?: string | null
+          id?: string
+          prompt?: string
+          start_frame_url?: string | null
+          status?: string
+          thumbnail_url?: string | null
+          title?: string
+          updated_at?: string
+          user_id?: string
+          video_url?: string
+        }
+        Relationships: []
+      }
       videos: {
         Row: {
           created_at: string | null

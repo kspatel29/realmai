@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useForm } from "react-hook-form";
@@ -70,13 +71,6 @@ const ClipsGenerator = () => {
     return () => subscription.unsubscribe();
   }, [form.watch, calculateCost]);
 
-  useEffect(() => {
-    // Save generated clips to localStorage for history
-    if (generatedClips.length > 0) {
-      localStorage.setItem('generatedVideoClips', JSON.stringify(generatedClips));
-    }
-  }, [generatedClips]);
-
   // Get video file's duration when selected
   useEffect(() => {
     if (videoUrl) {
@@ -143,7 +137,7 @@ const ClipsGenerator = () => {
       videoUrl,
       () => {
         setCurrentTab("preview");
-        toast.success("Video has been generated and added to your history");
+        toast.success("Video has been generated and saved to your history");
       }
     );
   };

@@ -9,6 +9,7 @@ import { createReplicateVideoClip } from "@/services/replicateService";
 import { calculateCostFromFileDuration } from "@/services/api/pricingService";
 import { SERVICE_CREDIT_COSTS } from "@/constants/pricing";
 import { uploadImageFromDataUrl } from "@/services/imageUploadService";
+import { saveVideoClip } from "@/services/videoClipsService";
 
 type VideoGenerationFormValues = z.infer<typeof videoGenerationSchema>;
 
@@ -89,17 +90,20 @@ export const useVideoGeneration = () => {
         loop: hasKeyframes ? false : values.loop, // Disable loop when using keyframes
       };
       
+      let startImageUrl: string | undefined;
+      let endImageUrl: string | undefined;
+      
       // Upload images to storage and get URLs if provided
       if (startFrame && typeof startFrame === 'string' && startFrame.startsWith('data:')) {
         console.log("Uploading start frame to storage...");
-        const startImageUrl = await uploadImageFromDataUrl(startFrame, 'start-frame.jpg');
+        startImageUrl = await uploadImageFromDataUrl(startFrame, 'start-frame.jpg');
         input.start_image_url = startImageUrl;
         console.log("Start frame uploaded:", startImageUrl);
       }
       
       if (endFrame && typeof endFrame === 'string' && endFrame.startsWith('data:')) {
         console.log("Uploading end frame to storage...");
-        const endImageUrl = await uploadImageFromDataUrl(endFrame, 'end-frame.jpg');
+        endImageUrl = await uploadImageFromDataUrl(endFrame, 'end-frame.jpg');
         input.end_image_url = endImageUrl;
         console.log("End frame uploaded:", endImageUrl);
       }
@@ -149,7 +153,7 @@ export const useVideoGeneration = () => {
               
               const newClip = { 
                 id: `clip-${Date.now()}`, 
-                title: values.prompt.substring(0, 30) + "...", 
+                title: values.prompt.substring(0, 50) + (values.prompt.length > 50 ? "..." : ""), 
                 duration: values.duration + "s", 
                 thumbnail: startFrame || "", 
                 url: videoOutput
@@ -157,15 +161,29 @@ export const useVideoGeneration = () => {
               
               setGeneratedClips([newClip]);
               
-              // Save to localStorage for history
-              const savedClips = localStorage.getItem('generatedVideoClips');
-              const existingClips = savedClips ? JSON.parse(savedClips) : [];
-              const updatedClips = [newClip, ...existingClips];
-              localStorage.setItem('generatedVideoClips', JSON.stringify(updatedClips));
+              // Save to database instead of localStorage
+              try {
+                await saveVideoClip({
+                  title: newClip.title,
+                  prompt: values.prompt,
+                  duration: durationSeconds,
+                  aspect_ratio: values.aspect_ratio,
+                  video_url: videoOutput,
+                  thumbnail_url: startFrame || undefined,
+                  start_frame_url: startImageUrl,
+                  end_frame_url: endImageUrl,
+                  cost_credits: cost,
+                  status: 'completed'
+                });
+                console.log("Video clip saved to database");
+              } catch (dbError) {
+                console.error("Error saving to database:", dbError);
+                // Still show success message since video was generated
+              }
               
               toast({
                 title: "Clip generated",
-                description: "Your video clip has been generated successfully."
+                description: "Your video clip has been generated successfully and saved to history."
               });
               
               if (onSuccess) onSuccess();

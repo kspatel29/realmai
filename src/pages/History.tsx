@@ -8,6 +8,7 @@ import { useSubtitleJobsSync } from "@/hooks/useSubtitleJobsSync";
 import { useSubtitleJobsRecovery } from "@/hooks/useSubtitleJobsRecovery";
 import ClipPreview from "@/features/clips/components/ClipPreview";
 import { useState, useEffect } from "react";
+import { useVideoClips } from "@/hooks/useVideoClips";
 
 interface SubtitleHistoryJob {
   id: string;
@@ -24,7 +25,7 @@ interface SubtitleHistoryJob {
 const History = () => {
   const { jobs, isLoading, refetch } = useDubbingJobs();
   const { jobs: subtitleJobs, isLoading: isSubtitlesLoading, refreshJobs } = useSubtitleJobs();
-  const [videoClips, setVideoClips] = useState<any[]>([]);
+  const { clips: videoClips, isLoading: isVideoClipsLoading } = useVideoClips();
   const [localSubtitleJobs, setLocalSubtitleJobs] = useState<SubtitleHistoryJob[]>([]);
   const [currentTab, setCurrentTab] = useState("dubbing");
 
@@ -33,50 +34,6 @@ const History = () => {
   
   // Add recovery mechanism for missed completed jobs
   useSubtitleJobsRecovery();
-
-  // Function to load video clips from localStorage
-  const loadVideoClips = () => {
-    const savedClips = localStorage.getItem('generatedVideoClips');
-    if (savedClips) {
-      try {
-        const parsedClips = JSON.parse(savedClips);
-        console.log('Loaded video clips from localStorage:', parsedClips);
-        setVideoClips(parsedClips);
-      } catch (error) {
-        console.error("Error parsing saved clips:", error);
-        setVideoClips([]);
-      }
-    } else {
-      console.log('No video clips found in localStorage');
-      setVideoClips([]);
-    }
-  };
-
-  // Load video clips on component mount and tab change
-  useEffect(() => {
-    loadVideoClips();
-  }, []);
-
-  // Refresh video clips when switching to videos tab
-  useEffect(() => {
-    if (currentTab === "videos") {
-      loadVideoClips();
-    }
-  }, [currentTab]);
-
-  // Listen for localStorage changes (when new clips are generated)
-  useEffect(() => {
-    const handleStorageChange = (e: StorageEvent) => {
-      if (e.key === 'generatedVideoClips') {
-        loadVideoClips();
-      }
-    };
-
-    window.addEventListener('storage', handleStorageChange);
-    return () => {
-      window.removeEventListener('storage', handleStorageChange);
-    };
-  }, []);
 
   // Retrieve saved subtitle jobs from localStorage
   useEffect(() => {
@@ -100,6 +57,15 @@ const History = () => {
     return acc;
   }, [] as any[]);
 
+  // Convert database video clips to ClipPreview format
+  const formattedVideoClips = videoClips.map(clip => ({
+    id: clip.id,
+    title: clip.title,
+    duration: `${clip.duration}s`,
+    thumbnail: clip.thumbnail_url || "",
+    url: clip.video_url
+  }));
+
   return (
     <div className="space-y-8 animate-fade-in">
       <div>
@@ -113,7 +79,7 @@ const History = () => {
         <TabsList className="grid w-full max-w-md grid-cols-3">
           <TabsTrigger value="dubbing">Dubbing</TabsTrigger>
           <TabsTrigger value="subtitles">Subtitles ({allSubtitleJobs.length})</TabsTrigger>
-          <TabsTrigger value="videos">Video Clips ({videoClips.length})</TabsTrigger>
+          <TabsTrigger value="videos">Video Clips ({formattedVideoClips.length})</TabsTrigger>
         </TabsList>
         
         <TabsContent value="dubbing" className="mt-6">
@@ -129,10 +95,16 @@ const History = () => {
         </TabsContent>
         
         <TabsContent value="videos" className="mt-6">
-          <ClipPreview 
-            clips={videoClips}
-            onBackToGeneration={() => {}}
-          />
+          {isVideoClipsLoading ? (
+            <div className="flex items-center justify-center py-8">
+              <div className="text-muted-foreground">Loading video clips...</div>
+            </div>
+          ) : (
+            <ClipPreview 
+              clips={formattedVideoClips}
+              onBackToGeneration={() => {}}
+            />
+          )}
         </TabsContent>
       </Tabs>
     </div>
