@@ -29,8 +29,9 @@ const VideoUploader = ({ onVideoSelected, onUploadComplete, setCurrentTab }: Vid
     const fileNameWithoutExt = file.name.split('.').slice(0, -1).join('.');
     
     uploadVideo.mutate({
-      file,
-      title: fileNameWithoutExt
+      title: fileNameWithoutExt,
+      prompt: fileNameWithoutExt,
+      videoUrl: URL.createObjectURL(file)
     }, {
       onSuccess: (newVideo) => {
         onVideoSelected(file, URL.createObjectURL(file));
@@ -51,7 +52,7 @@ const VideoUploader = ({ onVideoSelected, onUploadComplete, setCurrentTab }: Vid
     try {
       const filePath = `${user.id}/${media.id}/${media.filename}`;
       const { data, error } = await supabase.storage
-        .from('videos')
+        .from('video-clips')
         .createSignedUrl(filePath, 3600);
       
       if (error) {
@@ -110,10 +111,10 @@ const VideoUploader = ({ onVideoSelected, onUploadComplete, setCurrentTab }: Vid
   const mediaFiles = videos?.map(video => ({
     id: video.id,
     title: video.title,
-    description: video.description,
-    filename: video.filename,
+    description: video.prompt,
+    filename: `${video.title}.mp4`,
     created_at: video.created_at,
-    file_size: video.file_size,
+    file_size: 0, // We don't have file size in video_clips table
     type: 'video' as const
   })) || [];
 

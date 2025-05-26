@@ -32,7 +32,7 @@ export class FileManagementService {
 
   async uploadFile(
     file: File, 
-    bucket: 'videos' | 'audio' | 'uploads',
+    bucket: 'videos' | 'audio' | 'uploads' | 'video-clips',
     userId: string,
     recordId?: string
   ): Promise<FileUploadResult> {
@@ -74,7 +74,7 @@ export class FileManagementService {
     }
   }
 
-  async deleteFile(bucket: 'videos' | 'audio' | 'uploads', filePath: string): Promise<void> {
+  async deleteFile(bucket: 'videos' | 'audio' | 'uploads' | 'video-clips', filePath: string): Promise<void> {
     try {
       const { error } = await supabase.storage
         .from(bucket)
@@ -90,7 +90,7 @@ export class FileManagementService {
     }
   }
 
-  async getSignedUrl(bucket: 'videos' | 'audio' | 'uploads', filePath: string, expiresIn = 3600): Promise<string> {
+  async getSignedUrl(bucket: 'videos' | 'audio' | 'uploads' | 'video-clips', filePath: string, expiresIn = 3600): Promise<string> {
     try {
       const { data, error } = await supabase.storage
         .from(bucket)

@@ -13,6 +13,8 @@ export interface Video {
   aspect_ratio: string;
   video_url: string;
   thumbnail_url?: string;
+  start_frame_url?: string;
+  end_frame_url?: string;
   cost_credits: number;
   status: string;
   created_at: string;
