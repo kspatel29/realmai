@@ -8,6 +8,7 @@ import { useCredits } from "@/hooks/credits";
 import { createReplicateVideoClip } from "@/services/replicateService";
 import { calculateCostFromFileDuration } from "@/services/api/pricingService";
 import { SERVICE_CREDIT_COSTS } from "@/constants/pricing";
+import { uploadImageFromDataUrl } from "@/services/imageUploadService";
 
 type VideoGenerationFormValues = z.infer<typeof videoGenerationSchema>;
 
@@ -85,13 +86,19 @@ export const useVideoGeneration = () => {
         loop: values.loop,
       };
       
-      // Add start and end image URLs if provided - map to correct field names
-      if (startFrame && typeof startFrame === 'string') {
-        input.start_image_url = startFrame;
+      // Upload images to storage and get URLs if provided
+      if (startFrame && typeof startFrame === 'string' && startFrame.startsWith('data:')) {
+        console.log("Uploading start frame to storage...");
+        const startImageUrl = await uploadImageFromDataUrl(startFrame, 'start-frame.jpg');
+        input.start_image_url = startImageUrl;
+        console.log("Start frame uploaded:", startImageUrl);
       }
       
-      if (endFrame && typeof endFrame === 'string') {
-        input.end_image_url = endFrame;
+      if (endFrame && typeof endFrame === 'string' && endFrame.startsWith('data:')) {
+        console.log("Uploading end frame to storage...");
+        const endImageUrl = await uploadImageFromDataUrl(endFrame, 'end-frame.jpg');
+        input.end_image_url = endImageUrl;
+        console.log("End frame uploaded:", endImageUrl);
       }
       
       console.log("Generating video with inputs:", input);
@@ -176,7 +183,7 @@ export const useVideoGeneration = () => {
       setIsProcessing(false);
       toast({
         title: "Generation failed",
-        description: "There was an error generating your video clip.",
+        description: "There was an error generating your video clip: " + (error instanceof Error ? error.message : "Unknown error"),
         variant: "destructive"
       });
     }
