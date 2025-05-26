@@ -1,4 +1,3 @@
-
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -21,6 +20,7 @@ import Support from "./pages/Support";
 import History from "./pages/History";
 import Billing from "./pages/Billing";
 import NotFound from "./pages/NotFound";
+import Testing from "./pages/Testing";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -73,6 +73,7 @@ const App = () => (
                 <Route path="settings" element={<Settings />} />
                 <Route path="billing" element={<Billing />} />
                 <Route path="support" element={<Support />} />
+                <Route path="testing" element={<Testing />} />
                 <Route path="logout" element={<Logout />} />
               </Route>
               

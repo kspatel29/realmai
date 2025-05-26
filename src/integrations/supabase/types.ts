@@ -126,6 +126,99 @@ export type Database = {
         }
         Relationships: []
       }
+      feature_flags: {
+        Row: {
+          created_at: string | null
+          description: string | null
+          environment: string | null
+          flag_name: string
+          id: string
+          is_enabled: boolean | null
+          rollout_percentage: number | null
+          target_users: Json | null
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          description?: string | null
+          environment?: string | null
+          flag_name: string
+          id?: string
+          is_enabled?: boolean | null
+          rollout_percentage?: number | null
+          target_users?: Json | null
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          description?: string | null
+          environment?: string | null
+          flag_name?: string
+          id?: string
+          is_enabled?: boolean | null
+          rollout_percentage?: number | null
+          target_users?: Json | null
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
+      payment_history: {
+        Row: {
+          amount_cents: number
+          billing_address: Json | null
+          created_at: string | null
+          credits_purchased: number | null
+          currency: string | null
+          id: string
+          payment_method: string | null
+          payment_status: string
+          receipt_url: string | null
+          refund_amount_cents: number | null
+          refunded_at: string | null
+          stripe_payment_intent_id: string | null
+          stripe_session_id: string | null
+          subscription_plan: string | null
+          updated_at: string | null
+          user_id: string | null
+        }
+        Insert: {
+          amount_cents: number
+          billing_address?: Json | null
+          created_at?: string | null
+          credits_purchased?: number | null
+          currency?: string | null
+          id?: string
+          payment_method?: string | null
+          payment_status: string
+          receipt_url?: string | null
+          refund_amount_cents?: number | null
+          refunded_at?: string | null
+          stripe_payment_intent_id?: string | null
+          stripe_session_id?: string | null
+          subscription_plan?: string | null
+          updated_at?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          amount_cents?: number
+          billing_address?: Json | null
+          created_at?: string | null
+          credits_purchased?: number | null
+          currency?: string | null
+          id?: string
+          payment_method?: string | null
+          payment_status?: string
+          receipt_url?: string | null
+          refund_amount_cents?: number | null
+          refunded_at?: string | null
+          stripe_payment_intent_id?: string | null
+          stripe_session_id?: string | null
+          subscription_plan?: string | null
+          updated_at?: string | null
+          user_id?: string | null
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
           avatar_url: string | null
@@ -158,31 +251,49 @@ export type Database = {
       }
       service_usage_logs: {
         Row: {
+          cost_in_credits: number | null
           created_at: string
           credits_used: number
+          error_details: string | null
           id: string
+          input_size: number | null
           job_id: string | null
           metadata: Json | null
+          output_size: number | null
+          processing_time: number | null
+          quality_settings: Json | null
           service_type: string
           status: string | null
           user_id: string
         }
         Insert: {
+          cost_in_credits?: number | null
           created_at?: string
           credits_used?: number
+          error_details?: string | null
           id?: string
+          input_size?: number | null
           job_id?: string | null
           metadata?: Json | null
+          output_size?: number | null
+          processing_time?: number | null
+          quality_settings?: Json | null
           service_type: string
           status?: string | null
           user_id: string
         }
         Update: {
+          cost_in_credits?: number | null
           created_at?: string
           credits_used?: number
+          error_details?: string | null
           id?: string
+          input_size?: number | null
           job_id?: string | null
           metadata?: Json | null
+          output_size?: number | null
+          processing_time?: number | null
+          quality_settings?: Json | null
           service_type?: string
           status?: string | null
           user_id?: string
@@ -297,6 +408,51 @@ export type Database = {
           id?: string
           updated_at?: string | null
           user_id?: string
+        }
+        Relationships: []
+      }
+      user_profiles: {
+        Row: {
+          avatar_url: string | null
+          bio: string | null
+          created_at: string | null
+          display_name: string | null
+          id: string
+          language_preference: string | null
+          last_active_at: string | null
+          notification_preferences: Json | null
+          onboarding_completed: boolean | null
+          timezone: string | null
+          updated_at: string | null
+          user_id: string | null
+        }
+        Insert: {
+          avatar_url?: string | null
+          bio?: string | null
+          created_at?: string | null
+          display_name?: string | null
+          id?: string
+          language_preference?: string | null
+          last_active_at?: string | null
+          notification_preferences?: Json | null
+          onboarding_completed?: boolean | null
+          timezone?: string | null
+          updated_at?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          avatar_url?: string | null
+          bio?: string | null
+          created_at?: string | null
+          display_name?: string | null
+          id?: string
+          language_preference?: string | null
+          last_active_at?: string | null
+          notification_preferences?: Json | null
+          onboarding_completed?: boolean | null
+          timezone?: string | null
+          updated_at?: string | null
+          user_id?: string | null
         }
         Relationships: []
       }
