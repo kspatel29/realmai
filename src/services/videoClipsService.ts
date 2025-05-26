@@ -19,14 +19,12 @@ export interface VideoClip {
 }
 
 export const saveVideoClip = async (clipData: Omit<VideoClip, 'id' | 'user_id' | 'created_at' | 'updated_at'>) => {
-  // Get the current user
   const { data: { user } } = await supabase.auth.getUser();
   
   if (!user) {
     throw new Error('User not authenticated');
   }
 
-  // Add the user_id to the clip data
   const clipWithUserId = {
     ...clipData,
     user_id: user.id
@@ -46,7 +44,7 @@ export const saveVideoClip = async (clipData: Omit<VideoClip, 'id' | 'user_id' |
   return data;
 };
 
-export const getUserVideoClips = async () => {
+export const getUserVideoClips = async (): Promise<VideoClip[]> => {
   const { data: { user } } = await supabase.auth.getUser();
   
   if (!user) {
@@ -88,7 +86,6 @@ export const deleteVideoClip = async (clipId: string) => {
 
 export const downloadAndStoreVideo = async (videoUrl: string, fileName: string): Promise<string> => {
   try {
-    // Download the video from external URL
     const response = await fetch(videoUrl);
     if (!response.ok) {
       throw new Error(`Failed to download video: ${response.statusText}`);
@@ -101,7 +98,6 @@ export const downloadAndStoreVideo = async (videoUrl: string, fileName: string):
       throw new Error('User not authenticated');
     }
 
-    // Upload to Supabase storage
     const filePath = `${user.id}/${Date.now()}-${fileName}`;
     
     const { data, error } = await supabase.storage
@@ -116,7 +112,6 @@ export const downloadAndStoreVideo = async (videoUrl: string, fileName: string):
       throw error;
     }
 
-    // Get public URL
     const { data: { publicUrl } } = supabase.storage
       .from('video-clips')
       .getPublicUrl(data.path);
@@ -124,7 +119,6 @@ export const downloadAndStoreVideo = async (videoUrl: string, fileName: string):
     return publicUrl;
   } catch (error) {
     console.error('Error in downloadAndStoreVideo:', error);
-    // Fallback to original URL if storage fails
     return videoUrl;
   }
 };
