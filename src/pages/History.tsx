@@ -1,3 +1,4 @@
+
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import DubbingJobsList from "@/components/DubbingJobsList";
 import SubtitleJobsList from "@/components/SubtitleJobsList";
@@ -25,6 +26,7 @@ const History = () => {
   const { jobs: subtitleJobs, isLoading: isSubtitlesLoading, refreshJobs } = useSubtitleJobs();
   const [videoClips, setVideoClips] = useState<any[]>([]);
   const [localSubtitleJobs, setLocalSubtitleJobs] = useState<SubtitleHistoryJob[]>([]);
+  const [currentTab, setCurrentTab] = useState("dubbing");
 
   // Sync completed subtitle jobs from database
   useSubtitleJobsSync();
@@ -32,17 +34,48 @@ const History = () => {
   // Add recovery mechanism for missed completed jobs
   useSubtitleJobsRecovery();
 
-  // Retrieve saved video clips from localStorage
-  useEffect(() => {
+  // Function to load video clips from localStorage
+  const loadVideoClips = () => {
     const savedClips = localStorage.getItem('generatedVideoClips');
     if (savedClips) {
       try {
         const parsedClips = JSON.parse(savedClips);
+        console.log('Loaded video clips from localStorage:', parsedClips);
         setVideoClips(parsedClips);
       } catch (error) {
         console.error("Error parsing saved clips:", error);
+        setVideoClips([]);
       }
+    } else {
+      console.log('No video clips found in localStorage');
+      setVideoClips([]);
     }
+  };
+
+  // Load video clips on component mount and tab change
+  useEffect(() => {
+    loadVideoClips();
+  }, []);
+
+  // Refresh video clips when switching to videos tab
+  useEffect(() => {
+    if (currentTab === "videos") {
+      loadVideoClips();
+    }
+  }, [currentTab]);
+
+  // Listen for localStorage changes (when new clips are generated)
+  useEffect(() => {
+    const handleStorageChange = (e: StorageEvent) => {
+      if (e.key === 'generatedVideoClips') {
+        loadVideoClips();
+      }
+    };
+
+    window.addEventListener('storage', handleStorageChange);
+    return () => {
+      window.removeEventListener('storage', handleStorageChange);
+    };
   }, []);
 
   // Retrieve saved subtitle jobs from localStorage
@@ -76,7 +109,7 @@ const History = () => {
         </p>
       </div>
 
-      <Tabs defaultValue="dubbing" className="w-full">
+      <Tabs value={currentTab} onValueChange={setCurrentTab} className="w-full">
         <TabsList className="grid w-full max-w-md grid-cols-3">
           <TabsTrigger value="dubbing">Dubbing</TabsTrigger>
           <TabsTrigger value="subtitles">Subtitles ({allSubtitleJobs.length})</TabsTrigger>
