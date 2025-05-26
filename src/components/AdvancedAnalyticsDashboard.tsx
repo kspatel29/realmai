@@ -1,23 +1,11 @@
 
-import { useState } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Calendar } from "@/components/ui/calendar";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { CalendarIcon, TrendingUp, Clock, Target, Zap } from "lucide-react";
-import { format } from "date-fns";
 import { useAdvancedAnalytics } from "@/hooks/useAdvancedAnalytics";
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar, PieChart, Pie, Cell } from "recharts";
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LineChart, Line, PieChart, Pie, Cell } from 'recharts';
+import { TrendingUp, Users, Clock, DollarSign } from "lucide-react";
 
 const AdvancedAnalyticsDashboard = () => {
-  const [dateRange, setDateRange] = useState({
-    from: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000), // 30 days ago
-    to: new Date()
-  });
-
-  const { data: analytics, isLoading } = useAdvancedAnalytics(dateRange);
-
-  const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042'];
+  const { data, isLoading, error } = useAdvancedAnalytics();
 
   if (isLoading) {
     return (
@@ -25,10 +13,26 @@ const AdvancedAnalyticsDashboard = () => {
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
           {[...Array(4)].map((_, i) => (
             <Card key={i}>
-              <CardHeader className="animate-pulse">
-                <div className="h-4 bg-gray-200 rounded w-3/4"></div>
-                <div className="h-8 bg-gray-200 rounded w-1/2"></div>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <div className="h-4 bg-gray-200 rounded w-20 animate-pulse"></div>
+                <div className="h-4 w-4 bg-gray-200 rounded animate-pulse"></div>
               </CardHeader>
+              <CardContent>
+                <div className="h-6 bg-gray-200 rounded w-16 animate-pulse mb-1"></div>
+                <div className="h-3 bg-gray-200 rounded w-24 animate-pulse"></div>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+        <div className="grid gap-4 md:grid-cols-2">
+          {[...Array(2)].map((_, i) => (
+            <Card key={i}>
+              <CardHeader>
+                <div className="h-5 bg-gray-200 rounded w-32 animate-pulse"></div>
+              </CardHeader>
+              <CardContent>
+                <div className="h-64 bg-gray-100 rounded animate-pulse"></div>
+              </CardContent>
             </Card>
           ))}
         </div>
@@ -36,75 +40,52 @@ const AdvancedAnalyticsDashboard = () => {
     );
   }
 
-  if (!analytics) return null;
+  if (error || !data) {
+    return (
+      <Card>
+        <CardContent className="pt-6">
+          <div className="text-center">
+            <p className="text-muted-foreground">Failed to load analytics data</p>
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  const COLORS = ['#8884d8', '#82ca9d', '#ffc658', '#ff7c7c'];
+
+  // Transform service breakdown for pie chart
+  const serviceChartData = Object.entries(data.serviceBreakdown).map(([service, count]) => ({
+    name: service,
+    value: count
+  }));
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h2 className="text-2xl font-bold tracking-tight">Advanced Analytics</h2>
-          <p className="text-muted-foreground">Detailed insights into your AI service usage</p>
-        </div>
-        
-        <Popover>
-          <PopoverTrigger asChild>
-            <Button variant="outline" className="w-[280px] justify-start text-left font-normal">
-              <CalendarIcon className="mr-2 h-4 w-4" />
-              {dateRange?.from ? (
-                dateRange.to ? (
-                  <>
-                    {format(dateRange.from, "LLL dd, y")} -{" "}
-                    {format(dateRange.to, "LLL dd, y")}
-                  </>
-                ) : (
-                  format(dateRange.from, "LLL dd, y")
-                )
-              ) : (
-                <span>Pick a date range</span>
-              )}
-            </Button>
-          </PopoverTrigger>
-          <PopoverContent className="w-auto p-0" align="end">
-            <Calendar
-              initialFocus
-              mode="range"
-              defaultMonth={dateRange?.from}
-              selected={dateRange}
-              onSelect={(range) => {
-                if (range?.from && range?.to) {
-                  setDateRange({ from: range.from, to: range.to });
-                }
-              }}
-              numberOfMonths={2}
-            />
-          </PopoverContent>
-        </Popover>
-      </div>
-
-      {/* Key Metrics */}
+      {/* Stats Cards */}
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Success Rate</CardTitle>
-            <Target className="h-4 w-4 text-muted-foreground" />
+            <CardTitle className="text-sm font-medium">Total Jobs</CardTitle>
+            <TrendingUp className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{analytics.successRate.toFixed(1)}%</div>
+            <div className="text-2xl font-bold">{data.totalJobs}</div>
             <p className="text-xs text-muted-foreground">
-              {analytics.completedJobs} of {analytics.totalJobs} jobs completed
+              All time processing jobs
             </p>
           </CardContent>
         </Card>
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Credits Used</CardTitle>
-            <Zap className="h-4 w-4 text-muted-foreground" />
+            <CardTitle className="text-sm font-medium">Success Rate</CardTitle>
+            <Users className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{analytics.totalCreditsUsed}</div>
+            <div className="text-2xl font-bold">{data.successRate.toFixed(1)}%</div>
             <p className="text-xs text-muted-foreground">
-              Across {analytics.totalJobs} jobs
+              Job completion rate
             </p>
           </CardContent>
         </Card>
@@ -115,7 +96,7 @@ const AdvancedAnalyticsDashboard = () => {
             <Clock className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{analytics.averageJobTime}m</div>
+            <div className="text-2xl font-bold">{data.averageJobTime}min</div>
             <p className="text-xs text-muted-foreground">
               Average processing time
             </p>
@@ -124,39 +105,34 @@ const AdvancedAnalyticsDashboard = () => {
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Most Used</CardTitle>
-            <TrendingUp className="h-4 w-4 text-muted-foreground" />
+            <CardTitle className="text-sm font-medium">Credits Used</CardTitle>
+            <DollarSign className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold capitalize">{analytics.mostUsedService}</div>
+            <div className="text-2xl font-bold">{data.totalCreditsUsed}</div>
             <p className="text-xs text-muted-foreground">
-              Primary service
+              Total credits consumed
             </p>
           </CardContent>
         </Card>
       </div>
 
       {/* Charts */}
-      <div className="grid gap-6 md:grid-cols-2">
+      <div className="grid gap-4 md:grid-cols-2">
         <Card>
           <CardHeader>
-            <CardTitle>Daily Usage Trend</CardTitle>
-            <CardDescription>Jobs and credits over time</CardDescription>
+            <CardTitle>Usage Over Time</CardTitle>
+            <CardDescription>Jobs and credits usage in the last 7 days</CardDescription>
           </CardHeader>
           <CardContent>
             <ResponsiveContainer width="100%" height={300}>
-              <LineChart data={analytics.dailyUsage}>
+              <LineChart data={data.timeSeriesData}>
                 <CartesianGrid strokeDasharray="3 3" />
-                <XAxis 
-                  dataKey="date" 
-                  tickFormatter={(date) => format(new Date(date), "MMM dd")}
-                />
+                <XAxis dataKey="date" />
                 <YAxis />
-                <Tooltip 
-                  labelFormatter={(date) => format(new Date(date), "MMM dd, yyyy")}
-                />
-                <Line type="monotone" dataKey="jobs" stroke="#8884d8" name="Jobs" />
-                <Line type="monotone" dataKey="credits" stroke="#82ca9d" name="Credits" />
+                <Tooltip />
+                <Line type="monotone" dataKey="jobs" stroke="#8884d8" strokeWidth={2} />
+                <Line type="monotone" dataKey="credits" stroke="#82ca9d" strokeWidth={2} />
               </LineChart>
             </ResponsiveContainer>
           </CardContent>
@@ -165,22 +141,22 @@ const AdvancedAnalyticsDashboard = () => {
         <Card>
           <CardHeader>
             <CardTitle>Service Breakdown</CardTitle>
-            <CardDescription>Usage by service type</CardDescription>
+            <CardDescription>Distribution of jobs by service type</CardDescription>
           </CardHeader>
           <CardContent>
             <ResponsiveContainer width="100%" height={300}>
               <PieChart>
                 <Pie
-                  data={analytics.serviceBreakdown}
+                  data={serviceChartData}
                   cx="50%"
                   cy="50%"
                   labelLine={false}
-                  label={({ service, count }) => `${service}: ${count}`}
+                  label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
                   outerRadius={80}
                   fill="#8884d8"
-                  dataKey="count"
+                  dataKey="value"
                 >
-                  {analytics.serviceBreakdown.map((entry, index) => (
+                  {serviceChartData.map((entry, index) => (
                     <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                   ))}
                 </Pie>
@@ -191,23 +167,28 @@ const AdvancedAnalyticsDashboard = () => {
         </Card>
       </div>
 
-      {/* Service Details */}
+      {/* Recent Activity */}
       <Card>
         <CardHeader>
-          <CardTitle>Service Usage Details</CardTitle>
-          <CardDescription>Detailed breakdown by service</CardDescription>
+          <CardTitle>Recent Activity</CardTitle>
+          <CardDescription>Your latest service usage</CardDescription>
         </CardHeader>
         <CardContent>
-          <ResponsiveContainer width="100%" height={300}>
-            <BarChart data={analytics.serviceBreakdown}>
-              <CartesianGrid strokeDasharray="3 3" />
-              <XAxis dataKey="service" />
-              <YAxis />
-              <Tooltip />
-              <Bar dataKey="count" fill="#8884d8" name="Jobs" />
-              <Bar dataKey="credits" fill="#82ca9d" name="Credits" />
-            </BarChart>
-          </ResponsiveContainer>
+          <div className="space-y-4">
+            {data.recentActivity.map((activity) => (
+              <div key={activity.id} className="flex items-center justify-between border-b pb-2">
+                <div>
+                  <p className="font-medium">{activity.service}</p>
+                  <p className="text-sm text-muted-foreground">
+                    Status: {activity.status} • {new Date(activity.created_at).toLocaleDateString()}
+                  </p>
+                </div>
+                <div className="text-right">
+                  <p className="font-medium">{activity.credits_used} credits</p>
+                </div>
+              </div>
+            ))}
+          </div>
         </CardContent>
       </Card>
     </div>

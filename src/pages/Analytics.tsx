@@ -18,7 +18,7 @@ const Analytics = () => {
   // Transform unified jobs to match OptimizedJobsList expected format
   const transformedJobs = allJobs.map(job => ({
     ...job,
-    service: job.service || 'unknown',
+    service: job.type || 'unknown', // Use 'type' property instead of 'service'
     created_at: job.created_at,
     updated_at: job.updated_at || job.created_at
   }));
