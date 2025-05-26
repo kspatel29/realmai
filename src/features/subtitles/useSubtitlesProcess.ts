@@ -2,10 +2,9 @@
 import { useState, useRef, useCallback } from "react";
 import { toast } from "sonner";
 import { SubtitlesFormValues } from "./subtitlesSchema";
-import { uploadAudioFile, generateSubtitles, SubtitlesResult } from "@/services/api/subtitlesService";
+import { uploadAudioFile, generateSubtitles, SubtitlesResult, checkSubtitlesStatus } from "@/services/api/subtitlesService";
 import { useSubtitleJobs } from "@/hooks/useSubtitleJobs";
 import { useCredits } from "@/hooks/credits";
-import { useMutation } from "@tanstack/react-query";
 
 // Extended interface for the subtitle service response
 interface ExtendedSubtitlesResult extends SubtitlesResult {
@@ -13,6 +12,8 @@ interface ExtendedSubtitlesResult extends SubtitlesResult {
   vttUrl?: string;
   text?: string;
   error?: string;
+  predictionId?: string;
+  status?: string;
 }
 
 export const useSubtitlesProcess = () => {
@@ -30,50 +31,6 @@ export const useSubtitlesProcess = () => {
   
   const { useCredits: spendCredits } = useCredits();
   const { jobs, refreshJobs } = useSubtitleJobs();
-  
-  // Create mutations for subtitle job operations
-  const createSubtitleJob = useMutation({
-    mutationFn: async (data: {
-      file_name: string;
-      file_url: string;
-      model_name: string;
-      status: string;
-    }) => {
-      const response = await fetch('/api/subtitle-jobs', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(data)
-      });
-      
-      if (!response.ok) {
-        throw new Error('Failed to create subtitle job');
-      }
-      
-      return response.json();
-    }
-  });
-  
-  const updateStatus = useMutation({
-    mutationFn: async (data: {
-      id: string;
-      status: string;
-      srt_url?: string;
-      vtt_url?: string;
-      raw_text?: string;
-    }) => {
-      const response = await fetch(`/api/subtitle-jobs/${data.id}`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(data)
-      });
-      
-      if (!response.ok) {
-        throw new Error('Failed to update subtitle job status');
-      }
-      
-      return response.json();
-    }
-  });
   
   // Function to get file duration
   const getUploadedFileDuration = useCallback(async (): Promise<number> => {
@@ -104,17 +61,29 @@ export const useSubtitlesProcess = () => {
     });
   }, [uploadedFileUrl]);
   
-  const handleFileUploaded = async (file: File, url: string) => {
-    console.log("File uploaded:", file.name, "URL:", url);
-    setUploadedFileUrl(url);
-    setUploadedFileName(file.name);
+  const handleFileUploaded = async (file: File) => {
+    console.log("File uploaded:", file.name);
+    setIsUploading(true);
     
-    // Create the audio element to get duration
-    if (!audioRef.current) {
-      audioRef.current = new Audio();
+    try {
+      // Upload file to Supabase storage
+      const url = await uploadAudioFile(file);
+      setUploadedFileUrl(url);
+      setUploadedFileName(file.name);
+      
+      // Create the audio element to get duration
+      if (!audioRef.current) {
+        audioRef.current = new Audio();
+      }
+      
+      audioRef.current.src = url;
+      toast.success("File uploaded successfully!");
+    } catch (error) {
+      console.error("Error uploading file:", error);
+      toast.error("Failed to upload file: " + (error as Error).message);
+    } finally {
+      setIsUploading(false);
     }
-    
-    audioRef.current.src = url;
   };
   
   const processSubtitles = async (values: SubtitlesFormValues, creditCost: number) => {
@@ -137,24 +106,13 @@ export const useSubtitlesProcess = () => {
     
     try {
       // Deduct credits
-      const creditResult = await spendCredits.mutateAsync({
+      await spendCredits.mutateAsync({
         amount: creditCost,
         service: "Subtitle Generation",
         description: `Generated subtitles for "${uploadedFileName}"`
       });
       
-      console.log("Credits used:", creditResult);
-      
-      // Create job in database
-      const jobData = {
-        file_name: uploadedFileName,
-        file_url: uploadedFileUrl,
-        model_name: values.model_name,
-        status: "processing" as const
-      };
-      
-      const job = await createSubtitleJob.mutateAsync(jobData);
-      console.log("Subtitle job created:", job);
+      console.log("Credits deducted, starting subtitle generation");
       
       // Generate subtitles
       const result = await generateSubtitles({
@@ -164,29 +122,60 @@ export const useSubtitlesProcess = () => {
         vadFilter: values.vad_filter
       });
       
-      // Cast the result to the extended interface with our additional properties
-      const extendedResult = result as ExtendedSubtitlesResult;
+      console.log("Subtitles generation response:", result);
       
-      if (extendedResult.error) {
-        throw new Error(extendedResult.error);
+      // Check if we got a prediction ID (async processing)
+      if ('predictionId' in result && result.predictionId) {
+        console.log("Got prediction ID, polling for results:", result.predictionId);
+        
+        // Poll for results
+        let attempts = 0;
+        const maxAttempts = 60; // 5 minutes max
+        
+        while (attempts < maxAttempts) {
+          await new Promise(resolve => setTimeout(resolve, 5000)); // Wait 5 seconds
+          
+          try {
+            const statusResult = await checkSubtitlesStatus(result.predictionId);
+            console.log(`Polling attempt ${attempts + 1}, status:`, statusResult.status);
+            
+            if (statusResult.status === 'succeeded' && statusResult.output) {
+              const output = statusResult.output;
+              setSrtFileUrl(output.srt_file || "");
+              setVttFileUrl(output.vtt_file || "");
+              setEditableText(output.preview || output.text || "");
+              
+              toast.success("Subtitles generated successfully!");
+              break;
+            } else if (statusResult.status === 'failed') {
+              throw new Error(statusResult.error || 'Subtitle generation failed');
+            }
+            
+            attempts++;
+          } catch (pollError) {
+            console.error("Error polling for results:", pollError);
+            break;
+          }
+        }
+        
+        if (attempts >= maxAttempts) {
+          throw new Error("Subtitle generation timed out");
+        }
+      } else {
+        // Direct result
+        const extendedResult = result as ExtendedSubtitlesResult;
+        
+        if (extendedResult.error) {
+          throw new Error(extendedResult.error);
+        }
+        
+        setSrtFileUrl(extendedResult.srtUrl || extendedResult.srt_file || "");
+        setVttFileUrl(extendedResult.vttUrl || extendedResult.vtt_file || "");
+        setEditableText(extendedResult.text || extendedResult.preview || "");
+        
+        toast.success("Subtitles generated successfully!");
       }
       
-      // Update UI with results
-      console.log("Subtitles generated:", extendedResult);
-      setSrtFileUrl(extendedResult.srtUrl || extendedResult.srt_file || "");
-      setVttFileUrl(extendedResult.vttUrl || extendedResult.vtt_file || "");
-      setEditableText(extendedResult.text || extendedResult.preview || "");
-      
-      // Update job status
-      await updateStatus.mutateAsync({
-        id: job.id,
-        status: "completed",
-        srt_url: extendedResult.srtUrl || extendedResult.srt_file,
-        vtt_url: extendedResult.vttUrl || extendedResult.vtt_file,
-        raw_text: extendedResult.text || extendedResult.preview
-      });
-      
-      toast.success("Subtitles generated successfully");
     } catch (error) {
       console.error("Error processing subtitles:", error);
       toast.error("Failed to generate subtitles: " + (error as Error).message);

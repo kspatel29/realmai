@@ -1,16 +1,17 @@
 
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
+import { useState } from "react";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { ScrollArea } from "@/components/ui/scroll-area";
-import { Film, Clock, Check, Download, DownloadCloud, Video } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
+import { ArrowLeft, Play, Pause, Download, Share2, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 
 export interface ClipData {
   id: string;
   title: string;
   duration: string;
-  thumbnail?: string;
-  url: string | null;
+  thumbnail: string;
+  url: string;
 }
 
 interface ClipPreviewProps {
@@ -19,143 +20,178 @@ interface ClipPreviewProps {
 }
 
 const ClipPreview = ({ clips, onBackToGeneration }: ClipPreviewProps) => {
-  const handleDownload = async (url: string, title: string) => {
+  const [playingVideo, setPlayingVideo] = useState<string | null>(null);
+
+  const handleDownload = async (clip: ClipData) => {
     try {
-      // Fetch the video as a blob
-      const response = await fetch(url);
+      const response = await fetch(clip.url);
       const blob = await response.blob();
-      
-      // Create a download link
-      const downloadUrl = window.URL.createObjectURL(blob);
-      const link = document.createElement('a');
-      link.href = downloadUrl;
-      link.download = `${title || 'video'}.mp4`;
-      
-      // Trigger the download
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      
-      // Clean up
-      window.URL.revokeObjectURL(downloadUrl);
-      
-      toast.success("Video downloaded successfully!");
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.style.display = 'none';
+      a.href = url;
+      a.download = `${clip.title.replace(/[^a-z0-9]/gi, '_')}.mp4`;
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
+      toast.success('Download started!');
     } catch (error) {
-      console.error("Error downloading video:", error);
-      toast.error("Failed to download video");
-    }
-  };
-  
-  const handleDownloadAll = async () => {
-    if (clips.length === 0) return;
-    
-    // Download each clip with a slight delay to prevent browser issues
-    let downloadedCount = 0;
-    for (const clip of clips) {
-      if (clip.url) {
-        try {
-          await handleDownload(clip.url, clip.title);
-          downloadedCount++;
-        } catch (error) {
-          console.error(`Error downloading clip ${clip.id}:`, error);
-        }
-        // Short delay between downloads
-        await new Promise(resolve => setTimeout(resolve, 1000));
-      }
-    }
-    
-    if (downloadedCount > 0) {
-      toast.success(`Downloaded ${downloadedCount} clips successfully!`);
+      console.error('Download failed:', error);
+      toast.error('Failed to download video');
     }
   };
 
-  return (
-    <Card>
-      <CardHeader>
-        <CardTitle>Preview & Download</CardTitle>
-        <CardDescription>
-          Preview and download your generated video clips.
-        </CardDescription>
-      </CardHeader>
-      <CardContent className="space-y-6">
-        {clips.length === 0 ? (
-          <div className="text-center py-12">
-            <div className="mx-auto w-12 h-12 rounded-full bg-muted flex items-center justify-center mb-4">
-              <Film className="h-6 w-6 text-muted-foreground" />
-            </div>
-            <h3 className="font-medium">No clips generated yet</h3>
-            <p className="text-sm text-muted-foreground mt-1">
-              Generate clips to see them here
+  const handleShare = async (clip: ClipData) => {
+    if (navigator.share) {
+      try {
+        await navigator.share({
+          title: clip.title,
+          text: `Check out this generated video: ${clip.title}`,
+          url: clip.url,
+        });
+      } catch (error) {
+        console.error('Share failed:', error);
+      }
+    } else {
+      // Fallback: copy to clipboard
+      try {
+        await navigator.clipboard.writeText(clip.url);
+        toast.success('Video URL copied to clipboard!');
+      } catch (error) {
+        console.error('Copy failed:', error);
+        toast.error('Failed to copy URL');
+      }
+    }
+  };
+
+  const handleDelete = (clipId: string) => {
+    // Remove from localStorage
+    const savedClips = localStorage.getItem('generatedVideoClips');
+    if (savedClips) {
+      const clips = JSON.parse(savedClips);
+      const updatedClips = clips.filter((clip: ClipData) => clip.id !== clipId);
+      localStorage.setItem('generatedVideoClips', JSON.stringify(updatedClips));
+      toast.success('Video removed from history');
+      // Force a reload of the page to reflect changes
+      window.location.reload();
+    }
+  };
+
+  const toggleVideoPlay = (videoId: string) => {
+    if (playingVideo === videoId) {
+      setPlayingVideo(null);
+    } else {
+      setPlayingVideo(videoId);
+    }
+  };
+
+  if (clips.length === 0) {
+    return (
+      <Card>
+        <CardContent className="flex flex-col items-center justify-center py-12">
+          <div className="text-center space-y-4">
+            <h3 className="text-lg font-semibold">No videos generated yet</h3>
+            <p className="text-muted-foreground">
+              Generate your first video clip to see it here
             </p>
+            <Button onClick={onBackToGeneration} className="mt-4">
+              <ArrowLeft className="h-4 w-4 mr-2" />
+              Back to Generation
+            </Button>
           </div>
-        ) : (
-          <div className="space-y-6">
-            <ScrollArea className="h-[500px] pr-4">
-              <div className="space-y-6">
-                {clips.map((clip) => (
-                  <div key={clip.id} className="border rounded-lg overflow-hidden">
-                    <div className="aspect-video bg-black flex items-center justify-center">
-                      {clip.url ? (
-                        <video 
-                          src={clip.url} 
-                          className="w-full h-full object-contain" 
-                          controls 
-                        />
-                      ) : (
-                        <Video className="h-12 w-12 text-white/30" />
-                      )}
-                    </div>
-                    <div className="p-4">
-                      <div className="flex justify-between items-center mb-2">
-                        <h3 className="font-medium">{clip.title}</h3>
-                        <span className="text-sm text-muted-foreground flex items-center">
-                          <Clock className="h-3 w-3 mr-1" /> {clip.duration}
-                        </span>
-                      </div>
-                      <div className="flex space-x-2 mt-4">
-                        <Button 
-                          variant="outline" 
-                          size="sm" 
-                          className="flex-1"
-                          onClick={() => toast.success("Clip saved to library")}
-                        >
-                          <Check className="h-4 w-4 mr-1" /> Save to Library
-                        </Button>
-                        <Button 
-                          variant="outline" 
-                          size="sm" 
-                          className="flex-1" 
-                          disabled={!clip.url}
-                          onClick={() => clip.url && handleDownload(clip.url, clip.title)}
-                        >
-                          <Download className="h-4 w-4 mr-1" /> Download
-                        </Button>
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </ScrollArea>
-          </div>
-        )}
-      </CardContent>
-      <CardFooter className="flex justify-between border-t pt-6">
-        <Button 
-          variant="outline"
-          onClick={onBackToGeneration}
-        >
+        </CardContent>
+      </Card>
+    );
+  }
+
+  return (
+    <div className="space-y-6">
+      <div className="flex items-center justify-between">
+        <div>
+          <h2 className="text-2xl font-bold">Generated Video Clips</h2>
+          <p className="text-muted-foreground">
+            {clips.length} video{clips.length !== 1 ? 's' : ''} generated
+          </p>
+        </div>
+        <Button variant="outline" onClick={onBackToGeneration}>
+          <ArrowLeft className="h-4 w-4 mr-2" />
           Back to Generation
         </Button>
-        <Button 
-          className="bg-youtube-red hover:bg-youtube-darkred" 
-          disabled={clips.length === 0}
-          onClick={handleDownloadAll}
-        >
-          <DownloadCloud className="mr-2 h-4 w-4" />
-          Download All Clips
-        </Button>
-      </CardFooter>
-    </Card>
+      </div>
+
+      <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+        {clips.map((clip) => (
+          <Card key={clip.id} className="overflow-hidden">
+            <CardHeader className="pb-2">
+              <div className="flex items-start justify-between">
+                <div className="space-y-1">
+                  <CardTitle className="text-base line-clamp-2">{clip.title}</CardTitle>
+                  <CardDescription>
+                    <Badge variant="secondary">{clip.duration}</Badge>
+                  </CardDescription>
+                </div>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => handleDelete(clip.id)}
+                  className="text-destructive hover:text-destructive"
+                >
+                  <Trash2 className="h-4 w-4" />
+                </Button>
+              </div>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="relative group">
+                <video
+                  src={clip.url}
+                  poster={clip.thumbnail}
+                  className="w-full aspect-video object-cover rounded-md"
+                  controls={playingVideo === clip.id}
+                  onPlay={() => setPlayingVideo(clip.id)}
+                  onPause={() => setPlayingVideo(null)}
+                  preload="metadata"
+                >
+                  Your browser does not support the video tag.
+                </video>
+                
+                {playingVideo !== clip.id && (
+                  <Button
+                    variant="secondary"
+                    size="sm"
+                    className="absolute inset-0 m-auto w-12 h-12 rounded-full opacity-80 group-hover:opacity-100 transition-opacity"
+                    onClick={() => toggleVideoPlay(clip.id)}
+                  >
+                    <Play className="h-5 w-5 ml-0.5" />
+                  </Button>
+                )}
+              </div>
+
+              <div className="flex gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => handleDownload(clip)}
+                  className="flex-1"
+                >
+                  <Download className="h-4 w-4 mr-1" />
+                  Download
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => handleShare(clip)}
+                  className="flex-1"
+                >
+                  <Share2 className="h-4 w-4 mr-1" />
+                  Share
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        ))}
+      </div>
+    </div>
   );
 };
 
