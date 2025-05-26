@@ -78,12 +78,15 @@ export const useVideoGeneration = () => {
     setIsProcessing(true);
     
     try {
+      // Check if we have keyframes (start or end frames)
+      const hasKeyframes = (startFrame && startFrame.startsWith('data:')) || (endFrame && endFrame.startsWith('data:'));
+      
       // Properly structure the input for the Luma API
       const input: VideoGenerationInput = {
         prompt: values.prompt,
         aspect_ratio: values.aspect_ratio,
         duration: parseInt(values.duration),
-        loop: values.loop,
+        loop: hasKeyframes ? false : values.loop, // Disable loop when using keyframes
       };
       
       // Upload images to storage and get URLs if provided
@@ -99,6 +102,16 @@ export const useVideoGeneration = () => {
         const endImageUrl = await uploadImageFromDataUrl(endFrame, 'end-frame.jpg');
         input.end_image_url = endImageUrl;
         console.log("End frame uploaded:", endImageUrl);
+      }
+      
+      // Log if loop was automatically disabled
+      if (hasKeyframes && values.loop) {
+        console.log("Loop automatically disabled due to keyframes being present");
+        toast({
+          title: "Loop disabled",
+          description: "Loop has been automatically disabled because keyframes are not compatible with looping.",
+          variant: "default"
+        });
       }
       
       console.log("Generating video with inputs:", input);
