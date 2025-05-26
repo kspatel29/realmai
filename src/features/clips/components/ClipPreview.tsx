@@ -6,7 +6,6 @@ import { Badge } from "@/components/ui/badge";
 import { ArrowLeft, Play, Pause, Download, Share2, Trash2, Maximize2 } from "lucide-react";
 import { toast } from "sonner";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { useVideoClips } from "@/hooks/useVideoClips";
 
 export interface ClipData {
   id: string;
@@ -24,7 +23,6 @@ interface ClipPreviewProps {
 const ClipPreview = ({ clips, onBackToGeneration }: ClipPreviewProps) => {
   const [playingVideo, setPlayingVideo] = useState<string | null>(null);
   const [fullscreenVideo, setFullscreenVideo] = useState<ClipData | null>(null);
-  const { deleteClip } = useVideoClips();
 
   const handleVideoError = (clip: ClipData, error: any) => {
     console.error('Video playback error for clip:', clip.id, error);
@@ -85,7 +83,16 @@ const ClipPreview = ({ clips, onBackToGeneration }: ClipPreviewProps) => {
   };
 
   const handleDelete = (clipId: string) => {
-    deleteClip(clipId);
+    // Remove from localStorage
+    const savedClips = localStorage.getItem('generatedVideoClips');
+    if (savedClips) {
+      const clips = JSON.parse(savedClips);
+      const updatedClips = clips.filter((clip: ClipData) => clip.id !== clipId);
+      localStorage.setItem('generatedVideoClips', JSON.stringify(updatedClips));
+      toast.success('Video removed from history');
+      // Force a reload of the page to reflect changes
+      window.location.reload();
+    }
   };
 
   const toggleVideoPlay = (videoId: string) => {

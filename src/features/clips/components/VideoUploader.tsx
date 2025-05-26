@@ -29,13 +29,11 @@ const VideoUploader = ({ onVideoSelected, onUploadComplete, setCurrentTab }: Vid
     const fileNameWithoutExt = file.name.split('.').slice(0, -1).join('.');
     
     uploadVideo.mutate({
-      title: fileNameWithoutExt,
-      prompt: fileNameWithoutExt,
-      file: file  // Pass actual file instead of blob URL
+      file,
+      title: fileNameWithoutExt
     }, {
       onSuccess: (newVideo) => {
-        // Use the stored video URL instead of creating a new blob URL
-        onVideoSelected(file, newVideo.video_url);
+        onVideoSelected(file, URL.createObjectURL(file));
       },
       onError: (error) => {
         toast({
@@ -48,15 +46,19 @@ const VideoUploader = ({ onVideoSelected, onUploadComplete, setCurrentTab }: Vid
   };
 
   const handleLibraryVideoSelected = async (media: MediaFile) => {
-    if (!user) return;
+    if (!user || !media.filename) return;
     
     try {
-      // Find the video in our videos list
-      const video = videos?.find(v => v.id === media.id);
-      if (!video) {
+      const filePath = `${user.id}/${media.id}/${media.filename}`;
+      const { data, error } = await supabase.storage
+        .from('videos')
+        .createSignedUrl(filePath, 3600);
+      
+      if (error) {
+        console.error('Error creating signed URL:', error);
         toast({
-          title: "Error selecting video",
-          description: "Could not find the selected video",
+          title: "Error loading video",
+          description: "Could not load the selected video",
           variant: "destructive"
         });
         return;
@@ -64,12 +66,12 @@ const VideoUploader = ({ onVideoSelected, onUploadComplete, setCurrentTab }: Vid
       
       setSelectedVideo(media);
       
-      // Create a File object from the video URL and pass to parent
-      fetch(video.video_url)
+      // Create a File object or get URL and pass to parent
+      fetch(data.signedUrl)
         .then(response => response.blob())
         .then(blob => {
-          const file = new File([blob], `${video.title}.mp4`, { type: blob.type });
-          onVideoSelected(file, video.video_url);
+          const file = new File([blob], media.filename || "video.mp4", { type: blob.type });
+          onVideoSelected(file, data.signedUrl);
         })
         .catch(error => {
           console.error("Error converting blob to file:", error);
@@ -108,10 +110,10 @@ const VideoUploader = ({ onVideoSelected, onUploadComplete, setCurrentTab }: Vid
   const mediaFiles = videos?.map(video => ({
     id: video.id,
     title: video.title,
-    description: video.prompt,
-    filename: `${video.title}.mp4`,
+    description: video.description,
+    filename: video.filename,
     created_at: video.created_at,
-    file_size: 0, // We don't have file size in video_clips table
+    file_size: video.file_size,
     type: 'video' as const
   })) || [];
 

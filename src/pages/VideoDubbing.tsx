@@ -1,4 +1,3 @@
-
 import { useState, useEffect, useRef } from "react";
 import {
   Card,
@@ -59,6 +58,8 @@ const VideoDubbing = () => {
     isLoading: isLoadingVideos,
     uploadVideo,
     deleteVideo,
+    cleanupUnusedVideos,
+    markVideoAsUsed,
   } = useVideos();
   const {
     jobs: dubbingJobs,
@@ -67,6 +68,18 @@ const VideoDubbing = () => {
     refreshJobStatus,
     isUpdating,
   } = useDubbingJobs();
+
+  useEffect(() => {
+    return () => {
+      if (!hasCleanedUpRef.current && videos && videos.length > 0) {
+        const unusedVideos = videos.filter((v) => v.used_in_job === null);
+        if (unusedVideos.length > 0) {
+          hasCleanedUpRef.current = true;
+          cleanupUnusedVideos.mutate();
+        }
+      }
+    };
+  }, [videos, cleanupUnusedVideos]);
 
   useEffect(() => {
     if (selectedVideo) {
@@ -106,30 +119,32 @@ const VideoDubbing = () => {
 
   const loadVideoURL = async (video: VideoType) => {
     try {
-      if (!user || !video.video_url) return;
+      if (!user || !video.filename) return;
 
-      // Use the stored video URL directly
-      setVideoURL(video.video_url);
+      const filePath = `${user.id}/${video.id}/${video.filename}`;
+      const { data, error } = await supabase.storage
+        .from("videos")
+        .createSignedUrl(filePath, 3600);
 
-      // Load video metadata using the actual video URL
+      if (error) {
+        console.error("Error creating signed URL:", error);
+        toast.error("Could not load video");
+        return;
+      }
+
+      setVideoURL(data.signedUrl);
+
       const videoElement = document.createElement("video");
-      videoElement.crossOrigin = "anonymous";
-      videoElement.src = video.video_url;
+      videoElement.src = data.signedUrl;
 
       videoElement.onloadedmetadata = () => {
         console.log(`Video duration loaded: ${videoElement.duration} seconds`);
         setFileDuration(videoElement.duration);
       };
 
-      videoElement.onerror = (error) => {
-        console.error("Error loading video metadata:", error);
-        // Fallback to stored duration if available
-        if (video.duration) {
-          console.log(`Using stored duration: ${video.duration} seconds`);
-          setFileDuration(video.duration);
-        } else {
-          toast.error("Could not determine video duration");
-        }
+      videoElement.onerror = () => {
+        console.error("Error loading video metadata");
+        toast.error("Could not determine video duration");
       };
     } catch (error) {
       console.error("Error loading video URL:", error);
@@ -192,26 +207,28 @@ const VideoDubbing = () => {
 
       const fileNameWithoutExt = file.name.split(".").slice(0, -1).join(".");
 
-      uploadVideo.mutate({
-        title: fileNameWithoutExt,
-        prompt: fileNameWithoutExt,
-        file: file  // Pass the actual file instead of blob URL
-      }, {
-        onSuccess: (newVideo) => {
-          setProgress(100);
-          setTimeout(() => {
+      uploadVideo.mutate(
+        {
+          file,
+          title: fileNameWithoutExt,
+        },
+        {
+          onSuccess: (newVideo) => {
+            setProgress(100);
+            setTimeout(() => {
+              setIsUploading(false);
+              setProgress(0);
+              setSelectedVideo(newVideo as VideoType);
+              setUploadDialogOpen(false);
+            }, 500);
+          },
+          onError: () => {
+            clearInterval(progressInterval);
             setIsUploading(false);
             setProgress(0);
-            setSelectedVideo(newVideo as VideoType);
-            setUploadDialogOpen(false);
-          }, 500);
-        },
-        onError: () => {
-          clearInterval(progressInterval);
-          setIsUploading(false);
-          setProgress(0);
-        },
-      });
+          },
+        }
+      );
     }
   };
 
@@ -291,6 +308,13 @@ const VideoDubbing = () => {
       });
 
       console.log("Job created in database:", newJob);
+
+      if (selectedVideo) {
+        markVideoAsUsed.mutate({
+          videoId: selectedVideo.id,
+          jobId: newJob.id,
+        });
+      }
 
       toast.success(`Dubbing job submitted successfully!`);
       setTimeout(() => {
@@ -397,7 +421,6 @@ const VideoDubbing = () => {
                         src={videoURL}
                         className="w-full h-full object-contain"
                         controls
-                        crossOrigin="anonymous"
                       />
                     ) : (
                       <div className="flex items-center justify-center h-full">
@@ -410,7 +433,12 @@ const VideoDubbing = () => {
                       {selectedVideo.title}
                     </h3>
                     <p className="text-sm text-muted-foreground">
-                      Duration: {selectedVideo.duration}s
+                      Size:{" "}
+                      {selectedVideo.file_size
+                        ? `${(selectedVideo.file_size / (1024 * 1024)).toFixed(
+                            2
+                          )} MB`
+                        : "Unknown"}
                     </p>
                     <p className="text-sm text-muted-foreground">
                       Uploaded:{" "}

@@ -8,6 +8,8 @@ import { toast } from "sonner";
 export interface UploadedVideo {
   id: string;
   title: string;
+  filename: string;
+  file_size: number;
   duration?: number;
   url: string;
   created_at: string;
@@ -35,7 +37,7 @@ export const useVideoUploadManager = () => {
       }, 200);
 
       // Upload file using file manager
-      const uploadResult = await fileManager.uploadFile(file, 'video-clips', user.id);
+      const uploadResult = await fileManager.uploadFile(file, 'videos', user.id);
       
       clearInterval(progressInterval);
       setUploadProgress(95);
@@ -48,18 +50,16 @@ export const useVideoUploadManager = () => {
         console.warn('Could not get video duration:', error);
       }
 
-      // Create video clip record in database
+      // Create video record in database
       const { data, error } = await supabase
-        .from('video_clips')
+        .from('videos')
         .insert({
           user_id: user.id,
           title,
-          prompt: title, // Use title as prompt for uploaded videos
-          duration: duration ? Math.floor(duration) : 5,
-          aspect_ratio: '16:9', // Default aspect ratio
-          video_url: uploadResult.publicUrl,
-          cost_credits: 0, // No credits for uploaded videos
-          status: 'completed'
+          filename: file.name,
+          file_size: file.size,
+          duration: duration ? Math.floor(duration) : null,
+          status: 'uploaded'
         })
         .select()
         .single();
@@ -73,8 +73,10 @@ export const useVideoUploadManager = () => {
       const result: UploadedVideo = {
         id: data.id,
         title: data.title,
+        filename: data.filename,
+        file_size: data.file_size,
         duration: data.duration || undefined,
-        url: data.video_url,
+        url: uploadResult.publicUrl,
         created_at: data.created_at
       };
 
@@ -98,15 +100,16 @@ export const useVideoUploadManager = () => {
 
     try {
       const { data, error } = await supabase
-        .from('video_clips')
-        .select('video_url')
+        .from('videos')
+        .select('filename')
         .eq('id', videoId)
         .eq('user_id', user.id)
         .single();
 
       if (error) throw error;
 
-      return data.video_url;
+      const filePath = `${user.id}/${videoId}/${data.filename}`;
+      return await fileManager.getSignedUrl('videos', filePath);
     } catch (error) {
       console.error('Error getting video URL:', error);
       throw error;

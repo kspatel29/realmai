@@ -18,9 +18,9 @@ export const useDashboardData = () => {
     queryFn: async (): Promise<DashboardStats> => {
       if (!user) throw new Error('User not authenticated');
 
-      // Get total video clips count
+      // Get total videos count
       const { count: videosCount } = await supabase
-        .from('video_clips')
+        .from('videos')
         .select('*', { count: 'exact', head: true })
         .eq('user_id', user.id);
 
