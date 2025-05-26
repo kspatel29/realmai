@@ -52,7 +52,7 @@ export const useVideoUploadManager = () => {
 
       // Create video record in database
       const { data, error } = await supabase
-        .from('videos')
+        .from('videos' as any)
         .insert({
           user_id: user.id,
           title,
@@ -100,7 +100,7 @@ export const useVideoUploadManager = () => {
 
     try {
       const { data, error } = await supabase
-        .from('videos')
+        .from('videos' as any)
         .select('filename')
         .eq('id', videoId)
         .eq('user_id', user.id)

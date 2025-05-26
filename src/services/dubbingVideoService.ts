@@ -25,7 +25,7 @@ export const uploadDubbingVideo = async (file: File, title: string): Promise<Dub
 
   // Create a database entry for the dubbing video
   const { data: videoRecord, error: videoError } = await supabase
-    .from('videos')
+    .from('videos' as any)
     .insert({
       user_id: user.id,
       title,
@@ -48,7 +48,7 @@ export const uploadDubbingVideo = async (file: File, title: string): Promise<Dub
     
     // Update the video record with the completed status
     const { error: updateError } = await supabase
-      .from('videos')
+      .from('videos' as any)
       .update({ 
         status: 'ready',
         updated_at: new Date().toISOString()
@@ -74,7 +74,7 @@ export const uploadDubbingVideo = async (file: File, title: string): Promise<Dub
   } catch (uploadError) {
     // Update status to failed if upload failed
     await supabase
-      .from('videos')
+      .from('videos' as any)
       .update({ status: 'failed' })
       .eq('id', videoRecord.id);
     
@@ -90,7 +90,7 @@ export const getDubbingVideos = async (): Promise<DubbingVideo[]> => {
   }
 
   const { data, error } = await supabase
-    .from('videos')
+    .from('videos' as any)
     .select('*')
     .eq('user_id', user.id)
     .eq('status', 'ready')
@@ -123,7 +123,7 @@ export const getVideoUrl = async (videoId: string): Promise<string> => {
 
   try {
     const { data, error } = await supabase
-      .from('videos')
+      .from('videos' as any)
       .select('filename')
       .eq('id', videoId)
       .eq('user_id', user.id)
@@ -140,7 +140,7 @@ export const getVideoUrl = async (videoId: string): Promise<string> => {
 
 export const markVideoAsUsedInDubbing = async (videoId: string, dubbingJobId: string) => {
   const { error } = await supabase
-    .from('videos')
+    .from('videos' as any)
     .update({ 
       used_in_job: dubbingJobId,
       updated_at: new Date().toISOString()
