@@ -50,9 +50,9 @@ export const useVideoUploadManager = () => {
         console.warn('Could not get video duration:', error);
       }
 
-      // Create video record in database using raw query since types aren't updated yet
+      // Create video record in database
       const { data, error } = await supabase
-        .from('videos' as any)
+        .from('videos')
         .insert({
           user_id: user.id,
           title,
@@ -71,13 +71,13 @@ export const useVideoUploadManager = () => {
       setUploadProgress(100);
 
       const result: UploadedVideo = {
-        id: (data as any).id,
-        title: (data as any).title,
-        filename: (data as any).filename,
-        file_size: (data as any).file_size,
-        duration: (data as any).duration || undefined,
+        id: data.id,
+        title: data.title,
+        filename: data.filename,
+        file_size: data.file_size,
+        duration: data.duration || undefined,
         url: uploadResult.publicUrl,
-        created_at: (data as any).created_at
+        created_at: data.created_at
       };
 
       console.log('Video upload completed:', result);
@@ -100,7 +100,7 @@ export const useVideoUploadManager = () => {
 
     try {
       const { data, error } = await supabase
-        .from('videos' as any)
+        .from('videos')
         .select('filename')
         .eq('id', videoId)
         .eq('user_id', user.id)
@@ -108,7 +108,7 @@ export const useVideoUploadManager = () => {
 
       if (error) throw error;
 
-      const filePath = `${user.id}/${videoId}/${(data as any).filename}`;
+      const filePath = `${user.id}/${videoId}/${data.filename}`;
       return await fileManager.getSignedUrl('videos', filePath);
     } catch (error) {
       console.error('Error getting video URL:', error);
