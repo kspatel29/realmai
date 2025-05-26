@@ -1,5 +1,8 @@
+
 import React, { useState, useEffect } from "react";
-import { useSubtitleJobs } from "@/hooks/useSubtitleJobs";
+import { useQuery } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/hooks/useAuth";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardFooter, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -16,13 +19,54 @@ import {
 } from "lucide-react";
 import { format } from "date-fns";
 import { toast } from "sonner";
-import { SubtitleJob } from "@/services/api/subtitlesService";
+
+interface SubtitleJob {
+  id: string;
+  user_id: string;
+  status: string;
+  created_at: string;
+  updated_at: string;
+  srt_url: string | null;
+  vtt_url: string | null;
+  preview_text: string | null;
+  language: string | null;
+  model_name: string;
+  original_filename: string | null;
+  prediction_id: string | null;
+  error: string | null;
+}
 
 const SubtitleJobsList = () => {
-  const { jobs, isLoading, refreshJobs } = useSubtitleJobs();
+  const { user } = useAuth();
   const [selectedJob, setSelectedJob] = useState<SubtitleJob | null>(null);
 
-  const copyPreviewToClipboard = (text) => {
+  const { data: jobs, isLoading, refetch } = useQuery({
+    queryKey: ['subtitle-jobs', user?.id],
+    queryFn: async (): Promise<SubtitleJob[]> => {
+      if (!user) return [];
+      
+      console.log('Fetching subtitle jobs for user:', user.id);
+      
+      const { data, error } = await supabase
+        .from('subtitle_jobs')
+        .select('*')
+        .eq('user_id', user.id)
+        .order('created_at', { ascending: false });
+      
+      if (error) {
+        console.error('Error fetching subtitle jobs:', error);
+        toast.error('Failed to load subtitle jobs');
+        throw error;
+      }
+      
+      console.log('Fetched subtitle jobs:', data?.length || 0, 'jobs');
+      return data || [];
+    },
+    enabled: !!user,
+    refetchInterval: 5000, // Refetch every 5 seconds to check for status updates
+  });
+
+  const copyPreviewToClipboard = (text: string | null) => {
     if (!text) {
       toast.error("No preview text available");
       return;
@@ -35,13 +79,15 @@ const SubtitleJobsList = () => {
 
   const handleRefresh = async () => {
     toast.info("Refreshing subtitle jobs...");
-    const success = await refreshJobs();
-    if (success) {
+    try {
+      await refetch();
       toast.success("Subtitle jobs refreshed");
+    } catch (error) {
+      toast.error("Failed to refresh subtitle jobs");
     }
   };
 
-  const getStatusBadge = (status) => {
+  const getStatusBadge = (status: string) => {
     switch (status.toLowerCase()) {
       case "starting":
       case "processing":
@@ -57,7 +103,7 @@ const SubtitleJobsList = () => {
     }
   };
 
-  const getProgressValue = (status) => {
+  const getProgressValue = (status: string) => {
     switch (status.toLowerCase()) {
       case "succeeded":
       case "completed":
@@ -74,7 +120,7 @@ const SubtitleJobsList = () => {
   };
 
   useEffect(() => {
-    if (!selectedJob && jobs.length > 0) {
+    if (!selectedJob && jobs && jobs.length > 0) {
       const completedJob = jobs.find(job => 
         job.status.toLowerCase() === "succeeded" || 
         job.status.toLowerCase() === "completed"
@@ -86,7 +132,7 @@ const SubtitleJobsList = () => {
       }
     }
     
-    if (selectedJob && !jobs.find(job => job.id === selectedJob.id) && jobs.length > 0) {
+    if (selectedJob && jobs && !jobs.find(job => job.id === selectedJob.id) && jobs.length > 0) {
       setSelectedJob(jobs[0]);
     }
   }, [jobs, selectedJob]);
@@ -99,7 +145,7 @@ const SubtitleJobsList = () => {
     );
   }
 
-  if (jobs.length === 0) {
+  if (!jobs || jobs.length === 0) {
     return (
       <div className="text-center py-12">
         <div className="mx-auto w-12 h-12 rounded-full bg-muted flex items-center justify-center mb-4">
@@ -170,6 +216,10 @@ const SubtitleJobsList = () => {
                   <span className="text-xs text-muted-foreground">Language:</span>
                   <span className="text-xs font-medium">{job.language || "Auto-detect"}</span>
                 </div>
+                <div className="flex justify-between">
+                  <span className="text-xs text-muted-foreground">Model:</span>
+                  <span className="text-xs font-medium">{job.model_name}</span>
+                </div>
               </CardContent>
             </Card>
           ))}
@@ -180,7 +230,7 @@ const SubtitleJobsList = () => {
             <Card>
               <CardHeader className="p-4">
                 <CardTitle className="text-base flex items-center gap-2">
-                  Preview Job {selectedJob.id.substring(0, 8)}
+                  Job Details: {selectedJob.id.substring(0, 8)}
                   {getStatusBadge(selectedJob.status)}
                 </CardTitle>
                 <CardDescription>
@@ -191,22 +241,35 @@ const SubtitleJobsList = () => {
                     : "This job is still being processed"}
                 </CardDescription>
               </CardHeader>
-              <CardContent className="p-4 pt-0 space-y-3">
+              <CardContent className="p-4 pt-0 space-y-4">
                 {selectedJob.preview_text && (
-                  <div className="bg-muted p-4 rounded-md text-sm max-h-60 overflow-y-auto">
-                    {selectedJob.preview_text}
+                  <div>
+                    <h4 className="text-sm font-medium mb-2">Preview Text</h4>
+                    <div className="bg-muted p-4 rounded-md text-sm max-h-60 overflow-y-auto">
+                      {selectedJob.preview_text}
+                    </div>
                   </div>
                 )}
                 
                 <div>
-                  <h4 className="text-sm font-medium mb-2">Job Details</h4>
+                  <h4 className="text-sm font-medium mb-2">Job Information</h4>
                   <div className="grid grid-cols-2 gap-2 text-sm">
+                    <div className="text-muted-foreground">Status:</div>
+                    <div className="font-medium">{selectedJob.status}</div>
                     <div className="text-muted-foreground">Model:</div>
                     <div>{selectedJob.model_name}</div>
                     <div className="text-muted-foreground">Language:</div>
                     <div>{selectedJob.language || "Auto-detect"}</div>
                     <div className="text-muted-foreground">Created:</div>
                     <div>{format(new Date(selectedJob.created_at), "PPp")}</div>
+                    <div className="text-muted-foreground">Updated:</div>
+                    <div>{format(new Date(selectedJob.updated_at), "PPp")}</div>
+                    {selectedJob.prediction_id && (
+                      <>
+                        <div className="text-muted-foreground">Prediction ID:</div>
+                        <div className="font-mono text-xs">{selectedJob.prediction_id}</div>
+                      </>
+                    )}
                   </div>
                 </div>
                 
@@ -234,7 +297,7 @@ const SubtitleJobsList = () => {
                   <Button 
                     variant="outline" 
                     size="sm" 
-                    onClick={() => window.open(selectedJob.srt_url, '_blank')}
+                    onClick={() => window.open(selectedJob.srt_url!, '_blank')}
                   >
                     <FileDown className="mr-2 h-4 w-4" />
                     Download SRT
@@ -244,7 +307,7 @@ const SubtitleJobsList = () => {
                   <Button 
                     variant="outline" 
                     size="sm" 
-                    onClick={() => window.open(selectedJob.vtt_url, '_blank')}
+                    onClick={() => window.open(selectedJob.vtt_url!, '_blank')}
                   >
                     <FileDown className="mr-2 h-4 w-4" />
                     Download VTT

@@ -71,43 +71,142 @@ export const useYouTubeAnalytics = () => {
     enabled: !!user,
   });
 
-  // Mock data for additional features
-  const channels: YouTubeChannel[] = [
-    {
-      id: '1',
-      channel_name: 'TechReview Pro',
-      channel_id: 'UC123456789',
-      subscriber_count: 125000,
-      thumbnail: '/placeholder.svg',
-      view_count: 5000000,
-      video_count: 250
-    },
-    {
-      id: '2',
-      channel_name: 'CreativeStudio',
-      channel_id: 'UC987654321',
-      subscriber_count: 89000,
-      thumbnail: '/placeholder.svg',
-      view_count: 3200000,
-      video_count: 180
+  // Search YouTube channels using the edge function
+  const searchChannels = async (query: string): Promise<YouTubeChannel[]> => {
+    try {
+      console.log('Searching for YouTube channels:', query);
+      
+      const { data, error } = await supabase.functions.invoke('youtube-api', {
+        body: {
+          operation: 'search_channels',
+          query: query
+        }
+      });
+      
+      if (error) {
+        console.error('Error calling YouTube API:', error);
+        toast.error('Failed to search YouTube channels');
+        return [];
+      }
+      
+      if (!data.items || data.items.length === 0) {
+        toast.info('No channels found for your search');
+        return [];
+      }
+      
+      // Transform the API response to our interface
+      const channels: YouTubeChannel[] = data.items.map((item: any) => ({
+        id: item.id,
+        channel_name: item.snippet.title,
+        channel_id: item.id,
+        subscriber_count: parseInt(item.statistics?.subscriberCount || '0'),
+        thumbnail: item.snippet.thumbnails?.medium?.url || item.snippet.thumbnails?.default?.url,
+        description: item.snippet.description,
+        view_count: parseInt(item.statistics?.viewCount || '0'),
+        video_count: parseInt(item.statistics?.videoCount || '0'),
+        created_at: item.snippet.publishedAt
+      }));
+      
+      console.log('Transformed channels:', channels);
+      return channels;
+      
+    } catch (error) {
+      console.error('Error searching channels:', error);
+      toast.error('Failed to search YouTube channels');
+      return [];
     }
-  ];
-
-  const channelDetails: YouTubeChannel | null = channels[0] || null;
-
-  const analytics: ChannelAnalytics = {
-    revenue: 5420.50,
-    engagement: 8.5,
-    growth: 12.3,
-    cpm: 2.85,
-    ctr: 4.2,
-    avgViewDuration: 3.45,
-    views: 1250000,
-    likes: 89400,
-    comments: 12800
   };
 
-  // Enhanced mock function with more realistic data
+  // Get detailed channel analytics
+  const getChannelDetails = async (channelId: string): Promise<YouTubeChannel | null> => {
+    try {
+      console.log('Fetching channel details for:', channelId);
+      
+      const { data, error } = await supabase.functions.invoke('youtube-api', {
+        body: {
+          operation: 'get_channel_details',
+          channelId: channelId
+        }
+      });
+      
+      if (error) {
+        console.error('Error fetching channel details:', error);
+        return null;
+      }
+      
+      if (!data.items || data.items.length === 0) {
+        return null;
+      }
+      
+      const item = data.items[0];
+      return {
+        id: item.id,
+        channel_name: item.snippet.title,
+        channel_id: item.id,
+        subscriber_count: parseInt(item.statistics?.subscriberCount || '0'),
+        thumbnail: item.snippet.thumbnails?.medium?.url || item.snippet.thumbnails?.default?.url,
+        description: item.snippet.description,
+        view_count: parseInt(item.statistics?.viewCount || '0'),
+        video_count: parseInt(item.statistics?.videoCount || '0'),
+        created_at: item.snippet.publishedAt
+      };
+      
+    } catch (error) {
+      console.error('Error fetching channel details:', error);
+      return null;
+    }
+  };
+
+  // Generate analytics data based on channel stats
+  const getChannelAnalytics = async (channelId: string): Promise<ChannelAnalytics> => {
+    try {
+      const channelDetails = await getChannelDetails(channelId);
+      
+      if (!channelDetails) {
+        throw new Error('Channel not found');
+      }
+      
+      // Generate realistic analytics based on actual channel data
+      const views = channelDetails.view_count || 0;
+      const subscribers = channelDetails.subscriber_count || 0;
+      const videoCount = channelDetails.video_count || 1;
+      
+      // Calculate engagement metrics
+      const avgViewsPerVideo = views / Math.max(videoCount, 1);
+      const engagementRate = Math.min((subscribers / Math.max(views, 1)) * 100, 15);
+      const estimatedLikes = Math.floor(avgViewsPerVideo * 0.02); // ~2% like rate
+      const estimatedComments = Math.floor(avgViewsPerVideo * 0.005); // ~0.5% comment rate
+      
+      return {
+        revenue: Math.floor(views * 0.001), // Rough estimate: $1 per 1000 views
+        engagement: parseFloat(engagementRate.toFixed(2)),
+        growth: Math.floor(Math.random() * 20 + 5), // Mock growth rate 5-25%
+        cpm: parseFloat((Math.random() * 3 + 1).toFixed(2)), // $1-4 CPM
+        ctr: parseFloat((Math.random() * 5 + 2).toFixed(2)), // 2-7% CTR
+        avgViewDuration: parseFloat((Math.random() * 4 + 1).toFixed(2)), // 1-5 minutes
+        views: views,
+        likes: estimatedLikes,
+        comments: estimatedComments
+      };
+      
+    } catch (error) {
+      console.error('Error generating analytics:', error);
+      // Return default analytics if error occurs
+      return {
+        revenue: 0,
+        engagement: 0,
+        growth: 0,
+        cpm: 0,
+        ctr: 0,
+        avgViewDuration: 0,
+        views: 0,
+        likes: 0,
+        comments: 0
+      };
+    }
+  };
+
+  // Enhanced mock function for fallback
   const fetchYouTubeStats = async () => {
     const mockVideos = [
       {
@@ -125,52 +224,10 @@ export const useYouTubeAnalytics = () => {
         likes: 67300 + Math.floor(Math.random() * 1500),
         comments: 8940 + Math.floor(Math.random() * 400),
         watch_time: 3267800 + Math.floor(Math.random() * 80000),
-      },
-      {
-        video_id: 'kJQP7kiw5Fk',
-        title: 'YouTube Analytics Masterclass 2024',
-        views: 2100000 + Math.floor(Math.random() * 75000),
-        likes: 156700 + Math.floor(Math.random() * 2500),
-        comments: 18200 + Math.floor(Math.random() * 600),
-        watch_time: 7423000 + Math.floor(Math.random() * 150000),
-      },
-      {
-        video_id: 'L_jWHffIx5E',
-        title: 'Content Creator Business Tips',
-        views: 645000 + Math.floor(Math.random() * 25000),
-        likes: 42300 + Math.floor(Math.random() * 1000),
-        comments: 5840 + Math.floor(Math.random() * 200),
-        watch_time: 2967800 + Math.floor(Math.random() * 60000),
       }
     ];
     
     return mockVideos;
-  };
-
-  // Mock functions for additional features
-  const searchChannels = async (query: string): Promise<YouTubeChannel[]> => {
-    return channels.filter(channel => 
-      channel.channel_name.toLowerCase().includes(query.toLowerCase())
-    );
-  };
-
-  const getChannelDetails = async (channelId: string): Promise<YouTubeChannel | null> => {
-    return channels.find(channel => channel.channel_id === channelId) || null;
-  };
-
-  const getChannelAnalytics = async (channelId: string): Promise<ChannelAnalytics> => {
-    // Mock analytics data
-    return {
-      revenue: Math.random() * 10000,
-      engagement: Math.random() * 15,
-      growth: Math.random() * 20,
-      cpm: Math.random() * 5,
-      ctr: Math.random() * 8,
-      avgViewDuration: Math.random() * 5,
-      views: Math.floor(Math.random() * 1000000),
-      likes: Math.floor(Math.random() * 50000),
-      comments: Math.floor(Math.random() * 10000)
-    };
   };
 
   // Sync YouTube analytics with enhanced error handling
@@ -182,11 +239,9 @@ export const useYouTubeAnalytics = () => {
       toast.info('Syncing YouTube analytics...');
       
       try {
-        // Fetch latest stats from YouTube API (mocked)
         const youtubeVideos = await fetchYouTubeStats();
         console.log('Fetched YouTube videos:', youtubeVideos.length);
         
-        // Update each video in our database
         const updatePromises = youtubeVideos.map(async (video, index) => {
           console.log(`Syncing video ${index + 1}/${youtubeVideos.length}: ${video.title}`);
           
@@ -264,12 +319,8 @@ export const useYouTubeAnalytics = () => {
     totalStats,
     trendingVideos,
     isSyncing: syncYouTubeAnalytics.isPending,
-    // Additional properties for enhanced analytics
     searchChannels,
     getChannelDetails,
-    getChannelAnalytics,
-    channels,
-    channelDetails,
-    analytics
+    getChannelAnalytics
   };
 };
