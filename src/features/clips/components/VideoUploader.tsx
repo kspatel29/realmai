@@ -31,10 +31,11 @@ const VideoUploader = ({ onVideoSelected, onUploadComplete, setCurrentTab }: Vid
     uploadVideo.mutate({
       title: fileNameWithoutExt,
       prompt: fileNameWithoutExt,
-      videoUrl: URL.createObjectURL(file)
+      file: file  // Pass actual file instead of blob URL
     }, {
       onSuccess: (newVideo) => {
-        onVideoSelected(file, URL.createObjectURL(file));
+        // Use the stored video URL instead of creating a new blob URL
+        onVideoSelected(file, newVideo.video_url);
       },
       onError: (error) => {
         toast({
@@ -47,19 +48,15 @@ const VideoUploader = ({ onVideoSelected, onUploadComplete, setCurrentTab }: Vid
   };
 
   const handleLibraryVideoSelected = async (media: MediaFile) => {
-    if (!user || !media.filename) return;
+    if (!user) return;
     
     try {
-      const filePath = `${user.id}/${media.id}/${media.filename}`;
-      const { data, error } = await supabase.storage
-        .from('video-clips')
-        .createSignedUrl(filePath, 3600);
-      
-      if (error) {
-        console.error('Error creating signed URL:', error);
+      // Find the video in our videos list
+      const video = videos?.find(v => v.id === media.id);
+      if (!video) {
         toast({
-          title: "Error loading video",
-          description: "Could not load the selected video",
+          title: "Error selecting video",
+          description: "Could not find the selected video",
           variant: "destructive"
         });
         return;
@@ -67,12 +64,12 @@ const VideoUploader = ({ onVideoSelected, onUploadComplete, setCurrentTab }: Vid
       
       setSelectedVideo(media);
       
-      // Create a File object or get URL and pass to parent
-      fetch(data.signedUrl)
+      // Create a File object from the video URL and pass to parent
+      fetch(video.video_url)
         .then(response => response.blob())
         .then(blob => {
-          const file = new File([blob], media.filename || "video.mp4", { type: blob.type });
-          onVideoSelected(file, data.signedUrl);
+          const file = new File([blob], `${video.title}.mp4`, { type: blob.type });
+          onVideoSelected(file, video.video_url);
         })
         .catch(error => {
           console.error("Error converting blob to file:", error);

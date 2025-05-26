@@ -3,6 +3,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { toast } from 'sonner';
+import { fileManager } from '@/services/fileManagementService';
 
 export interface Video {
   id: string;
@@ -53,19 +54,27 @@ export const useVideos = () => {
       prompt,
       duration = 5,
       aspectRatio = '16:9',
-      videoUrl,
-      thumbnailUrl,
+      file,
       costCredits = 0
     }: { 
       title: string; 
       prompt: string;
       duration?: number;
       aspectRatio?: string;
-      videoUrl: string;
-      thumbnailUrl?: string;
+      file?: File;
       costCredits?: number;
     }) => {
       if (!user) throw new Error('User not authenticated');
+      
+      let videoUrl = '';
+      
+      // If a file is provided, upload it to storage
+      if (file) {
+        console.log('Uploading video file to storage:', file.name);
+        const uploadResult = await fileManager.uploadFile(file, 'video-clips', user.id);
+        videoUrl = uploadResult.publicUrl;
+        console.log('Video uploaded to storage:', videoUrl);
+      }
       
       const { data: videoRecord, error: videoError } = await supabase
         .from('video_clips')
@@ -76,7 +85,6 @@ export const useVideos = () => {
           duration,
           aspect_ratio: aspectRatio,
           video_url: videoUrl,
-          thumbnail_url: thumbnailUrl,
           cost_credits: costCredits,
           status: 'completed'
         })

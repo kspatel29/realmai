@@ -38,10 +38,10 @@ export class FileManagementService {
   ): Promise<FileUploadResult> {
     try {
       const fileExt = file.name.split('.').pop();
-      const fileName = `${file.name}`;
+      const fileName = `${Date.now()}-${file.name}`;
       const filePath = recordId 
         ? `${userId}/${recordId}/${fileName}`
-        : `${userId}/${Date.now()}-${fileName}`;
+        : `${userId}/${fileName}`;
 
       console.log(`Uploading file to ${bucket}/${filePath}`);
 

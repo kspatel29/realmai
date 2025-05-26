@@ -186,7 +186,7 @@ const VideoDubbing = () => {
       uploadVideo.mutate({
         title: fileNameWithoutExt,
         prompt: fileNameWithoutExt,
-        videoUrl: URL.createObjectURL(file)
+        file: file  // Pass the actual file instead of blob URL
       }, {
         onSuccess: (newVideo) => {
           setProgress(100);
