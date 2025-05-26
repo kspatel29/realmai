@@ -1,4 +1,3 @@
-
 import { useState, useCallback } from 'react';
 import { useAuth } from './useAuth';
 import { useCredits } from './useCredits';
@@ -24,8 +23,8 @@ interface TestSuite {
 export const useEndToEndTesting = () => {
   const [testSuites, setTestSuites] = useState<TestSuite[]>([]);
   const [isRunning, setIsRunning] = useState(false);
-  const { user, signIn, signUp, logout } = useAuth();
-  const { credits, refreshCredits } = useCredits();
+  const { user, login, signup, logout } = useAuth();
+  const { credits } = useCredits();
 
   const updateTestResult = useCallback((suiteName: string, testName: string, result: Partial<TestResult>) => {
     setTestSuites(prev => prev.map(suite => 
@@ -56,7 +55,7 @@ export const useEndToEndTesting = () => {
       tests[0].status = 'running';
       const startTime = Date.now();
       
-      await signUp(testEmail, testPassword);
+      await signup('Test User', testEmail, testPassword);
       tests[0] = {
         ...tests[0],
         status: 'passed',
@@ -67,7 +66,7 @@ export const useEndToEndTesting = () => {
       tests[1].status = 'running';
       const loginStart = Date.now();
       
-      await signIn(testEmail, testPassword);
+      await login(testEmail, testPassword);
       tests[1] = {
         ...tests[1],
         status: 'passed',
@@ -119,7 +118,7 @@ export const useEndToEndTesting = () => {
     }
 
     return tests;
-  }, [signUp, signIn, logout, user]);
+  }, [signup, login, logout, user]);
 
   const runPaymentTests = useCallback(async (): Promise<TestResult[]> => {
     const tests: TestResult[] = [
@@ -188,12 +187,12 @@ export const useEndToEndTesting = () => {
       tests[3].status = 'running';
       const creditsStart = Date.now();
       
-      await refreshCredits();
+      // Check if credits is available and is a number
       tests[3] = {
         ...tests[3],
-        status: typeof credits?.credits_balance === 'number' ? 'passed' : 'failed',
+        status: typeof credits === 'number' ? 'passed' : 'failed',
         duration: Date.now() - creditsStart,
-        details: { currentBalance: credits?.credits_balance }
+        details: { currentBalance: credits }
       };
 
     } catch (error) {
@@ -208,7 +207,7 @@ export const useEndToEndTesting = () => {
     }
 
     return tests;
-  }, [user, credits, refreshCredits]);
+  }, [user, credits]);
 
   const runServiceTests = useCallback(async (): Promise<TestResult[]> => {
     const tests: TestResult[] = [

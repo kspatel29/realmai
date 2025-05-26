@@ -1,4 +1,3 @@
-
 import { useEffect, useCallback, useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
@@ -114,11 +113,14 @@ export const useProductionMonitoring = () => {
     }
 
     // Alert on high error rates
-    const totalCalls = Object.keys(prev.apiResponseTimes).length;
-    const errorRate = prev.errorCount / totalCalls;
-    if (errorRate > 0.1) { // 10% error rate
-      toast.warning('High error rate detected in API calls');
-    }
+    setMetrics(prev => {
+      const totalCalls = Object.keys(prev.apiResponseTimes).length;
+      const errorRate = prev.errorCount / totalCalls;
+      if (errorRate > 0.1) { // 10% error rate
+        toast.warning('High error rate detected in API calls');
+      }
+      return prev;
+    });
   }, []);
 
   // Check system health
