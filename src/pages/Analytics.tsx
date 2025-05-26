@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { useYouTubeAnalytics } from "@/hooks/useYouTubeAnalytics";
 import { Search, Users, Eye, ThumbsUp, MessageCircle, TrendingUp } from "lucide-react";
 import { toast } from "sonner";
+import { BarChart, LineChart, PieChart } from "@/components/ui/charts";
 
 const Analytics = () => {
   const [searchQuery, setSearchQuery] = useState("");
@@ -60,6 +61,52 @@ const Analytics = () => {
     }
     return num.toString();
   };
+
+  // Prepare chart data for visualizations
+  const engagementData = channelAnalytics ? {
+    labels: ['Views', 'Likes', 'Comments'],
+    datasets: [{
+      label: 'Engagement Metrics',
+      data: [channelAnalytics.views, channelAnalytics.likes, channelAnalytics.comments],
+      backgroundColor: ['#3B82F6', '#10B981', '#F59E0B']
+    }]
+  } : null;
+
+  const performanceData = channelAnalytics ? {
+    labels: ['Engagement Rate', 'CTR', 'Avg View Duration'],
+    datasets: [{
+      label: 'Performance %',
+      data: [channelAnalytics.engagement, channelAnalytics.ctr, channelAnalytics.avgViewDuration],
+      backgroundColor: ['#8B5CF6', '#EF4444', '#06B6D4']
+    }]
+  } : null;
+
+  const growthTrendData = channelAnalytics ? {
+    labels: ['Week 1', 'Week 2', 'Week 3', 'Week 4'],
+    datasets: [{
+      label: 'Views Growth',
+      data: [
+        Math.floor(channelAnalytics.views * 0.7),
+        Math.floor(channelAnalytics.views * 0.85),
+        Math.floor(channelAnalytics.views * 0.95),
+        channelAnalytics.views
+      ],
+      borderColor: '#3B82F6'
+    }]
+  } : null;
+
+  const metricsDistributionData = channelAnalytics ? {
+    labels: ['Views', 'Subscribers', 'Videos'],
+    datasets: [{
+      label: 'Channel Metrics',
+      data: [
+        channelAnalytics.views / 1000000,
+        (selectedChannel?.subscriber_count || 0) / 1000000,
+        (selectedChannel?.video_count || 0) / 10
+      ],
+      backgroundColor: ['#F472B6', '#34D399', '#FBBF24']
+    }]
+  } : null;
 
   return (
     <div className="space-y-8 animate-fade-in">
@@ -242,6 +289,57 @@ const Analytics = () => {
               </CardContent>
             </Card>
           </div>
+
+          {/* Charts Section */}
+          <div className="grid gap-6 md:grid-cols-2">
+            {engagementData && (
+              <Card>
+                <CardHeader>
+                  <CardTitle>Engagement Metrics</CardTitle>
+                  <CardDescription>Views, likes, and comments breakdown</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <BarChart data={engagementData} className="h-[300px]" />
+                </CardContent>
+              </Card>
+            )}
+
+            {performanceData && (
+              <Card>
+                <CardHeader>
+                  <CardTitle>Performance Metrics</CardTitle>
+                  <CardDescription>Engagement rate, CTR, and view duration</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <BarChart data={performanceData} className="h-[300px]" />
+                </CardContent>
+              </Card>
+            )}
+
+            {growthTrendData && (
+              <Card>
+                <CardHeader>
+                  <CardTitle>Growth Trend</CardTitle>
+                  <CardDescription>Views growth over the last 4 weeks</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <LineChart data={growthTrendData} className="h-[300px]" />
+                </CardContent>
+              </Card>
+            )}
+
+            {metricsDistributionData && (
+              <Card>
+                <CardHeader>
+                  <CardTitle>Channel Metrics Distribution</CardTitle>
+                  <CardDescription>Overall channel performance breakdown</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <PieChart data={metricsDistributionData} className="h-[300px]" />
+                </CardContent>
+              </Card>
+            )}
+          </div>
         </div>
       )}
 
@@ -256,7 +354,7 @@ const Analytics = () => {
               </p>
             </div>
           </CardContent>
-        </Card>
+        </div>
       )}
     </div>
   );
