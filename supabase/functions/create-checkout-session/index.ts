@@ -7,6 +7,13 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
+// Pre-configured Stripe price IDs for each subscription plan
+const SUBSCRIPTION_PRICE_IDS = {
+  "essentials": "price_1234567890", // Replace with your actual Stripe price ID
+  "creator-pro": "price_0987654321", // Replace with your actual Stripe price ID
+  "studio-pro": "price_1122334455", // Replace with your actual Stripe price ID
+};
+
 serve(async (req) => {
   // Handle CORS preflight requests
   if (req.method === "OPTIONS") {
@@ -98,11 +105,11 @@ serve(async (req) => {
         },
       };
     } else if (mode === 'subscription') {
-      // Subscription payment
-      if (!subscriptionPlanId || !price) {
-        console.error("Missing subscription details", { subscriptionPlanId, price });
+      // Subscription payment using pre-configured price IDs
+      if (!subscriptionPlanId) {
+        console.error("Missing subscription plan ID", { subscriptionPlanId });
         return new Response(
-          JSON.stringify({ error: "Missing subscription information" }),
+          JSON.stringify({ error: "Missing subscription plan ID" }),
           {
             headers: { ...corsHeaders, "Content-Type": "application/json" },
             status: 400,
@@ -110,27 +117,27 @@ serve(async (req) => {
         );
       }
       
-      console.log(`Creating subscription session for plan ${subscriptionPlanId}, price: ${price}`);
+      console.log(`Creating subscription session for plan ${subscriptionPlanId}`);
       
-      // Create or retrieve the product for this subscription plan
-      const product = await stripe.products.create({
-        name: `${subscriptionPlanId.charAt(0).toUpperCase() + subscriptionPlanId.slice(1)} Plan`,
-        description: `Subscription to the ${subscriptionPlanId} plan`,
-      });
+      // Get the pre-configured price ID for this subscription plan
+      const priceId = SUBSCRIPTION_PRICE_IDS[subscriptionPlanId as keyof typeof SUBSCRIPTION_PRICE_IDS];
       
-      // Create price object for the subscription
-      const priceObj = await stripe.prices.create({
-        unit_amount: price * 100, // Convert to cents
-        currency: 'usd',
-        recurring: { interval: 'month' },
-        product: product.id,
-      });
+      if (!priceId) {
+        console.error(`No price ID configured for plan: ${subscriptionPlanId}`);
+        return new Response(
+          JSON.stringify({ error: `Subscription plan ${subscriptionPlanId} not configured` }),
+          {
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+            status: 400,
+          }
+        );
+      }
       
       sessionParams = {
         ...baseParams,
         line_items: [
           {
-            price: priceObj.id,
+            price: priceId,
             quantity: 1,
           },
         ],
