@@ -8,10 +8,11 @@ const corsHeaders = {
 };
 
 // Pre-configured Stripe price IDs for each subscription plan
+// You need to create these prices in your Stripe dashboard and replace the placeholder values
 const SUBSCRIPTION_PRICE_IDS = {
-  "essentials": "price_1234567890", // Replace with your actual Stripe price ID
-  "creator-pro": "price_0987654321", // Replace with your actual Stripe price ID
-  "studio-pro": "price_1122334455", // Replace with your actual Stripe price ID
+  "essentials": "price_REPLACE_WITH_ESSENTIALS_PRICE_ID", // For product prod_SNxmEhAG1n0n6e
+  "creator-pro": "price_REPLACE_WITH_CREATOR_PRO_PRICE_ID", // For product prod_SNxnqjwYw3j065
+  "studio-pro": "price_REPLACE_WITH_STUDIO_PRO_PRICE_ID", // Create this product and price in Stripe
 };
 
 serve(async (req) => {
@@ -122,10 +123,13 @@ serve(async (req) => {
       // Get the pre-configured price ID for this subscription plan
       const priceId = SUBSCRIPTION_PRICE_IDS[subscriptionPlanId as keyof typeof SUBSCRIPTION_PRICE_IDS];
       
-      if (!priceId) {
+      if (!priceId || priceId.includes("REPLACE_WITH")) {
         console.error(`No price ID configured for plan: ${subscriptionPlanId}`);
         return new Response(
-          JSON.stringify({ error: `Subscription plan ${subscriptionPlanId} not configured` }),
+          JSON.stringify({ 
+            error: `Please configure the price ID for subscription plan ${subscriptionPlanId} in the Stripe dashboard`,
+            details: `You need to create a price for this plan and update SUBSCRIPTION_PRICE_IDS in the edge function`
+          }),
           {
             headers: { ...corsHeaders, "Content-Type": "application/json" },
             status: 400,
