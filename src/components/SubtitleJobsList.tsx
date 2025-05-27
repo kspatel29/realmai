@@ -63,10 +63,10 @@ const SubtitleJobsList = () => {
       return data || [];
     },
     enabled: !!user,
-    refetchInterval: (data) => {
+    refetchInterval: (query) => {
       // Only refetch if there are jobs that are still processing
-      if (!data) return false;
-      const hasProcessingJobs = data.some(job => 
+      if (!query.data) return false;
+      const hasProcessingJobs = query.data.some(job => 
         job.status === 'starting' || job.status === 'processing'
       );
       return hasProcessingJobs ? 5000 : false;
