@@ -8,6 +8,13 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
+// Updated credit values to match the pricing constants
+const SUBSCRIPTION_CREDITS = {
+  "essentials": 550,
+  "creator-pro": 3100,
+  "studio-pro": 5000,
+};
+
 serve(async (req) => {
   // Handle CORS preflight requests
   if (req.method === "OPTIONS") {
@@ -49,6 +56,8 @@ serve(async (req) => {
       );
     }
     
+    console.log("Checking subscription for user:", userId);
+    
     try {
       // First check if subscription exists in our database
       const { data: subscriptionData, error: dbError } = await supabase
@@ -59,6 +68,7 @@ serve(async (req) => {
         .single();
 
       if (!dbError && subscriptionData) {
+        console.log("Found subscription in database:", subscriptionData);
         // Return subscription from database
         return new Response(
           JSON.stringify({
@@ -75,85 +85,98 @@ serve(async (req) => {
         );
       }
 
+      console.log("No subscription found in database, checking Stripe");
+
       // If no subscription in database, check Stripe as fallback
       // Transform userId to Stripe customer ID format
       const customerId = `cus_${userId.replace(/-/g, '')}`;
       
-      // First check if customer exists in Stripe
-      const customer = await stripe.customers.retrieve(customerId);
-      
-      if (customer.deleted) {
-        // Return default subscription for deleted customers
-        return new Response(
-          JSON.stringify({
-            subscription: {
-              planId: "starter",
-              status: "active",
-              currentPeriodEnd: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
-            }
-          }),
-          {
-            headers: { ...corsHeaders, "Content-Type": "application/json" },
-            status: 200,
-          }
-        );
-      }
-      
-      // Get customer's subscriptions from Stripe
-      const subscriptions = await stripe.subscriptions.list({
-        customer: customerId,
-        status: 'active',
-        limit: 1,
-      });
-      
-      if (subscriptions.data.length > 0) {
-        const subscription = subscriptions.data[0];
-        // Get the price ID to determine plan
-        const priceId = subscription.items.data[0].price.id;
+      try {
+        // First check if customer exists in Stripe
+        const customer = await stripe.customers.retrieve(customerId);
         
-        // Map price ID to plan ID
-        let planId = "starter"; // Default
-        if (priceId.includes("essentials")) {
-          planId = "essentials";
-        } else if (priceId.includes("creator-pro")) {
-          planId = "creator-pro";
-        } else if (priceId.includes("studio-pro")) {
-          planId = "studio-pro";
+        if (customer.deleted) {
+          console.log("Customer is deleted, returning starter plan");
+          // Return default subscription for deleted customers
+          return new Response(
+            JSON.stringify({
+              subscription: {
+                planId: "starter",
+                status: "active",
+                currentPeriodEnd: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
+              }
+            }),
+            {
+              headers: { ...corsHeaders, "Content-Type": "application/json" },
+              status: 200,
+            }
+          );
         }
         
-        // Sync with database
-        await supabase
-          .from('subscriptions')
-          .upsert({
-            user_id: userId,
-            plan_id: planId,
-            status: subscription.status,
-            subscription_start: new Date(subscription.current_period_start * 1000).toISOString().split('T')[0],
-            subscription_end: new Date(subscription.current_period_end * 1000).toISOString().split('T')[0],
-            amount: (subscription.items.data[0].price.unit_amount || 0) / 100,
-            monthly_credits: planId === "essentials" ? 500 : planId === "creator-pro" ? 1500 : planId === "studio-pro" ? 5000 : 0,
-            updated_at: new Date().toISOString(),
-          }, { onConflict: 'user_id' });
+        // Get customer's subscriptions from Stripe
+        const subscriptions = await stripe.subscriptions.list({
+          customer: customerId,
+          status: 'active',
+          limit: 1,
+        });
         
-        return new Response(
-          JSON.stringify({
-            subscription: {
-              planId: planId,
-              status: subscription.status,
-              currentPeriodEnd: new Date(subscription.current_period_end * 1000).toISOString(),
-            }
-          }),
-          {
-            headers: { ...corsHeaders, "Content-Type": "application/json" },
-            status: 200,
+        if (subscriptions.data.length > 0) {
+          const subscription = subscriptions.data[0];
+          // Get the price ID to determine plan
+          const priceId = subscription.items.data[0].price.id;
+          
+          console.log("Found Stripe subscription with price ID:", priceId);
+          
+          // Map price ID to plan ID
+          let planId = "starter"; // Default
+          if (priceId === "price_1RTBqlRuznwovkUGacCIEldb") {
+            planId = "essentials";
+          } else if (priceId === "price_1RTBsBRuznwovkUGRCA7YY3m") {
+            planId = "creator-pro";
+          } else if (priceId.includes("studio-pro")) {
+            planId = "studio-pro";
           }
-        );
+          
+          console.log("Mapped to plan:", planId);
+          
+          // Sync with database
+          await supabase
+            .from('subscriptions')
+            .upsert({
+              user_id: userId,
+              plan_id: planId,
+              status: subscription.status,
+              subscription_start: new Date(subscription.current_period_start * 1000).toISOString().split('T')[0],
+              subscription_end: new Date(subscription.current_period_end * 1000).toISOString().split('T')[0],
+              amount: (subscription.items.data[0].price.unit_amount || 0) / 100,
+              monthly_credits: SUBSCRIPTION_CREDITS[planId as keyof typeof SUBSCRIPTION_CREDITS] || 0,
+              updated_at: new Date().toISOString(),
+            }, { onConflict: 'user_id' });
+          
+          return new Response(
+            JSON.stringify({
+              subscription: {
+                planId: planId,
+                status: subscription.status,
+                currentPeriodEnd: new Date(subscription.current_period_end * 1000).toISOString(),
+              }
+            }),
+            {
+              headers: { ...corsHeaders, "Content-Type": "application/json" },
+              status: 200,
+            }
+          );
+        }
+      } catch (stripeError) {
+        console.log("Error retrieving from Stripe:", stripeError);
+        // If there's an error with Stripe, we'll return the default subscription
       }
     } catch (error) {
       console.log("Error retrieving subscription:", error);
       // If there's an error, we'll return the default subscription
     }
 
+    console.log("No active subscription found, returning starter plan");
     // Return default subscription if no active subscription found
     return new Response(
       JSON.stringify({

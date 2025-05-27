@@ -52,7 +52,8 @@ export const useBillingData = () => {
     try {
       setIsLoading(true);
       const result = await stripeService.getUserSubscription(user.id);
-      console.log("Fetched subscription:", result);
+      console.log("Fetched subscription result:", result);
+      console.log("Setting userSubscription to:", result?.subscription || null);
       setUserSubscription(result?.subscription || null);
     } catch (err) {
       console.error("Error fetching subscription:", err);
@@ -77,6 +78,12 @@ export const useBillingData = () => {
   const currentPlan = userSubscription 
     ? SUBSCRIPTION_PLANS.find(plan => plan.id === userSubscription.planId) 
     : SUBSCRIPTION_PLANS[0];
+
+  console.log("Current plan determined:", {
+    userSubscription,
+    currentPlan: currentPlan?.name,
+    planId: currentPlan?.id
+  });
 
   return {
     transactions,
