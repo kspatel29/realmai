@@ -1,4 +1,3 @@
-
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 
@@ -335,6 +334,141 @@ export const stripeService = {
       console.error('Error getting payment history:', error);
       // Return a default value to avoid breaking the UI
       return { transactions: [] };
+    }
+  },
+  
+  // Get user payment methods
+  getPaymentMethods: async (userId: string): Promise<{ paymentMethods: any[] }> => {
+    try {
+      console.log("Getting payment methods for user:", userId);
+      const { data, error } = await supabase.functions.invoke('get-payment-methods', {
+        body: { 
+          userId 
+        }
+      });
+      
+      if (error) {
+        console.error("Error getting payment methods:", error);
+        return { paymentMethods: [] };
+      }
+      
+      return data || { paymentMethods: [] };
+    } catch (error) {
+      console.error('Error getting payment methods:', error);
+      return { paymentMethods: [] };
+    }
+  },
+  
+  // Remove a payment method
+  removePaymentMethod: async (userId: string, paymentMethodId: string): Promise<any> => {
+    try {
+      console.log("Removing payment method:", { userId, paymentMethodId });
+      const { data, error } = await supabase.functions.invoke('remove-payment-method', {
+        body: { 
+          userId,
+          paymentMethodId
+        }
+      });
+      
+      if (error) {
+        console.error("Error removing payment method:", error);
+        throw new Error(error.message);
+      }
+      
+      return data;
+    } catch (error) {
+      console.error('Error removing payment method:', error);
+      throw error;
+    }
+  },
+  
+  // Set default payment method
+  setDefaultPaymentMethod: async (userId: string, paymentMethodId: string): Promise<any> => {
+    try {
+      console.log("Setting default payment method:", { userId, paymentMethodId });
+      const { data, error } = await supabase.functions.invoke('set-default-payment-method', {
+        body: { 
+          userId,
+          paymentMethodId
+        }
+      });
+      
+      if (error) {
+        console.error("Error setting default payment method:", error);
+        throw new Error(error.message);
+      }
+      
+      return data;
+    } catch (error) {
+      console.error('Error setting default payment method:', error);
+      throw error;
+    }
+  },
+  
+  // Cancel subscription
+  cancelSubscription: async (userId: string): Promise<any> => {
+    try {
+      console.log("Cancelling subscription for user:", userId);
+      const { data, error } = await supabase.functions.invoke('cancel-subscription', {
+        body: { 
+          userId
+        }
+      });
+      
+      if (error) {
+        console.error("Error cancelling subscription:", error);
+        throw new Error(error.message);
+      }
+      
+      return data;
+    } catch (error) {
+      console.error('Error cancelling subscription:', error);
+      throw error;
+    }
+  },
+  
+  // Change subscription plan
+  changeSubscriptionPlan: async (userId: string, newPlanId: string): Promise<any> => {
+    try {
+      console.log("Changing subscription plan:", { userId, newPlanId });
+      const { data, error } = await supabase.functions.invoke('change-subscription-plan', {
+        body: { 
+          userId,
+          newPlanId
+        }
+      });
+      
+      if (error) {
+        console.error("Error changing subscription plan:", error);
+        throw new Error(error.message);
+      }
+      
+      return data;
+    } catch (error) {
+      console.error('Error changing subscription plan:', error);
+      throw error;
+    }
+  },
+  
+  // Reactivate subscription
+  reactivateSubscription: async (userId: string): Promise<any> => {
+    try {
+      console.log("Reactivating subscription for user:", userId);
+      const { data, error } = await supabase.functions.invoke('reactivate-subscription', {
+        body: { 
+          userId
+        }
+      });
+      
+      if (error) {
+        console.error("Error reactivating subscription:", error);
+        throw new Error(error.message);
+      }
+      
+      return data;
+    } catch (error) {
+      console.error('Error reactivating subscription:', error);
+      throw error;
     }
   }
 };

@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
@@ -19,9 +20,11 @@ import EnhancedSubscriptionPlans from "@/features/billing/components/EnhancedSub
 import CurrentPlan from "@/features/billing/components/CurrentPlan";
 import EnhancedTransactionHistory from "@/features/billing/components/EnhancedTransactionHistory";
 import PaymentMethodManager from "@/features/billing/components/PaymentMethodManager";
+import SubscriptionManagement from "@/features/billing/components/SubscriptionManagement";
 import { useStripeSetup } from "@/features/billing/hooks/useStripeSetup";
 import { useBillingData } from "@/features/billing/hooks/useBillingData";
 import { usePaymentIntents } from "@/features/billing/hooks/usePaymentIntents";
+import { usePaymentMethods } from "@/features/billing/hooks/usePaymentMethods";
 
 const Billing = () => {
   const { credits } = useCredits();
@@ -53,11 +56,18 @@ const Billing = () => {
     setSetupIntent
   } = usePaymentIntents(checkPaymentMethod, fetchPaymentHistory, fetchUserSubscription);
 
+  const {
+    paymentMethods,
+    isLoading: paymentMethodsLoading,
+    fetchPaymentMethods,
+    removePaymentMethod,
+    setDefaultPaymentMethod,
+  } = usePaymentMethods();
+
   const [isPaymentMethodModalOpen, setIsPaymentMethodModalOpen] = useState(false);
   const [isChangePlanModalOpen, setIsChangePlanModalOpen] = useState(false);
   const [showSuccessAlert, setShowSuccessAlert] = useState(false);
   const [autoPayment, setAutoPayment] = useState(true); // Mock state for auto-payment
-  const [paymentMethods, setPaymentMethods] = useState([]); // Mock payment methods
 
   // Mock subscription status - in real app, this would come from user profile
   const isSubscribed = currentPlan?.id !== 'starter';
@@ -76,6 +86,7 @@ const Billing = () => {
     setSetupIntent(null);
     setIsPaymentMethodModalOpen(false);
     checkPaymentMethod();
+    fetchPaymentMethods();
   };
 
   const handleChangePlan = (plan: typeof currentPlan) => {
@@ -93,16 +104,6 @@ const Billing = () => {
     }
   };
 
-  const handleRemovePaymentMethod = (id: string) => {
-    // Mock implementation - in real app, this would call Stripe API
-    console.log('Remove payment method:', id);
-  };
-
-  const handleSetDefaultPaymentMethod = (id: string) => {
-    // Mock implementation - in real app, this would call Stripe API
-    console.log('Set default payment method:', id);
-  };
-
   const handleToggleAutoPayment = (enabled: boolean) => {
     setAutoPayment(enabled);
     // In real app, this would update user preferences
@@ -111,6 +112,11 @@ const Billing = () => {
   const handleDownloadReceipt = (transactionId: string) => {
     // Mock implementation - in real app, this would generate/download receipt
     console.log('Download receipt for transaction:', transactionId);
+  };
+
+  const handleSubscriptionChange = () => {
+    fetchUserSubscription();
+    fetchPaymentMethods();
   };
 
   return (
@@ -207,6 +213,11 @@ const Billing = () => {
             </CardContent>
           </Card>
 
+          <SubscriptionManagement 
+            currentPlan={currentPlan} 
+            onPlanChange={handleSubscriptionChange}
+          />
+
           <Card>
             <CardHeader>
               <CardTitle>Available Plans</CardTitle>
@@ -233,10 +244,10 @@ const Billing = () => {
                 paymentMethods={paymentMethods}
                 autoPayment={autoPayment}
                 onAddPaymentMethod={openPaymentMethodModal}
-                onRemovePaymentMethod={handleRemovePaymentMethod}
-                onSetDefaultPaymentMethod={handleSetDefaultPaymentMethod}
+                onRemovePaymentMethod={removePaymentMethod}
+                onSetDefaultPaymentMethod={setDefaultPaymentMethod}
                 onToggleAutoPayment={handleToggleAutoPayment}
-                isLoading={isLoading}
+                isLoading={paymentMethodsLoading}
               />
             </CardContent>
           </Card>
