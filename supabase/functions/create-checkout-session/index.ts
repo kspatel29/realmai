@@ -56,7 +56,6 @@ serve(async (req) => {
       mode: mode,
       success_url: `${req.headers.get("origin")}/dashboard/billing?session_id={CHECKOUT_SESSION_ID}&success=true`,
       cancel_url: `${req.headers.get("origin")}/dashboard/billing?canceled=true`,
-      customer_email: null, // Let Stripe collect the email
       client_reference_id: userId,
     };
 
