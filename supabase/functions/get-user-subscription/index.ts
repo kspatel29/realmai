@@ -15,6 +15,12 @@ const SUBSCRIPTION_CREDITS = {
   "studio-pro": 5000,
 };
 
+// Price ID mapping to plan IDs
+const PRICE_TO_PLAN_MAP = {
+  "price_1RTBqlRuznwovkUGacCIEldb": "essentials",
+  "price_1RTBsBRuznwovkUGRCA7YY3m": "creator-pro"
+};
+
 serve(async (req) => {
   // Handle CORS preflight requests
   if (req.method === "OPTIONS") {
@@ -59,37 +65,9 @@ serve(async (req) => {
     console.log("Checking subscription for user:", userId);
     
     try {
-      // First check if subscription exists in our database
-      const { data: subscriptionData, error: dbError } = await supabase
-        .from('subscriptions')
-        .select('*')
-        .eq('user_id', userId)
-        .eq('status', 'active')
-        .single();
-
-      if (!dbError && subscriptionData) {
-        console.log("Found subscription in database:", subscriptionData);
-        // Return subscription from database
-        return new Response(
-          JSON.stringify({
-            subscription: {
-              planId: subscriptionData.plan_id,
-              status: subscriptionData.status,
-              currentPeriodEnd: subscriptionData.subscription_end,
-            }
-          }),
-          {
-            headers: { ...corsHeaders, "Content-Type": "application/json" },
-            status: 200,
-          }
-        );
-      }
-
-      console.log("No subscription found in database, checking Stripe");
-
-      // If no subscription in database, check Stripe as fallback
       // Transform userId to Stripe customer ID format
       const customerId = `cus_${userId.replace(/-/g, '')}`;
+      console.log("Looking for Stripe customer:", customerId);
       
       try {
         // First check if customer exists in Stripe
@@ -97,7 +75,6 @@ serve(async (req) => {
         
         if (customer.deleted) {
           console.log("Customer is deleted, returning starter plan");
-          // Return default subscription for deleted customers
           return new Response(
             JSON.stringify({
               subscription: {
@@ -113,45 +90,50 @@ serve(async (req) => {
           );
         }
         
+        console.log("Found customer in Stripe:", customer.id);
+        
         // Get customer's subscriptions from Stripe
         const subscriptions = await stripe.subscriptions.list({
           customer: customerId,
           status: 'active',
-          limit: 1,
+          limit: 10,
         });
+        
+        console.log(`Found ${subscriptions.data.length} active subscriptions`);
         
         if (subscriptions.data.length > 0) {
           const subscription = subscriptions.data[0];
-          // Get the price ID to determine plan
           const priceId = subscription.items.data[0].price.id;
           
-          console.log("Found Stripe subscription with price ID:", priceId);
+          console.log("Active subscription found with price ID:", priceId);
+          console.log("Subscription status:", subscription.status);
+          console.log("Current period end:", new Date(subscription.current_period_end * 1000).toISOString());
           
           // Map price ID to plan ID
-          let planId = "starter"; // Default
-          if (priceId === "price_1RTBqlRuznwovkUGacCIEldb") {
-            planId = "essentials";
-          } else if (priceId === "price_1RTBsBRuznwovkUGRCA7YY3m") {
-            planId = "creator-pro";
-          } else if (priceId.includes("studio-pro")) {
-            planId = "studio-pro";
+          let planId = PRICE_TO_PLAN_MAP[priceId as keyof typeof PRICE_TO_PLAN_MAP] || "starter";
+          
+          console.log("Mapped price ID to plan:", planId);
+          
+          // Try to sync with database (but don't fail if it doesn't work)
+          try {
+            await supabase
+              .from('subscriptions')
+              .upsert({
+                user_id: userId,
+                plan_id: planId,
+                status: subscription.status,
+                subscription_start: new Date(subscription.current_period_start * 1000).toISOString().split('T')[0],
+                subscription_end: new Date(subscription.current_period_end * 1000).toISOString().split('T')[0],
+                amount: (subscription.items.data[0].price.unit_amount || 0) / 100,
+                monthly_credits: SUBSCRIPTION_CREDITS[planId as keyof typeof SUBSCRIPTION_CREDITS] || 0,
+                updated_at: new Date().toISOString(),
+              }, { onConflict: 'user_id' });
+            
+            console.log("Successfully synced subscription to database");
+          } catch (dbError) {
+            console.error("Error syncing to database:", dbError);
+            // Continue anyway - we have the data from Stripe
           }
-          
-          console.log("Mapped to plan:", planId);
-          
-          // Sync with database
-          await supabase
-            .from('subscriptions')
-            .upsert({
-              user_id: userId,
-              plan_id: planId,
-              status: subscription.status,
-              subscription_start: new Date(subscription.current_period_start * 1000).toISOString().split('T')[0],
-              subscription_end: new Date(subscription.current_period_end * 1000).toISOString().split('T')[0],
-              amount: (subscription.items.data[0].price.unit_amount || 0) / 100,
-              monthly_credits: SUBSCRIPTION_CREDITS[planId as keyof typeof SUBSCRIPTION_CREDITS] || 0,
-              updated_at: new Date().toISOString(),
-            }, { onConflict: 'user_id' });
           
           return new Response(
             JSON.stringify({
@@ -169,11 +151,35 @@ serve(async (req) => {
         }
       } catch (stripeError) {
         console.log("Error retrieving from Stripe:", stripeError);
-        // If there's an error with Stripe, we'll return the default subscription
+        // If customer doesn't exist in Stripe, check database as fallback
+      }
+
+      // Check if subscription exists in our database as fallback
+      const { data: subscriptionData, error: dbError } = await supabase
+        .from('subscriptions')
+        .select('*')
+        .eq('user_id', userId)
+        .eq('status', 'active')
+        .single();
+
+      if (!dbError && subscriptionData) {
+        console.log("Found subscription in database:", subscriptionData);
+        return new Response(
+          JSON.stringify({
+            subscription: {
+              planId: subscriptionData.plan_id,
+              status: subscriptionData.status,
+              currentPeriodEnd: subscriptionData.subscription_end,
+            }
+          }),
+          {
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+            status: 200,
+          }
+        );
       }
     } catch (error) {
       console.log("Error retrieving subscription:", error);
-      // If there's an error, we'll return the default subscription
     }
 
     console.log("No active subscription found, returning starter plan");

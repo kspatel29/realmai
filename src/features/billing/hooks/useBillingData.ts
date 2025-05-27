@@ -51,13 +51,22 @@ export const useBillingData = () => {
     
     try {
       setIsLoading(true);
+      console.log("Fetching subscription for user:", user.id);
       const result = await stripeService.getUserSubscription(user.id);
-      console.log("Fetched subscription result:", result);
-      console.log("Setting userSubscription to:", result?.subscription || null);
-      setUserSubscription(result?.subscription || null);
+      console.log("Raw subscription result from API:", result);
+      console.log("Subscription data:", result?.subscription);
+      
+      if (result?.subscription) {
+        console.log("Setting userSubscription to:", result.subscription);
+        setUserSubscription(result.subscription);
+      } else {
+        console.log("No subscription data received, setting to null");
+        setUserSubscription(null);
+      }
     } catch (err) {
       console.error("Error fetching subscription:", err);
       toast.error("Failed to load subscription details");
+      setUserSubscription(null);
     } finally {
       setIsLoading(false);
     }
@@ -79,10 +88,12 @@ export const useBillingData = () => {
     ? SUBSCRIPTION_PLANS.find(plan => plan.id === userSubscription.planId) 
     : SUBSCRIPTION_PLANS[0];
 
-  console.log("Current plan determined:", {
+  console.log("Current plan determination:", {
     userSubscription,
+    userSubscriptionPlanId: userSubscription?.planId,
     currentPlan: currentPlan?.name,
-    planId: currentPlan?.id
+    currentPlanId: currentPlan?.id,
+    allPlans: SUBSCRIPTION_PLANS.map(p => ({ id: p.id, name: p.name }))
   });
 
   return {
