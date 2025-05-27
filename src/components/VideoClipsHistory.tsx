@@ -12,7 +12,8 @@ import {
   Video,
   Calendar,
   Clock,
-  Trash2
+  Trash2,
+  ExternalLink
 } from "lucide-react";
 import { format } from "date-fns";
 import { toast } from "sonner";
@@ -32,6 +33,21 @@ const VideoClipsHistory = ({ clips, isLoading, onRefresh }: VideoClipsHistoryPro
   const handleRefresh = () => {
     onRefresh();
     toast.success("Video clips refreshed");
+  };
+
+  const isStoredInSupabase = (url: string) => {
+    return url.includes('supabase.co') || url.includes('ptihuoxqjymxvvaotzaw');
+  };
+
+  const handlePlay = (clip: VideoClip) => {
+    if (isStoredInSupabase(clip.video_url)) {
+      // Video is stored in Supabase, open it directly
+      window.open(clip.video_url, '_blank');
+    } else {
+      // External URL - warn user and still allow access
+      toast.info("This video is hosted externally and will be moved to secure storage soon.");
+      window.open(clip.video_url, '_blank');
+    }
   };
 
   const handleDownload = async (clip: VideoClip) => {
@@ -154,9 +170,17 @@ const VideoClipsHistory = ({ clips, isLoading, onRefresh }: VideoClipsHistoryPro
             <CardHeader className="p-4">
               <div className="flex justify-between items-start">
                 <CardTitle className="text-base truncate">{clip.title}</CardTitle>
-                <Badge variant={clip.status === 'completed' ? 'default' : 'secondary'}>
-                  {clip.status}
-                </Badge>
+                <div className="flex gap-2">
+                  <Badge variant={clip.status === 'completed' ? 'default' : 'secondary'}>
+                    {clip.status}
+                  </Badge>
+                  {!isStoredInSupabase(clip.video_url) && (
+                    <Badge variant="outline" className="text-orange-600 border-orange-300">
+                      <ExternalLink className="h-3 w-3 mr-1" />
+                      External
+                    </Badge>
+                  )}
+                </div>
               </div>
               <div className="text-xs text-muted-foreground">
                 {clip.prompt && clip.prompt.substring(0, 60)}
@@ -195,6 +219,12 @@ const VideoClipsHistory = ({ clips, isLoading, onRefresh }: VideoClipsHistoryPro
                   <span className="text-muted-foreground">Credits used:</span>
                   <span>{clip.cost_credits}</span>
                 </div>
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Storage:</span>
+                  <span className={isStoredInSupabase(clip.video_url) ? "text-green-600" : "text-orange-600"}>
+                    {isStoredInSupabase(clip.video_url) ? "Secure" : "External"}
+                  </span>
+                </div>
               </div>
             </CardContent>
             
@@ -205,7 +235,7 @@ const VideoClipsHistory = ({ clips, isLoading, onRefresh }: VideoClipsHistoryPro
                     <Button 
                       variant="outline" 
                       size="sm" 
-                      onClick={() => window.open(clip.video_url, '_blank')}
+                      onClick={() => handlePlay(clip)}
                     >
                       <Play className="h-3 w-3 mr-1" />
                       Play
