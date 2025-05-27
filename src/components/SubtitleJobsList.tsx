@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -18,6 +19,7 @@ import {
 } from "lucide-react";
 import { format } from "date-fns";
 import { toast } from "sonner";
+import { checkSubtitlesStatus, updateSubtitleJob } from "@/services/api/subtitlesService";
 
 interface SubtitleJob {
   id: string;
@@ -62,8 +64,81 @@ const SubtitleJobsList = () => {
       return data || [];
     },
     enabled: !!user,
-    refetchInterval: 5000, // Refetch every 5 seconds to check for status updates
+    refetchInterval: (data) => {
+      // Only refetch if there are jobs that are still processing
+      const hasProcessingJobs = data?.some(job => 
+        job.status === 'starting' || job.status === 'processing'
+      );
+      return hasProcessingJobs ? 5000 : false;
+    },
   });
+
+  // Check and update pending jobs
+  useEffect(() => {
+    const checkPendingJobs = async () => {
+      if (!jobs || !user) return;
+
+      const pendingJobs = jobs.filter(job => 
+        (job.status === 'starting' || job.status === 'processing') && 
+        job.prediction_id
+      );
+
+      if (pendingJobs.length === 0) return;
+
+      console.log(`Checking ${pendingJobs.length} pending subtitle jobs`);
+
+      for (const job of pendingJobs) {
+        try {
+          console.log(`Checking status for job ${job.id} with prediction ID ${job.prediction_id}`);
+          const result = await checkSubtitlesStatus(job.prediction_id!);
+          
+          console.log(`Job ${job.id} status check result:`, result);
+
+          if (result.status === 'succeeded' || result.status === 'completed') {
+            if (result.output) {
+              const output = result.output;
+              const srtUrl = output.srt_file || output.srt_url || '';
+              const vttUrl = output.vtt_file || output.vtt_url || '';
+              const previewText = output.preview || output.text || output.preview_text || '';
+
+              console.log(`Updating job ${job.id} to completed with URLs:`, { srtUrl, vttUrl });
+
+              await updateSubtitleJob(job.id, {
+                status: 'completed',
+                srt_url: srtUrl,
+                vtt_url: vttUrl,
+                preview_text: previewText
+              });
+
+              toast.success(`Subtitle job "${job.original_filename || 'Audio file'}" has been completed!`);
+              
+              // Refetch to get updated data
+              refetch();
+            }
+          } else if (result.status === 'failed' || result.status === 'error') {
+            console.log(`Marking job ${job.id} as failed:`, result.error);
+            
+            await updateSubtitleJob(job.id, {
+              status: 'failed',
+              error: result.error || 'Generation failed'
+            });
+            
+            // Refetch to get updated data
+            refetch();
+          }
+        } catch (error) {
+          console.error(`Error checking job ${job.id}:`, error);
+        }
+      }
+    };
+
+    // Check immediately and then every 10 seconds if there are pending jobs
+    checkPendingJobs();
+    
+    const interval = setInterval(checkPendingJobs, 10000);
+    
+    return () => clearInterval(interval);
+  }, [jobs, user, refetch]);
 
   const copyPreviewToClipboard = (text: string | null) => {
     if (!text) {
