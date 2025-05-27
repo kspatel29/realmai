@@ -1,3 +1,4 @@
+
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import Stripe from "https://esm.sh/stripe@13.2.0?target=deno";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.38.4";
@@ -12,6 +13,22 @@ const SUBSCRIPTION_CREDITS = {
   "essentials": 550,
   "creator-pro": 3100,
   "studio-pro": 5000,
+};
+
+// Define credits for each credit package
+const CREDIT_PACKAGE_CREDITS = {
+  "small": 105,
+  "medium": 210,
+  "large": 525,
+  "xl": 1050,
+};
+
+// Price ID mapping to credit packages
+const PRICE_TO_PACKAGE_MAP = {
+  "price_1RTCmaRuznwovkUGYdHsLwmk": "small",
+  "price_1RTCn3RuznwovkUGG9S8BUha": "medium", 
+  "price_1RTCngRuznwovkUGmOR5BU90": "large",
+  "price_1RTCoARuznwovkUGeMS75yDi": "xl",
 };
 
 serve(async (req) => {
@@ -82,11 +99,23 @@ serve(async (req) => {
 
     // Handle different session types based on mode and metadata
     if (session.mode === 'payment' && session.metadata?.type === 'credit_purchase') {
-      const creditAmount = parseInt(session.metadata.credits, 10);
+      console.log("Processing credit package purchase");
       
-      if (!creditAmount) {
+      // Get the line items to determine the package
+      const lineItems = await stripe.checkout.sessions.listLineItems(sessionId);
+      const priceId = lineItems.data[0]?.price?.id;
+      
+      console.log(`Price ID from session: ${priceId}`);
+      
+      // Determine package from price ID
+      const packageId = PRICE_TO_PACKAGE_MAP[priceId as keyof typeof PRICE_TO_PACKAGE_MAP] || session.metadata.packageId;
+      const creditAmount = CREDIT_PACKAGE_CREDITS[packageId as keyof typeof CREDIT_PACKAGE_CREDITS] || parseInt(session.metadata.credits || "0", 10);
+      
+      console.log(`Package: ${packageId}, Credits: ${creditAmount}`);
+      
+      if (!creditAmount || creditAmount <= 0) {
         return new Response(
-          JSON.stringify({ error: "Invalid credit amount in session metadata" }),
+          JSON.stringify({ error: "Invalid credit amount in session" }),
           {
             headers: { ...corsHeaders, "Content-Type": "application/json" },
             status: 400,
@@ -141,8 +170,8 @@ serve(async (req) => {
           user_id: userId,
           amount: creditAmount,
           type: "purchase",
-          package_id: session.metadata.packageId,
-          description: `Purchased ${creditAmount} credits via Checkout`
+          package_id: packageId,
+          description: `Purchased ${creditAmount} credits via Checkout (${packageId} package)`
         });
       
       if (transactionError) {
@@ -155,6 +184,7 @@ serve(async (req) => {
           success: true, 
           type: 'credit_purchase',
           credits: creditAmount,
+          package: packageId,
           message: `Successfully purchased ${creditAmount} credits`
         }),
         {

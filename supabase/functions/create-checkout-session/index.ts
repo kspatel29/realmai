@@ -14,6 +14,14 @@ const SUBSCRIPTION_PRICE_IDS = {
   "studio-pro": "price_REPLACE_WITH_STUDIO_PRO_PRICE_ID", // Create this product and price in Stripe
 };
 
+// Pre-configured Stripe price IDs for credit packages
+const CREDIT_PACKAGE_PRICE_IDS = {
+  "small": "price_1RTCmaRuznwovkUGYdHsLwmk", // Small Pack: prod_SNykS8eG43JidY
+  "medium": "price_1RTCn3RuznwovkUGG9S8BUha", // Medium Pack: prod_SNykr0YszT0cAL
+  "large": "price_1RTCngRuznwovkUGmOR5BU90", // Large Pack: prod_SNyl6DVUg2cysA
+  "xl": "price_1RTCoARuznwovkUGeMS75yDi", // XL Pack: prod_SNylh8po1jVw80
+};
+
 serve(async (req) => {
   // Handle CORS preflight requests
   if (req.method === "OPTIONS") {
@@ -69,11 +77,30 @@ serve(async (req) => {
     let sessionParams;
 
     if (mode === 'payment') {
-      // One-time payment for credit packages
-      if (!packageId || !credits || !price) {
-        console.error("Missing package details", { packageId, credits, price });
+      // One-time payment for credit packages using pre-configured price IDs
+      if (!packageId) {
+        console.error("Missing package ID", { packageId });
         return new Response(
-          JSON.stringify({ error: "Missing package information for one-time payment" }),
+          JSON.stringify({ error: "Missing package ID for credit purchase" }),
+          {
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+            status: 400,
+          }
+        );
+      }
+
+      // Get the pre-configured price ID for this credit package
+      const priceId = CREDIT_PACKAGE_PRICE_IDS[packageId as keyof typeof CREDIT_PACKAGE_PRICE_IDS];
+      
+      console.log(`Found price ID for package ${packageId}: ${priceId}`);
+      
+      if (!priceId) {
+        console.error(`No price ID configured for package: ${packageId}`);
+        return new Response(
+          JSON.stringify({ 
+            error: `No price ID configured for credit package ${packageId}`,
+            details: `Available packages: ${Object.keys(CREDIT_PACKAGE_PRICE_IDS).join(', ')}`
+          }),
           {
             headers: { ...corsHeaders, "Content-Type": "application/json" },
             status: 400,
@@ -81,26 +108,19 @@ serve(async (req) => {
         );
       }
       
-      console.log(`Creating payment session for package ${packageId}, credits: ${credits}, price: ${price}`);
+      console.log(`Creating payment session for package ${packageId}, credits: ${credits}, using price ID: ${priceId}`);
       sessionParams = {
         ...baseParams,
         line_items: [
           {
-            price_data: {
-              currency: 'usd',
-              product_data: {
-                name: `${credits} Credits Package`,
-                description: `Purchase of ${credits} credits`,
-              },
-              unit_amount: price * 100, // Convert to cents
-            },
+            price: priceId,
             quantity: 1,
           },
         ],
         metadata: {
           userId: userId,
           packageId: packageId,
-          credits: credits.toString(),
+          credits: credits?.toString() || "0",
           type: 'credit_purchase'
         },
       };
