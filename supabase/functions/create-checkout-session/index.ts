@@ -1,4 +1,3 @@
-
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import Stripe from "https://esm.sh/stripe@13.2.0?target=deno";
 
@@ -8,10 +7,9 @@ const corsHeaders = {
 };
 
 // Pre-configured Stripe price IDs for each subscription plan
-// You need to create these prices in your Stripe dashboard and replace the placeholder values
 const SUBSCRIPTION_PRICE_IDS = {
-  "essentials": "price_REPLACE_WITH_ESSENTIALS_PRICE_ID", // For product prod_SNxmEhAG1n0n6e
-  "creator-pro": "price_REPLACE_WITH_CREATOR_PRO_PRICE_ID", // For product prod_SNxnqjwYw3j065
+  "essentials": "price_1RTBqlRuznwovkUGacCIEldb", // For product prod_SNxmEhAG1n0n6e
+  "creator-pro": "price_1RTBsBRuznwovkUGRCA7YY3m", // For product prod_SNxnqjwYw3j065
   "studio-pro": "price_REPLACE_WITH_STUDIO_PRO_PRICE_ID", // Create this product and price in Stripe
 };
 
