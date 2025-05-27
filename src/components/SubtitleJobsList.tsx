@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -230,7 +229,7 @@ const SubtitleJobsList = () => {
             <Card>
               <CardHeader className="p-4">
                 <CardTitle className="text-base flex items-center gap-2">
-                  Job Details: {selectedJob.id.substring(0, 8)}
+                  Subtitle Preview
                   {getStatusBadge(selectedJob.status)}
                 </CardTitle>
                 <CardDescription>
@@ -250,28 +249,6 @@ const SubtitleJobsList = () => {
                     </div>
                   </div>
                 )}
-                
-                <div>
-                  <h4 className="text-sm font-medium mb-2">Job Information</h4>
-                  <div className="grid grid-cols-2 gap-2 text-sm">
-                    <div className="text-muted-foreground">Status:</div>
-                    <div className="font-medium">{selectedJob.status}</div>
-                    <div className="text-muted-foreground">Model:</div>
-                    <div>{selectedJob.model_name}</div>
-                    <div className="text-muted-foreground">Language:</div>
-                    <div>{selectedJob.language || "Auto-detect"}</div>
-                    <div className="text-muted-foreground">Created:</div>
-                    <div>{format(new Date(selectedJob.created_at), "PPp")}</div>
-                    <div className="text-muted-foreground">Updated:</div>
-                    <div>{format(new Date(selectedJob.updated_at), "PPp")}</div>
-                    {selectedJob.prediction_id && (
-                      <>
-                        <div className="text-muted-foreground">Prediction ID:</div>
-                        <div className="font-mono text-xs">{selectedJob.prediction_id}</div>
-                      </>
-                    )}
-                  </div>
-                </div>
                 
                 {selectedJob.error && (
                   <div className="bg-red-50 dark:bg-red-950/20 border border-red-200 dark:border-red-800 rounded-md p-4">
