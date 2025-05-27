@@ -246,21 +246,8 @@ const DubbingJobsList = ({ jobs, onRefresh, isLoading }: DubbingJobsListProps) =
                     )}
                   </div>
                 )}
-                {job.status === "failed" && job.error && (
-                  <Button 
-                    variant="ghost" 
-                    size="sm"
-                    onClick={() => {
-                      toast({
-                        title: "Job Failed",
-                        description: job.error || "Unknown error occurred",
-                        variant: "destructive"
-                      });
-                    }}
-                  >
-                    <AlertCircle className="h-4 w-4 mr-2" />
-                    See Error
-                  </Button>
+                {job.status === "failed" && (
+                  <p className="text-sm text-muted-foreground">Processing failed</p>
                 )}
                 {(job.status === "running" || job.status === "queued") && (
                   <p className="text-sm text-muted-foreground">Processing...</p>
