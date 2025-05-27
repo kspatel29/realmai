@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
@@ -36,6 +35,7 @@ const Billing = () => {
     setActiveTab,
     fetchPaymentHistory,
     checkPaymentMethod,
+    fetchUserSubscription,
     currentPlan 
   } = useBillingData();
   
@@ -51,7 +51,7 @@ const Billing = () => {
     cancelPayment,
     cancelPaymentMethodAddition,
     setSetupIntent
-  } = usePaymentIntents(checkPaymentMethod, fetchPaymentHistory);
+  } = usePaymentIntents(checkPaymentMethod, fetchPaymentHistory, fetchUserSubscription);
 
   const [isPaymentMethodModalOpen, setIsPaymentMethodModalOpen] = useState(false);
   const [isChangePlanModalOpen, setIsChangePlanModalOpen] = useState(false);

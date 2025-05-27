@@ -24,6 +24,13 @@ export const useBillingData = () => {
     }
   }, [user, activeTab]);
 
+  // Auto-refresh subscription when user changes or component mounts
+  useEffect(() => {
+    if (user) {
+      fetchUserSubscription();
+    }
+  }, [user]);
+
   const fetchPaymentHistory = async () => {
     if (!user) return;
     
@@ -45,6 +52,7 @@ export const useBillingData = () => {
     try {
       setIsLoading(true);
       const result = await stripeService.getUserSubscription(user.id);
+      console.log("Fetched subscription:", result);
       setUserSubscription(result?.subscription || null);
     } catch (err) {
       console.error("Error fetching subscription:", err);

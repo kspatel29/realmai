@@ -7,10 +7,10 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
-// Define monthly credits for each subscription plan
+// Define monthly credits for each subscription plan - UPDATED VALUES
 const SUBSCRIPTION_CREDITS = {
-  "essentials": 500,
-  "creator-pro": 1500,
+  "essentials": 550,
+  "creator-pro": 3100,
   "studio-pro": 5000,
 };
 
