@@ -78,9 +78,6 @@ const CreditPackageSelection = ({ onSelectPackage, isLoading, isSubscribed }: Cr
               </div>
               
               <div className="text-center mb-4">
-                <div className="text-sm text-muted-foreground">
-                  ${(pkg.price / pkg.credits * 100).toFixed(2)}¢ per credit
-                </div>
                 <div className="text-xs text-green-600 font-medium">
                   {pkg.credits / 15} hours of content processing*
                 </div>
