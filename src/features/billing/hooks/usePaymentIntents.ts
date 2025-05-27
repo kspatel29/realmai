@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { useSearchParams } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
@@ -56,7 +55,14 @@ export const usePaymentIntents = (checkPaymentMethod: () => Promise<void>, fetch
       return;
     }
     
-    window.location.href = url;
+    // Open Stripe checkout in a new tab to avoid iframe restrictions
+    const newWindow = window.open(url, '_blank', 'noopener,noreferrer');
+    if (!newWindow) {
+      toast.error("Please allow popups to complete your payment");
+      return;
+    }
+    
+    toast.success("Redirecting to Stripe Checkout in a new tab...");
   };
 
   const handleBuyCredits = async (pkg: typeof CREDIT_PACKAGES[0]) => {
