@@ -4,17 +4,16 @@ import DubbingJobsList from "@/components/DubbingJobsList";
 import SubtitleJobsList from "@/components/SubtitleJobsList";
 import VideoClipsHistory from "@/components/VideoClipsHistory";
 import { useDubbingJobs } from "@/hooks/dubbingJobs";
-import { useSubtitleJobs } from "@/hooks/useSubtitleJobs";
 import { useVideoClips } from "@/hooks/useVideoClips";
 import { useState } from "react";
 
 const History = () => {
   const { jobs: dubbingJobs, isLoading: isDubbingLoading, refetch: refetchDubbing } = useDubbingJobs();
-  const { jobs: subtitleJobs, isLoading: isSubtitlesLoading, refreshJobs: refreshSubtitles } = useSubtitleJobs();
   const { clips: videoClips, isLoading: isVideoClipsLoading, refetch: refetchVideoClips } = useVideoClips();
   const [currentTab, setCurrentTab] = useState("dubbing");
 
-  const totalJobs = dubbingJobs.length + subtitleJobs.length + videoClips.length;
+  // Only count actual generated video clips, not uploaded videos
+  const totalJobs = dubbingJobs.length + videoClips.length;
 
   return (
     <div className="space-y-8 animate-fade-in">
@@ -31,7 +30,7 @@ const History = () => {
             Dubbing ({dubbingJobs.length})
           </TabsTrigger>
           <TabsTrigger value="subtitles">
-            Subtitles ({subtitleJobs.length})
+            Subtitles
           </TabsTrigger>
           <TabsTrigger value="video-clips">
             Video Clips ({videoClips.length})
