@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -66,7 +65,8 @@ const SubtitleJobsList = () => {
     enabled: !!user,
     refetchInterval: (data) => {
       // Only refetch if there are jobs that are still processing
-      const hasProcessingJobs = data?.some(job => 
+      if (!data) return false;
+      const hasProcessingJobs = data.some(job => 
         job.status === 'starting' || job.status === 'processing'
       );
       return hasProcessingJobs ? 5000 : false;
