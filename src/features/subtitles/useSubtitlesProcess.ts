@@ -10,7 +10,7 @@ import { useSubtitleFileManager } from "@/hooks/useSubtitleFileManager";
 
 export const useSubtitlesProcess = () => {
   const { user } = useAuth();
-  const { spendCredits } = useSpendCreditsForService();
+  const spendCreditsMutation = useSpendCreditsForService();
   const { processAndStoreSubtitleFiles } = useSubtitleFileManager();
   
   const [isUploading, setIsUploading] = useState(false);
@@ -21,9 +21,9 @@ export const useSubtitlesProcess = () => {
   const [srtFileUrl, setSrtFileUrl] = useState<string | null>(null);
   const [vttFileUrl, setVttFileUrl] = useState<string | null>(null);
   const [editableText, setEditableText] = useState<string>("");
-  const [estimatedWaitTime, setEstimatedWaitTime] = useState<number>(0);
+  const [estimatedWaitTime, setEstimatedWaitTime] = useState<string>("0");
 
-  const handleFileUploaded = async (file: File, title: string) => {
+  const handleFileUploaded = async (file: File) => {
     if (!user) {
       toast.error("Please log in to upload files");
       return;
@@ -46,7 +46,7 @@ export const useSubtitlesProcess = () => {
       }
 
       setUploadedFileUrl(uploadResult.publicUrl);
-      setUploadedFileName(title || file.name);
+      setUploadedFileName(file.name);
       setUploadedFileDuration(duration || null);
       
       toast.success("File uploaded successfully!");
@@ -69,7 +69,10 @@ export const useSubtitlesProcess = () => {
     try {
       console.log("Starting subtitle processing...");
       
-      await spendCredits(totalCost, 'subtitles');
+      await spendCreditsMutation.mutateAsync({
+        amount: totalCost,
+        serviceType: 'subtitles'
+      });
       
       const result = await generateSubtitles({
         audioPath: uploadedFileUrl,
@@ -80,17 +83,18 @@ export const useSubtitlesProcess = () => {
 
       console.log("Subtitles generated:", result);
 
-      if (result.srt_url || result.vtt_url) {
+      // Check if result has the expected properties
+      if ('srt_url' in result || 'vtt_url' in result) {
         // Process and store the subtitle files in Supabase
         const storedFiles = await processAndStoreSubtitleFiles(
-          result.id,
+          result.id || 'unknown',
           result.srt_url,
           result.vtt_url
         );
         
         setSrtFileUrl(storedFiles.srtUrl || null);
         setVttFileUrl(storedFiles.vttUrl || null);
-        setEditableText(result.preview_text || "");
+        setEditableText(result.preview_text || result.text || "");
         
         toast.success("Subtitles generated and stored successfully!");
       } else {
@@ -115,7 +119,7 @@ export const useSubtitlesProcess = () => {
     setSrtFileUrl(null);
     setVttFileUrl(null);
     setEditableText("");
-    setEstimatedWaitTime(0);
+    setEstimatedWaitTime("0");
   };
 
   return {

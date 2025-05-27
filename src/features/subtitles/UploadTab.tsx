@@ -41,7 +41,7 @@ const UploadTab = ({ isUploading, setIsUploading, onFileUploaded }: UploadTabPro
       setPreviewUrl(url);
       setUploadedFile(file);
       
-      // Call the onFileUploaded callback
+      // Call the onFileUploaded callback with just the file
       await onFileUploaded(file);
       
       toast.success(`${file.name} uploaded successfully`);
