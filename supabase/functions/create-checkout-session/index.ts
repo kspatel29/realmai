@@ -1,3 +1,4 @@
+
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import Stripe from "https://esm.sh/stripe@13.2.0?target=deno";
 
@@ -117,9 +118,12 @@ serve(async (req) => {
       }
       
       console.log(`Creating subscription session for plan ${subscriptionPlanId}`);
+      console.log(`Available price IDs:`, SUBSCRIPTION_PRICE_IDS);
       
       // Get the pre-configured price ID for this subscription plan
       const priceId = SUBSCRIPTION_PRICE_IDS[subscriptionPlanId as keyof typeof SUBSCRIPTION_PRICE_IDS];
+      
+      console.log(`Found price ID for plan ${subscriptionPlanId}: ${priceId}`);
       
       if (!priceId || priceId.includes("REPLACE_WITH")) {
         console.error(`No price ID configured for plan: ${subscriptionPlanId}`);
