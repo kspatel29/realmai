@@ -43,9 +43,10 @@ const SubtitleJobsList = () => {
       if (error) throw error;
       return data as SubtitleJob[];
     },
-    refetchInterval: (data) => {
+    refetchInterval: (query) => {
       // Only refetch if there are running jobs
-      const hasRunningJobs = data?.some(job => job.status === "queued" || job.status === "running");
+      const jobsData = query.state.data;
+      const hasRunningJobs = jobsData?.some(job => job.status === "queued" || job.status === "running");
       return hasRunningJobs ? 5000 : false;
     }
   });
