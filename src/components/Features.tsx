@@ -1,5 +1,6 @@
 import { Globe, Video, MessageSquare, Scissors, BarChart, Zap } from "lucide-react";
-import { motion } from "framer-motion";
+import { motion, useScroll, useTransform } from "framer-motion";
+import { useRef, useState } from "react";
 
 const features = [
   {
@@ -41,13 +42,76 @@ const features = [
 ];
 
 const Features = () => {
+  const containerRef = useRef<HTMLDivElement>(null);
+  const [mousePosition, setMousePosition] = useState({ x: 0, y: 0 });
+  const { scrollYProgress } = useScroll({
+    target: containerRef,
+    offset: ["start end", "end start"]
+  });
+
+  const gridY = useTransform(scrollYProgress, [0, 1], ["0%", "50%"]);
+  const gridOpacity = useTransform(scrollYProgress, [0, 0.2, 0.8, 1], [0.3, 0.5, 0.5, 0.3]);
+
+  const handleMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
+    const rect = e.currentTarget.getBoundingClientRect();
+    setMousePosition({
+      x: e.clientX - rect.left,
+      y: e.clientY - rect.top
+    });
+  };
+
   return (
-    <section id="features" className="py-24 bg-[#0A0A0A] relative overflow-hidden">
-      {/* Background grid */}
-      <div className="absolute inset-0">
+    <section 
+      id="features" 
+      className="py-24 bg-[#0A0A0A] relative overflow-hidden" 
+      ref={containerRef}
+      onMouseMove={handleMouseMove}
+    >
+      {/* Background grid with parallax and hover effect */}
+      <motion.div 
+        className="absolute inset-0"
+        style={{ y: gridY, opacity: gridOpacity }}
+      >
         <div className="absolute inset-0 bg-[linear-gradient(to_right,#4f4f4f2e_1px,transparent_1px),linear-gradient(to_bottom,#4f4f4f2e_1px,transparent_1px)] bg-[size:14px_24px]"></div>
         <div className="absolute inset-0 bg-gradient-to-b from-transparent via-[#0A0A0A] to-[#0A0A0A]"></div>
-      </div>
+        {/* Dynamic background effect */}
+        <div 
+          className="absolute w-[800px] h-[800px] rounded-full pointer-events-none transition-all duration-500"
+          style={{
+            left: mousePosition.x - 400,
+            top: mousePosition.y - 400,
+            background: `
+              radial-gradient(circle at center,
+                rgba(255,92,92,0.15) 0%,
+                rgba(255,179,179,0.1) 20%,
+                rgba(255,92,92,0.05) 40%,
+                transparent 70%
+              )
+            `,
+            opacity: mousePosition.x === 0 && mousePosition.y === 0 ? 0 : 1,
+            transform: `scale(${mousePosition.x === 0 && mousePosition.y === 0 ? 0.8 : 1})`,
+            filter: 'blur(40px)'
+          }}
+        />
+        {/* Additional glow layers for depth */}
+        <div 
+          className="absolute w-[600px] h-[600px] rounded-full pointer-events-none transition-all duration-700"
+          style={{
+            left: mousePosition.x - 300,
+            top: mousePosition.y - 300,
+            background: `
+              radial-gradient(circle at center,
+                rgba(255,92,92,0.1) 0%,
+                rgba(255,179,179,0.05) 30%,
+                transparent 60%
+              )
+            `,
+            opacity: mousePosition.x === 0 && mousePosition.y === 0 ? 0 : 1,
+            transform: `scale(${mousePosition.x === 0 && mousePosition.y === 0 ? 0.9 : 1.1})`,
+            filter: 'blur(30px)'
+          }}
+        />
+      </motion.div>
 
       <div className="container mx-auto px-6 relative z-10">
         <motion.div 
@@ -62,9 +126,9 @@ const Features = () => {
             whileInView={{ opacity: 1, scale: 1 }}
             viewport={{ once: true }}
             transition={{ duration: 0.5, delay: 0.2 }}
-            className="inline-flex items-center px-4 py-2 bg-gradient-to-r from-blue-500/10 to-purple-500/10 rounded-full border border-white/10 mb-4"
+            className="inline-flex items-center px-4 py-2 bg-gradient-to-r from-[#ff5c5c]/10 to-[#ffb3b3]/10 rounded-full border border-white/10 mb-4"
           >
-            <span className="text-sm font-medium bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent">
+            <span className="text-sm font-medium bg-gradient-to-r from-[#ff5c5c] to-[#ffb3b3] bg-clip-text text-transparent">
               Powerful Features
             </span>
           </motion.div>
@@ -74,7 +138,7 @@ const Features = () => {
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
             transition={{ duration: 0.8, delay: 0.4 }}
-            className="text-4xl md:text-5xl font-bold mb-6 bg-gradient-to-r from-blue-400 via-purple-400 to-pink-400 bg-clip-text text-transparent"
+            className="text-4xl md:text-5xl font-bold mb-6 bg-gradient-to-r from-[#ff5c5c] via-[#ffb3b3] to-[#ff5c5c] bg-clip-text text-transparent"
           >
             Turn One Video Into a Global Content Empire
           </motion.h2>
@@ -100,20 +164,26 @@ const Features = () => {
               transition={{ duration: 0.5, delay: index * 0.1 }}
               className="group relative"
             >
-              <div className="absolute inset-0 bg-gradient-to-r from-blue-500/20 via-purple-500/20 to-pink-500/20 rounded-2xl blur-xl group-hover:blur-2xl transition-all duration-500"></div>
-              <div className="relative bg-[#0A0A0A] rounded-2xl p-8 border border-white/10 hover:border-white/20 transition-all duration-500">
+              <div className="absolute inset-0 bg-gradient-to-r from-[#ff5c5c]/20 via-[#ffb3b3]/20 to-[#ff5c5c]/20 rounded-2xl opacity-0 group-hover:opacity-100 transition-all duration-500"></div>
+              <motion.div 
+                className="relative bg-[#0A0A0A] rounded-2xl p-8 border border-white/10 hover:border-[#ff5c5c]/50 transition-all duration-500"
+                whileHover={{ 
+                  y: -8,
+                  transition: { duration: 0.3 }
+                }}
+              >
                 <div className={`mb-6 inline-flex p-3 rounded-xl bg-gradient-to-r ${feature.gradient} bg-clip-padding`}>
                   <div className="text-white">
                     {feature.icon}
                   </div>
                 </div>
-                <h3 className="text-xl font-semibold mb-3 text-white group-hover:text-transparent group-hover:bg-clip-text group-hover:bg-gradient-to-r group-hover:from-blue-400 group-hover:to-purple-400 transition-all duration-500">
+                <h3 className="text-xl font-semibold mb-3 text-white group-hover:drop-shadow-[0_0_15px_rgba(255,92,92,0.5)] transition-all duration-500">
                   {feature.title}
                 </h3>
                 <p className="text-gray-400 group-hover:text-gray-300 transition-colors duration-500">
                   {feature.description}
                 </p>
-              </div>
+              </motion.div>
             </motion.div>
           ))}
         </div>
