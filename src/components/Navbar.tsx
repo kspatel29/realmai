@@ -1,7 +1,5 @@
-
 import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
-import { Button } from "@/components/ui/button";
 import { Menu, X } from "lucide-react";
 
 const Navbar = () => {
@@ -12,119 +10,48 @@ const Navbar = () => {
     const handleScroll = () => {
       setIsScrolled(window.scrollY > 50);
     };
-
     window.addEventListener("scroll", handleScroll);
     return () => window.removeEventListener("scroll", handleScroll);
   }, []);
 
   return (
-    <header
-      className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${
-        isScrolled ? "py-3" : "py-5"
-      }`}
-    >
-      <nav 
-        className={`transition-all duration-300 ease-in-out ${
-          isScrolled 
-            ? "container mx-auto max-w-5xl bg-black/80 backdrop-blur-md rounded-full px-6 py-2 shadow-lg" 
-            : "container mx-auto px-6 bg-transparent"
-        }`}
+    <header className="fixed top-0 left-0 right-0 z-50 flex justify-center transition-all duration-300 py-6" style={{fontFamily: 'Inter, sans-serif'}}>
+      <nav
+        className={`w-full max-w-6xl mx-auto px-8 flex items-center justify-between transition-all duration-500 ${
+          isScrolled
+            ? 'bg-[#18181b] shadow-2xl'
+            : 'bg-transparent shadow-none'
+        } py-5 rounded-3xl`}
       >
-        <div className="flex items-center justify-between">
-          <Link to="/" className="flex items-center space-x-2">
-            <span className="text-2xl font-bold text-youtube-red">RealmAI</span>
-          </Link>
-
-          {/* Desktop Navigation */}
-          <div className="hidden md:flex items-center space-x-8">
-            <div className="flex space-x-6">
-              <Link to="/" className="text-white hover-link font-medium">
-                Home
-              </Link>
-              <a href="#features" className="text-white hover-link font-medium">
-                Features
-              </a>
-              <a href="#testimonials" className="text-white hover-link font-medium">
-                Testimonials
-              </a>
-              <a href="#pricing" className="text-white hover-link font-medium">
-                Pricing
-              </a>
-            </div>
-
-            <div className="flex items-center space-x-3">
-              <Link to="/signin">
-                <Button variant="outline" className="font-medium text-sm bg-white text-black hover:bg-white/90 border-none">
-                  Sign In
-                </Button>
-              </Link>
-              <Link to="/signup">
-                <Button className="bg-youtube-red hover:bg-youtube-darkred text-white font-medium text-sm">
-                  Get Started
-                </Button>
-              </Link>
-            </div>
-          </div>
-
-          {/* Mobile Menu Button */}
-          <div className="md:hidden">
-            <Button 
-              variant="ghost" 
-              size="icon" 
-              onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
-              aria-label="Toggle menu"
-              className="text-white"
-            >
-              {isMobileMenuOpen ? <X size={24} /> : <Menu size={24} />}
-            </Button>
-          </div>
+        <Link to="/" className="flex items-center min-w-[120px] space-x-3">
+          <img src="/dubgate.png" alt="Dubgate" className="h-10 w-10 object-contain" />
+          <span className="text-2xl font-extrabold tracking-wide text-white" style={{letterSpacing: '0.02em'}}>Dubgate</span>
+        </Link>
+        <div className="hidden md:flex items-center space-x-10">
+          <a href="#features" className="text-white font-medium text-base tracking-wide transition-colors duration-200 hover:text-red-400 hover:font-semibold">Features</a>
+          <a href="#testimonials" className="text-white font-medium text-base tracking-wide transition-colors duration-200 hover:text-red-400 hover:font-semibold">Impact</a>
+          <a href="#pricing" className="text-white font-medium text-base tracking-wide transition-colors duration-200 hover:text-red-400 hover:font-semibold">Pricing</a>
+          <a href="#about" className="text-white font-medium text-base tracking-wide transition-colors duration-200 hover:text-red-400 hover:font-semibold">About</a>
+          <Link to="/signin" className="text-white font-medium text-base hover:text-red-400 transition-colors duration-200 px-4">Sign In</Link>
+          <Link to="/signup" className="px-7 py-2 rounded-2xl bg-[#ff5c5c] text-white font-bold shadow-md hover:opacity-90 transition-opacity duration-200">Get Started</Link>
         </div>
+        <button
+          className="md:hidden text-white hover:text-red-400"
+          onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
+          aria-label="Toggle menu"
+        >
+          {isMobileMenuOpen ? <X size={24} /> : <Menu size={24} />}
+        </button>
       </nav>
-
-      {/* Mobile Menu */}
       {isMobileMenuOpen && (
-        <div className="md:hidden absolute top-full left-0 right-0 mt-2 mx-4 bg-black/90 backdrop-blur-md rounded-2xl shadow-lg animate-fade-in-up">
-          <div className="container mx-auto px-6 py-4 flex flex-col space-y-4">
-            <Link 
-              to="/" 
-              className="text-white py-2 hover:text-youtube-red transition-colors"
-              onClick={() => setIsMobileMenuOpen(false)}
-            >
-              Home
-            </Link>
-            <a 
-              href="#features" 
-              className="text-white py-2 hover:text-youtube-red transition-colors"
-              onClick={() => setIsMobileMenuOpen(false)}
-            >
-              Features
-            </a>
-            <a 
-              href="#testimonials" 
-              className="text-white py-2 hover:text-youtube-red transition-colors"
-              onClick={() => setIsMobileMenuOpen(false)}
-            >
-              Testimonials
-            </a>
-            <a 
-              href="#pricing" 
-              className="text-white py-2 hover:text-youtube-red transition-colors"
-              onClick={() => setIsMobileMenuOpen(false)}
-            >
-              Pricing
-            </a>
-            <div className="flex flex-col space-y-3 pt-3 border-t border-gray-800">
-              <Link to="/signin" onClick={() => setIsMobileMenuOpen(false)}>
-                <Button variant="outline" className="w-full bg-white text-black hover:bg-white/90 border-none">
-                  Sign In
-                </Button>
-              </Link>
-              <Link to="/signup" onClick={() => setIsMobileMenuOpen(false)}>
-                <Button className="w-full bg-youtube-red hover:bg-youtube-darkred text-white">
-                  Get Started
-                </Button>
-              </Link>
-            </div>
+        <div className="md:hidden absolute top-full left-0 right-0 mt-2 mx-4 bg-[#18181b] rounded-3xl shadow-2xl">
+          <div className="px-6 py-6 flex flex-col space-y-4">
+            <a href="#features" className="text-white font-medium text-lg py-2 transition-colors duration-200 hover:text-red-400 hover:font-semibold">Features</a>
+            <a href="#testimonials" className="text-white font-medium text-lg py-2 transition-colors duration-200 hover:text-red-400 hover:font-semibold">Impact</a>
+            <a href="#pricing" className="text-white font-medium text-lg py-2 transition-colors duration-200 hover:text-red-400 hover:font-semibold">Pricing</a>
+            <a href="#about" className="text-white font-medium text-lg py-2 transition-colors duration-200 hover:text-red-400 hover:font-semibold">About</a>
+            <Link to="/signin" className="text-white font-medium text-lg py-2 hover:text-red-400 transition-colors duration-200">Sign In</Link>
+            <Link to="/signup" className="w-full bg-[#ff5c5c] text-white font-bold text-lg rounded-2xl shadow-md py-2 text-center hover:opacity-90 transition-opacity duration-200">Get Started</Link>
           </div>
         </div>
       )}
