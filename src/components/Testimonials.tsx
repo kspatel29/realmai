@@ -1,7 +1,7 @@
-
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
-import { ChevronLeft, ChevronRight, ExternalLink } from "lucide-react";
+import { ChevronLeft, ChevronRight, ExternalLink, TrendingUp, Users, Clock } from "lucide-react";
+import { motion, AnimatePresence } from "framer-motion";
 
 const testimonials = [
   {
@@ -10,7 +10,8 @@ const testimonials = [
     title: "International Audience Expansion",
     quote: "Content creators who translate their videos into just 5 additional languages can reach over 70% of the global internet audience, according to viewstats.com.",
     stat: "+200%",
-    statLabel: "potential reach"
+    statLabel: "potential reach",
+    icon: <TrendingUp className="h-6 w-6" />
   },
   {
     id: 2,
@@ -18,7 +19,8 @@ const testimonials = [
     title: "Multilingual Revenue Potential",
     quote: "Studies from viewstats.com show that videos with localized content in multiple languages can generate up to 45% more engagement from international viewers.",
     stat: "+45%",
-    statLabel: "engagement"
+    statLabel: "engagement",
+    icon: <Users className="h-6 w-6" />
   },
   {
     id: 3,
@@ -26,7 +28,8 @@ const testimonials = [
     title: "Audience Retention",
     quote: "According to global content research by viewstats.com, videos with native-language subtitles have 40% higher retention rates from non-English speaking viewers.",
     stat: "40%",
-    statLabel: "higher retention"
+    statLabel: "higher retention",
+    icon: <Clock className="h-6 w-6" />
   }
 ];
 
@@ -42,59 +45,107 @@ const Testimonials = () => {
   };
 
   return (
-    <section id="testimonials" className="py-24 relative overflow-hidden bg-gradient-testimonial">
-      <div className="absolute top-0 right-0 w-1/3 h-1/3 bg-youtube-red/5 rounded-full filter blur-3xl"></div>
-      <div className="absolute bottom-0 left-0 w-1/3 h-1/3 bg-youtube-red/5 rounded-full filter blur-3xl"></div>
+    <section id="testimonials" className="py-24 relative bg-[#0A0A0A]">
+      {/* Background grid */}
+      <div className="absolute inset-0">
+        <div className="absolute inset-0 bg-[linear-gradient(to_right,#4f4f4f2e_1px,transparent_1px),linear-gradient(to_bottom,#4f4f4f2e_1px,transparent_1px)] bg-[size:14px_24px]"></div>
+        <div className="absolute inset-0 bg-gradient-to-b from-transparent via-[#0A0A0A] to-[#0A0A0A]"></div>
+      </div>
+
+      {/* Animated gradient orbs */}
+      {/* Removed animated orbs for a cleaner look */}
       
       <div className="container mx-auto px-6 relative z-10">
-        <div className="text-center max-w-3xl mx-auto mb-16">
-          <span className="inline-block px-3 py-1 bg-youtube-red/10 text-youtube-red rounded-full text-sm font-medium mb-3">
-            Market Insights
-          </span>
-          <h2 className="text-3xl md:text-4xl font-bold mb-4">
+        <motion.div 
+          initial={{ opacity: 0, y: 20 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true }}
+          transition={{ duration: 0.8 }}
+          className="text-center max-w-3xl mx-auto mb-16"
+        >
+          <motion.div
+            initial={{ opacity: 0, scale: 0.9 }}
+            whileInView={{ opacity: 1, scale: 1 }}
+            viewport={{ once: true }}
+            transition={{ duration: 0.5, delay: 0.2 }}
+            className="inline-flex items-center px-4 py-2 bg-gradient-to-r from-[#ff5c5c]/10 to-[#ffb3b3]/10 rounded-full border border-white/10 mb-4"
+          >
+            <span className="text-sm font-medium bg-gradient-to-r from-[#ff5c5c] to-[#ffb3b3] bg-clip-text text-transparent">
+              Market Insights
+            </span>
+          </motion.div>
+          
+          <motion.h2
+            initial={{ opacity: 0, y: 20 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            transition={{ duration: 0.8, delay: 0.4 }}
+            className="text-4xl md:text-5xl font-bold mb-6 bg-gradient-to-r from-[#ff5c5c] via-[#ffb3b3] to-[#ff5c5c] bg-clip-text text-transparent leading-tight md:leading-tight break-words"
+          >
             The Impact of Global Content Strategy
-          </h2>
-          <p className="text-lg text-muted-foreground">
+          </motion.h2>
+          
+          <motion.p
+            initial={{ opacity: 0, y: 20 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            transition={{ duration: 0.8, delay: 0.6 }}
+            className="text-lg text-gray-400"
+          >
             Real statistics that showcase how multilingual content can transform your channel's reach and revenue.
-          </p>
-        </div>
+          </motion.p>
+        </motion.div>
 
         <div className="max-w-4xl mx-auto">
           <div className="relative">
-            <div className="overflow-hidden">
-              <div 
-                className="flex transition-transform duration-500 ease-in-out"
-                style={{ transform: `translateX(-${currentIndex * 100}%)` }}
+            <AnimatePresence mode="wait">
+              <motion.div
+                key={currentIndex}
+                initial={{ opacity: 0, x: 100 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: -100 }}
+                transition={{ duration: 0.5 }}
+                className="w-full"
               >
-                {testimonials.map((testimonial) => (
-                  <div key={testimonial.id} className="w-full flex-shrink-0 px-4">
-                    <div className="glass-card rounded-2xl p-8 md:p-10">
-                      <div className="flex items-center justify-between mb-6">
-                        <div>
-                          <h3 className="font-semibold text-lg">{testimonial.name}</h3>
-                          <p className="text-youtube-red font-medium">{testimonial.title}</p>
+                <div className="relative group">
+                  <div className="absolute inset-0 bg-gradient-to-r from-[#ff5c5c]/20 via-[#ffb3b3]/20 to-[#ff5c5c]/20 rounded-2xl blur-xl group-hover:blur-2xl transition-all duration-500"></div>
+                  <div className="relative bg-[#0A0A0A] rounded-2xl p-8 md:p-10 border border-white/10 hover:border-white/20 transition-all duration-500">
+                    <div className="flex items-center justify-between mb-8">
+                      <div className="flex items-center space-x-4">
+                        <div className="p-3 rounded-xl bg-gradient-to-r from-[#ff5c5c] to-[#ffb3b3]">
+                          <div className="text-white">
+                            {testimonials[currentIndex].icon}
+                          </div>
                         </div>
-                        <div className="text-center">
-                          <span className="block text-4xl font-bold text-youtube-red">{testimonial.stat}</span>
-                          <span className="text-sm text-muted-foreground">{testimonial.statLabel}</span>
+                        <div>
+                          <h3 className="font-semibold text-lg text-white">{testimonials[currentIndex].name}</h3>
+                          <p className="text-transparent bg-clip-text bg-gradient-to-r from-[#ff5c5c] to-[#ffb3b3] font-medium">
+                            {testimonials[currentIndex].title}
+                          </p>
                         </div>
                       </div>
-                      
-                      <blockquote className="text-xl md:text-2xl font-medium leading-relaxed mb-6">
-                        "{testimonial.quote}"
-                      </blockquote>
-                      
-                      <div className="pt-4 border-t border-gray-100 dark:border-gray-800">
-                        <p className="flex items-center justify-end text-sm text-muted-foreground">
-                          <span>Source: Industry statistics and market research</span>
-                          <ExternalLink className="ml-1 h-3 w-3" />
-                        </p>
+                      <div className="text-center">
+                        <span className="block text-4xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-[#ff5c5c] via-[#ffb3b3] to-[#ff5c5c]">
+                          {testimonials[currentIndex].stat}
+                        </span>
+                        <span className="text-sm text-gray-400">{testimonials[currentIndex].statLabel}</span>
                       </div>
                     </div>
+                    
+                    <blockquote className="text-xl md:text-2xl font-medium leading-relaxed mb-8 text-gray-300">
+                      "{testimonials[currentIndex].quote}"
+                    </blockquote>
+                    
+                    <div className="pt-4 border-t border-white/10">
+                      <p className="flex items-center justify-end text-sm text-gray-400">
+                        <span>Source: Industry statistics and market research</span>
+                        <ExternalLink className="ml-1 h-3 w-3" />
+                      </p>
+                    </div>
                   </div>
-                ))}
-              </div>
-            </div>
+                </div>
+              </motion.div>
+            </AnimatePresence>
 
             {/* Navigation Buttons */}
             <div className="flex justify-between mt-8">
@@ -102,9 +153,9 @@ const Testimonials = () => {
                 variant="outline" 
                 size="icon" 
                 onClick={prevTestimonial}
-                className="rounded-full h-12 w-12 border-gray-200 dark:border-gray-800"
+                className="rounded-full h-12 w-12 border-white/10 hover:border-white/20 hover:bg-[#ff5c5c] group transition-all duration-500"
               >
-                <ChevronLeft className="h-5 w-5" />
+                <ChevronLeft className="h-5 w-5 group-hover:text-white transition-colors duration-300" />
               </Button>
               
               <div className="flex gap-2">
@@ -112,8 +163,10 @@ const Testimonials = () => {
                   <button
                     key={i}
                     onClick={() => setCurrentIndex(i)}
-                    className={`w-3 h-3 rounded-full transition-all ${
-                      i === currentIndex ? "bg-youtube-red w-8" : "bg-gray-300 dark:bg-gray-700"
+                    className={`h-3 rounded-full transition-all duration-500 ${
+                      i === currentIndex 
+                        ? "w-8 bg-gradient-to-r from-[#ff5c5c] to-[#ffb3b3]" 
+                        : "w-3 bg-white/10 hover:bg-white/20"
                     }`}
                   />
                 ))}
@@ -123,9 +176,9 @@ const Testimonials = () => {
                 variant="outline" 
                 size="icon" 
                 onClick={nextTestimonial}
-                className="rounded-full h-12 w-12 border-gray-200 dark:border-gray-800"
+                className="rounded-full h-12 w-12 border-white/10 hover:border-white/20 hover:bg-[#ff5c5c] group transition-all duration-500"
               >
-                <ChevronRight className="h-5 w-5" />
+                <ChevronRight className="h-5 w-5 group-hover:text-white transition-colors duration-300" />
               </Button>
             </div>
           </div>

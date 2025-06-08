@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
@@ -56,7 +55,7 @@ const SignUp = () => {
         <div className="w-full max-w-md space-y-8 animate-fade-in">
           <div className="text-center">
             <Link to="/" className="inline-block mb-8">
-              <span className="text-3xl font-bold text-youtube-red">RealmAI</span>
+              <span className="text-3xl font-bold text-youtube-red">Dubgate</span>
             </Link>
             <h1 className="text-2xl font-bold tracking-tight">Create your account</h1>
             <p className="mt-2 text-muted-foreground">

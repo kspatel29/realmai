@@ -293,6 +293,51 @@ const Support = () => {
               </form>
             </CardContent>
           </Card>
+          <Card>
+            <CardHeader>
+              <CardTitle>Alternative Contact Methods</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="flex items-center gap-3">
+                <div className="h-10 w-10 rounded-full bg-muted flex items-center justify-center">
+                  <Mail className="h-5 w-5 text-muted-foreground" />
+                </div>
+                <div>
+                  <p className="font-medium">Email Support</p>
+                  <p className="text-sm text-muted-foreground">
+                    support@dubgate.com
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-3">
+                <div className="h-10 w-10 rounded-full bg-muted flex items-center justify-center">
+                  <Phone className="h-5 w-5 text-muted-foreground" />
+                </div>
+                <div>
+                  <p className="font-medium">Phone Support</p>
+                  <p className="text-sm text-muted-foreground">
+                    +1 (800) 123-4567
+                  </p>
+                  <p className="text-xs text-muted-foreground">
+                    Available Mon-Fri, 9am-5pm PST
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-3">
+                <div className="h-10 w-10 rounded-full bg-muted flex items-center justify-center">
+                  <Globe className="h-5 w-5 text-muted-foreground" />
+                </div>
+                <div>
+                  <p className="font-medium">Live Chat</p>
+                  <Button variant="link" className="p-0 h-auto text-sm">
+                    Start Live Chat
+                  </Button>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
         </div>
       </div>
     </div>
