@@ -45,7 +45,7 @@ const Testimonials = () => {
   };
 
   return (
-    <section id="testimonials" className="py-24 relative overflow-hidden bg-[#0A0A0A]">
+    <section id="testimonials" className="py-24 relative bg-[#0A0A0A]">
       {/* Background grid */}
       <div className="absolute inset-0">
         <div className="absolute inset-0 bg-[linear-gradient(to_right,#4f4f4f2e_1px,transparent_1px),linear-gradient(to_bottom,#4f4f4f2e_1px,transparent_1px)] bg-[size:14px_24px]"></div>
@@ -93,9 +93,9 @@ const Testimonials = () => {
             whileInView={{ opacity: 1, scale: 1 }}
             viewport={{ once: true }}
             transition={{ duration: 0.5, delay: 0.2 }}
-            className="inline-flex items-center px-4 py-2 bg-gradient-to-r from-blue-500/10 to-purple-500/10 rounded-full border border-white/10 mb-4"
+            className="inline-flex items-center px-4 py-2 bg-gradient-to-r from-[#ff5c5c]/10 to-[#ffb3b3]/10 rounded-full border border-white/10 mb-4"
           >
-            <span className="text-sm font-medium bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent">
+            <span className="text-sm font-medium bg-gradient-to-r from-[#ff5c5c] to-[#ffb3b3] bg-clip-text text-transparent">
               Market Insights
             </span>
           </motion.div>
@@ -105,7 +105,7 @@ const Testimonials = () => {
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
             transition={{ duration: 0.8, delay: 0.4 }}
-            className="text-4xl md:text-5xl font-bold mb-6 bg-gradient-to-r from-blue-400 via-purple-400 to-pink-400 bg-clip-text text-transparent"
+            className="text-4xl md:text-5xl font-bold mb-6 bg-gradient-to-r from-[#ff5c5c] via-[#ffb3b3] to-[#ff5c5c] bg-clip-text text-transparent leading-tight md:leading-tight break-words"
           >
             The Impact of Global Content Strategy
           </motion.h2>
@@ -133,24 +133,24 @@ const Testimonials = () => {
                 className="w-full"
               >
                 <div className="relative group">
-                  <div className="absolute inset-0 bg-gradient-to-r from-blue-500/20 via-purple-500/20 to-pink-500/20 rounded-2xl blur-xl group-hover:blur-2xl transition-all duration-500"></div>
+                  <div className="absolute inset-0 bg-gradient-to-r from-[#ff5c5c]/20 via-[#ffb3b3]/20 to-[#ff5c5c]/20 rounded-2xl blur-xl group-hover:blur-2xl transition-all duration-500"></div>
                   <div className="relative bg-[#0A0A0A] rounded-2xl p-8 md:p-10 border border-white/10 hover:border-white/20 transition-all duration-500">
                     <div className="flex items-center justify-between mb-8">
                       <div className="flex items-center space-x-4">
-                        <div className="p-3 rounded-xl bg-gradient-to-r from-blue-500 to-purple-500">
+                        <div className="p-3 rounded-xl bg-gradient-to-r from-[#ff5c5c] to-[#ffb3b3]">
                           <div className="text-white">
                             {testimonials[currentIndex].icon}
                           </div>
                         </div>
                         <div>
                           <h3 className="font-semibold text-lg text-white">{testimonials[currentIndex].name}</h3>
-                          <p className="text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-purple-400 font-medium">
+                          <p className="text-transparent bg-clip-text bg-gradient-to-r from-[#ff5c5c] to-[#ffb3b3] font-medium">
                             {testimonials[currentIndex].title}
                           </p>
                         </div>
                       </div>
                       <div className="text-center">
-                        <span className="block text-4xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-purple-400">
+                        <span className="block text-4xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-[#ff5c5c] via-[#ffb3b3] to-[#ff5c5c]">
                           {testimonials[currentIndex].stat}
                         </span>
                         <span className="text-sm text-gray-400">{testimonials[currentIndex].statLabel}</span>
@@ -178,9 +178,9 @@ const Testimonials = () => {
                 variant="outline" 
                 size="icon" 
                 onClick={prevTestimonial}
-                className="rounded-full h-12 w-12 border-white/10 hover:border-white/20 hover:bg-white/5 transition-all duration-500"
+                className="rounded-full h-12 w-12 border-white/10 hover:border-white/20 hover:bg-[#ff5c5c] group transition-all duration-500"
               >
-                <ChevronLeft className="h-5 w-5" />
+                <ChevronLeft className="h-5 w-5 group-hover:text-white transition-colors duration-300" />
               </Button>
               
               <div className="flex gap-2">
@@ -190,7 +190,7 @@ const Testimonials = () => {
                     onClick={() => setCurrentIndex(i)}
                     className={`h-3 rounded-full transition-all duration-500 ${
                       i === currentIndex 
-                        ? "w-8 bg-gradient-to-r from-blue-500 to-purple-500" 
+                        ? "w-8 bg-gradient-to-r from-[#ff5c5c] to-[#ffb3b3]" 
                         : "w-3 bg-white/10 hover:bg-white/20"
                     }`}
                   />
@@ -201,9 +201,9 @@ const Testimonials = () => {
                 variant="outline" 
                 size="icon" 
                 onClick={nextTestimonial}
-                className="rounded-full h-12 w-12 border-white/10 hover:border-white/20 hover:bg-white/5 transition-all duration-500"
+                className="rounded-full h-12 w-12 border-white/10 hover:border-white/20 hover:bg-[#ff5c5c] group transition-all duration-500"
               >
-                <ChevronRight className="h-5 w-5" />
+                <ChevronRight className="h-5 w-5 group-hover:text-white transition-colors duration-300" />
               </Button>
             </div>
           </div>

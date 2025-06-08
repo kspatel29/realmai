@@ -1,6 +1,6 @@
 import { Globe, Video, MessageSquare, Scissors, BarChart, Zap } from "lucide-react";
 import { motion, useScroll, useTransform } from "framer-motion";
-import { useRef, useState } from "react";
+import { useRef, useState, useEffect } from "react";
 
 const features = [
   {
@@ -43,7 +43,8 @@ const features = [
 
 const Features = () => {
   const containerRef = useRef<HTMLDivElement>(null);
-  const [mousePosition, setMousePosition] = useState({ x: 0, y: 0 });
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const [mousePosition, setMousePosition] = useState<{ x: number; y: number } | null>(null);
   const { scrollYProgress } = useScroll({
     target: containerRef,
     offset: ["start end", "end start"]
@@ -51,6 +52,115 @@ const Features = () => {
 
   const gridY = useTransform(scrollYProgress, [0, 1], ["0%", "50%"]);
   const gridOpacity = useTransform(scrollYProgress, [0, 0.2, 0.8, 1], [0.3, 0.5, 0.5, 0.3]);
+
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+
+    // Set canvas size
+    const resizeCanvas = () => {
+      const dpr = window.devicePixelRatio || 1;
+      const rect = canvas.getBoundingClientRect();
+      canvas.width = rect.width * dpr;
+      canvas.height = rect.height * dpr;
+      canvas.style.width = `${rect.width}px`;
+      canvas.style.height = `${rect.height}px`;
+      ctx.scale(dpr, dpr);
+    };
+    resizeCanvas();
+    window.addEventListener('resize', resizeCanvas);
+
+    // Dot properties
+    const dots: { x: number; y: number; baseX: number; baseY: number; size: number; vx: number; vy: number }[] = [];
+    const gridSize = 40;
+    const dotSize = 1.5;
+    const maxDistance = 150;
+    const springStrength = 0.1;
+    const friction = 0.8;
+
+    // Create dots
+    for (let x = 0; x < canvas.width; x += gridSize) {
+      for (let y = 0; y < canvas.height; y += gridSize) {
+        dots.push({
+          x,
+          y,
+          baseX: x,
+          baseY: y,
+          size: dotSize,
+          vx: 0,
+          vy: 0
+        });
+      }
+    }
+
+    // Animation
+    const animate = () => {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      
+      dots.forEach(dot => {
+        // Calculate force
+        if (mousePosition) {
+          const dx = mousePosition.x - dot.x;
+          const dy = mousePosition.y - dot.y;
+          const distance = Math.sqrt(dx * dx + dy * dy);
+          
+          if (distance < maxDistance) {
+            const angle = Math.atan2(dy, dx);
+            const force = (maxDistance - distance) / maxDistance;
+            dot.vx -= Math.cos(angle) * force * 0.5;
+            dot.vy -= Math.sin(angle) * force * 0.5;
+          }
+        }
+
+        // Spring force to return to base position
+        const springX = (dot.baseX - dot.x) * springStrength;
+        const springY = (dot.baseY - dot.y) * springStrength;
+        dot.vx += springX;
+        dot.vy += springY;
+
+        // Apply friction
+        dot.vx *= friction;
+        dot.vy *= friction;
+
+        // Update position
+        dot.x += dot.vx;
+        dot.y += dot.vy;
+
+        // Draw dot
+        ctx.beginPath();
+        ctx.arc(dot.x, dot.y, dot.size, 0, Math.PI * 2);
+        
+        // Set color based on distance
+        if (mousePosition) {
+          const dx = mousePosition.x - dot.x;
+          const dy = mousePosition.y - dot.y;
+          const distance = Math.sqrt(dx * dx + dy * dy);
+          
+          if (distance < maxDistance) {
+            const intensity = (maxDistance - distance) / maxDistance;
+            ctx.fillStyle = `rgba(255, 92, 92, ${intensity * 0.6})`;
+          } else {
+            ctx.fillStyle = 'rgba(79, 79, 79, 0.2)';
+          }
+        } else {
+          ctx.fillStyle = 'rgba(79, 79, 79, 0.2)';
+        }
+        
+        ctx.fill();
+      });
+
+      requestAnimationFrame(animate);
+    };
+
+    animate();
+
+    return () => {
+      window.removeEventListener('resize', resizeCanvas);
+    };
+  }, [mousePosition]);
 
   const handleMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
     const rect = e.currentTarget.getBoundingClientRect();
@@ -60,58 +170,23 @@ const Features = () => {
     });
   };
 
+  const handleMouseLeave = () => {
+    setMousePosition(null);
+  };
+
   return (
     <section 
       id="features" 
       className="py-24 bg-[#0A0A0A] relative overflow-hidden" 
       ref={containerRef}
       onMouseMove={handleMouseMove}
+      onMouseLeave={handleMouseLeave}
     >
-      {/* Background grid with parallax and hover effect */}
-      <motion.div 
-        className="absolute inset-0"
-        style={{ y: gridY, opacity: gridOpacity }}
-      >
-        <div className="absolute inset-0 bg-[linear-gradient(to_right,#4f4f4f2e_1px,transparent_1px),linear-gradient(to_bottom,#4f4f4f2e_1px,transparent_1px)] bg-[size:14px_24px]"></div>
-        <div className="absolute inset-0 bg-gradient-to-b from-transparent via-[#0A0A0A] to-[#0A0A0A]"></div>
-        {/* Dynamic background effect */}
-        <div 
-          className="absolute w-[800px] h-[800px] rounded-full pointer-events-none transition-all duration-500"
-          style={{
-            left: mousePosition.x - 400,
-            top: mousePosition.y - 400,
-            background: `
-              radial-gradient(circle at center,
-                rgba(255,92,92,0.15) 0%,
-                rgba(255,179,179,0.1) 20%,
-                rgba(255,92,92,0.05) 40%,
-                transparent 70%
-              )
-            `,
-            opacity: mousePosition.x === 0 && mousePosition.y === 0 ? 0 : 1,
-            transform: `scale(${mousePosition.x === 0 && mousePosition.y === 0 ? 0.8 : 1})`,
-            filter: 'blur(40px)'
-          }}
-        />
-        {/* Additional glow layers for depth */}
-        <div 
-          className="absolute w-[600px] h-[600px] rounded-full pointer-events-none transition-all duration-700"
-          style={{
-            left: mousePosition.x - 300,
-            top: mousePosition.y - 300,
-            background: `
-              radial-gradient(circle at center,
-                rgba(255,92,92,0.1) 0%,
-                rgba(255,179,179,0.05) 30%,
-                transparent 60%
-              )
-            `,
-            opacity: mousePosition.x === 0 && mousePosition.y === 0 ? 0 : 1,
-            transform: `scale(${mousePosition.x === 0 && mousePosition.y === 0 ? 0.9 : 1.1})`,
-            filter: 'blur(30px)'
-          }}
-        />
-      </motion.div>
+      {/* Canvas background */}
+      <canvas
+        ref={canvasRef}
+        className="absolute inset-0 w-full h-full"
+      />
 
       <div className="container mx-auto px-6 relative z-10">
         <motion.div 
@@ -164,7 +239,6 @@ const Features = () => {
               transition={{ duration: 0.5, delay: index * 0.1 }}
               className="group relative"
             >
-              <div className="absolute inset-0 bg-gradient-to-r from-[#ff5c5c]/20 via-[#ffb3b3]/20 to-[#ff5c5c]/20 rounded-2xl opacity-0 group-hover:opacity-100 transition-all duration-500"></div>
               <motion.div 
                 className="relative bg-[#0A0A0A] rounded-2xl p-8 border border-white/10 hover:border-[#ff5c5c]/50 transition-all duration-500"
                 whileHover={{ 
@@ -177,7 +251,7 @@ const Features = () => {
                     {feature.icon}
                   </div>
                 </div>
-                <h3 className="text-xl font-semibold mb-3 text-white group-hover:drop-shadow-[0_0_15px_rgba(255,92,92,0.5)] transition-all duration-500">
+                <h3 className="text-xl font-semibold mb-3 text-white">
                   {feature.title}
                 </h3>
                 <p className="text-gray-400 group-hover:text-gray-300 transition-colors duration-500">
