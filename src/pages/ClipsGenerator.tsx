@@ -31,10 +31,9 @@ const ClipsGenerator = () => {
   const form = useForm<VideoGenerationFormValues>({
     defaultValues: {
       prompt: "",
-      negative_prompt: "",
       aspect_ratio: "16:9",
       duration: "5",
-      cfg_scale: 0.5,
+      loop: false,
       use_existing_video: false,
       upload_start_frame: false,
       upload_end_frame: false,
@@ -71,13 +70,6 @@ const ClipsGenerator = () => {
     
     return () => subscription.unsubscribe();
   }, [form.watch, calculateCost]);
-
-  useEffect(() => {
-    // Save generated clips to localStorage for history
-    if (generatedClips.length > 0) {
-      localStorage.setItem('generatedVideoClips', JSON.stringify(generatedClips));
-    }
-  }, [generatedClips]);
 
   // Get video file's duration when selected
   useEffect(() => {
@@ -116,6 +108,9 @@ const ClipsGenerator = () => {
         }
       };
       fileReader.readAsDataURL(e.target.files[0]);
+    } else {
+      // Clear the frame if no file is selected
+      setStartFrame(null);
     }
   };
 
@@ -128,6 +123,9 @@ const ClipsGenerator = () => {
         }
       };
       fileReader.readAsDataURL(e.target.files[0]);
+    } else {
+      // Clear the frame if no file is selected
+      setEndFrame(null);
     }
   };
 
@@ -139,7 +137,7 @@ const ClipsGenerator = () => {
       videoUrl,
       () => {
         setCurrentTab("preview");
-        toast.success("Video has been generated and added to your history");
+        toast.success("Video has been generated and saved to your history");
       }
     );
   };

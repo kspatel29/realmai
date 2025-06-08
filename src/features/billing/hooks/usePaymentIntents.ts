@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { useSearchParams } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
@@ -6,7 +5,7 @@ import { stripeService } from "@/services/api/stripeService";
 import { toast } from "sonner";
 import { CREDIT_PACKAGES, SUBSCRIPTION_PLANS } from "@/constants/pricing";
 
-export const usePaymentIntents = (checkPaymentMethod: () => Promise<void>, fetchPaymentHistory: () => Promise<void>) => {
+export const usePaymentIntents = (checkPaymentMethod: () => Promise<void>, fetchPaymentHistory: () => Promise<void>, fetchUserSubscription?: () => Promise<void>) => {
   const { user } = useAuth();
   const [searchParams, setSearchParams] = useSearchParams();
   const [selectedPackage, setSelectedPackage] = useState<typeof CREDIT_PACKAGES[0] | null>(null);
@@ -30,6 +29,10 @@ export const usePaymentIntents = (checkPaymentMethod: () => Promise<void>, fetch
           if (result.success) {
             toast.success(result.message || 'Payment completed successfully!');
             fetchPaymentHistory();
+            // Refresh subscription data if this was a subscription
+            if (result.type === 'subscription' && fetchUserSubscription) {
+              fetchUserSubscription();
+            }
           } else {
             toast.error(result.message || 'Payment was not completed.');
           }
@@ -48,7 +51,7 @@ export const usePaymentIntents = (checkPaymentMethod: () => Promise<void>, fetch
       // Clear URL parameters
       setSearchParams({});
     }
-  }, [searchParams, fetchPaymentHistory, isProcessingCheckout, setSearchParams]);
+  }, [searchParams, fetchPaymentHistory, fetchUserSubscription, isProcessingCheckout, setSearchParams]);
 
   const redirectToCheckout = async (url: string) => {
     if (!url) {
@@ -56,7 +59,14 @@ export const usePaymentIntents = (checkPaymentMethod: () => Promise<void>, fetch
       return;
     }
     
-    window.location.href = url;
+    // Open Stripe checkout in a new tab to avoid iframe restrictions
+    const newWindow = window.open(url, '_blank', 'noopener,noreferrer');
+    if (!newWindow) {
+      toast.error("Please allow popups to complete your payment");
+      return;
+    }
+    
+    toast.success("Redirecting to Stripe Checkout in a new tab...");
   };
 
   const handleBuyCredits = async (pkg: typeof CREDIT_PACKAGES[0]) => {

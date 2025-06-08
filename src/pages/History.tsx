@@ -2,50 +2,46 @@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import DubbingJobsList from "@/components/DubbingJobsList";
 import SubtitleJobsList from "@/components/SubtitleJobsList";
+import VideoClipsHistory from "@/components/VideoClipsHistory";
 import { useDubbingJobs } from "@/hooks/dubbingJobs";
-import { useSubtitleJobs } from "@/hooks/useSubtitleJobs";
-import ClipPreview from "@/features/clips/components/ClipPreview";
-import { useState, useEffect } from "react";
+import { useVideoClips } from "@/hooks/useVideoClips";
+import { useState } from "react";
 
 const History = () => {
-  const { jobs, isLoading, refetch } = useDubbingJobs();
-  const { jobs: subtitleJobs, isLoading: isSubtitlesLoading, refreshJobs } = useSubtitleJobs();
-  const [videoClips, setVideoClips] = useState<any[]>([]);
+  const { jobs: dubbingJobs, isLoading: isDubbingLoading, refetch: refetchDubbing } = useDubbingJobs();
+  const { clips: videoClips, isLoading: isVideoClipsLoading, refetch: refetchVideoClips } = useVideoClips();
+  const [currentTab, setCurrentTab] = useState("dubbing");
 
-  // Retrieve saved video clips from localStorage
-  useEffect(() => {
-    const savedClips = localStorage.getItem('generatedVideoClips');
-    if (savedClips) {
-      try {
-        const parsedClips = JSON.parse(savedClips);
-        setVideoClips(parsedClips);
-      } catch (error) {
-        console.error("Error parsing saved clips:", error);
-      }
-    }
-  }, []);
+  // Only count actual generated video clips, not uploaded videos
+  const totalJobs = dubbingJobs.length + videoClips.length;
 
   return (
     <div className="space-y-8 animate-fade-in">
       <div>
         <h1 className="text-2xl font-bold tracking-tight mb-2">History</h1>
         <p className="text-muted-foreground">
-          View your past jobs and their status.
+          View your past jobs and their outputs across all services. Total jobs: {totalJobs}
         </p>
       </div>
 
-      <Tabs defaultValue="dubbing" className="w-full">
+      <Tabs value={currentTab} onValueChange={setCurrentTab} className="w-full">
         <TabsList className="grid w-full max-w-md grid-cols-3">
-          <TabsTrigger value="dubbing">Dubbing</TabsTrigger>
-          <TabsTrigger value="subtitles">Subtitles</TabsTrigger>
-          <TabsTrigger value="videos">Video Clips</TabsTrigger>
+          <TabsTrigger value="dubbing">
+            Dubbing ({dubbingJobs.length})
+          </TabsTrigger>
+          <TabsTrigger value="subtitles">
+            Subtitles
+          </TabsTrigger>
+          <TabsTrigger value="video-clips">
+            Video Clips ({videoClips.length})
+          </TabsTrigger>
         </TabsList>
         
         <TabsContent value="dubbing" className="mt-6">
           <DubbingJobsList 
-            jobs={jobs} 
-            onRefresh={refetch} 
-            isLoading={isLoading} 
+            jobs={dubbingJobs} 
+            onRefresh={refetchDubbing} 
+            isLoading={isDubbingLoading} 
           />
         </TabsContent>
         
@@ -53,10 +49,11 @@ const History = () => {
           <SubtitleJobsList />
         </TabsContent>
         
-        <TabsContent value="videos" className="mt-6">
-          <ClipPreview 
+        <TabsContent value="video-clips" className="mt-6">
+          <VideoClipsHistory 
             clips={videoClips}
-            onBackToGeneration={() => {}}
+            isLoading={isVideoClipsLoading}
+            onRefresh={refetchVideoClips}
           />
         </TabsContent>
       </Tabs>

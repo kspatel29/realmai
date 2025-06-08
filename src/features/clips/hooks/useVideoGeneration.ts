@@ -6,10 +6,22 @@ import { ClipData } from "../components/ClipPreview";
 import { useToast } from "@/hooks/use-toast";
 import { useCredits } from "@/hooks/credits";
 import { createReplicateVideoClip } from "@/services/replicateService";
-import { calculateVideoGenerationCost, calculateCostFromFileDuration } from "@/services/api/pricingService";
+import { calculateCostFromFileDuration } from "@/services/api/pricingService";
 import { SERVICE_CREDIT_COSTS } from "@/constants/pricing";
+import { uploadImageFromDataUrl } from "@/services/imageUploadService";
+import { saveVideoClip, downloadAndStoreVideo } from "@/services/videoClipsService";
 
 type VideoGenerationFormValues = z.infer<typeof videoGenerationSchema>;
+
+interface VideoGenerationInput {
+  prompt: string;
+  aspect_ratio: string;
+  duration: number;
+  loop: boolean;
+  start_image_url?: string;
+  end_image_url?: string;
+  concepts?: string[];
+}
 
 export const useVideoGeneration = () => {
   const [isProcessing, setIsProcessing] = useState(false);
@@ -20,7 +32,7 @@ export const useVideoGeneration = () => {
 
   const calculateCost = async (durationSeconds: number): Promise<number> => {
     try {
-      console.log(`Calculating cost for video_generation with duration ${durationSeconds} seconds: {}`);
+      console.log(`Calculating cost for video_generation with duration ${durationSeconds} seconds`);
       
       // Try to get cost from the edge function
       const cost = await calculateCostFromFileDuration(
@@ -67,30 +79,43 @@ export const useVideoGeneration = () => {
     setIsProcessing(true);
     
     try {
-      // Make sure values are properly structured before sending to the API
-      const input: {
-        prompt: string,
-        negative_prompt: string,
-        aspect_ratio: string,
-        duration: number,
-        cfg_scale: number,
-        start_image?: string,
-        end_image?: string
-      } = {
+      // Check if we have keyframes (start or end frames)
+      const hasKeyframes = (startFrame && startFrame.startsWith('data:')) || (endFrame && endFrame.startsWith('data:'));
+      
+      // Properly structure the input for the Luma API
+      const input: VideoGenerationInput = {
         prompt: values.prompt,
-        negative_prompt: values.negative_prompt || "",
         aspect_ratio: values.aspect_ratio,
         duration: parseInt(values.duration),
-        cfg_scale: values.cfg_scale,
+        loop: hasKeyframes ? false : values.loop, // Disable loop when using keyframes
       };
       
-      // Only add valid start and end frames
-      if (values.use_existing_video && startFrame && typeof startFrame === 'string') {
-        input.start_image = startFrame;
+      let startImageUrl: string | undefined;
+      let endImageUrl: string | undefined;
+      
+      // Upload images to storage and get URLs if provided
+      if (startFrame && typeof startFrame === 'string' && startFrame.startsWith('data:')) {
+        console.log("Uploading start frame to storage...");
+        startImageUrl = await uploadImageFromDataUrl(startFrame, 'start-frame.jpg');
+        input.start_image_url = startImageUrl;
+        console.log("Start frame uploaded:", startImageUrl);
       }
       
-      if (values.use_existing_video && endFrame && typeof endFrame === 'string') {
-        input.end_image = endFrame;
+      if (endFrame && typeof endFrame === 'string' && endFrame.startsWith('data:')) {
+        console.log("Uploading end frame to storage...");
+        endImageUrl = await uploadImageFromDataUrl(endFrame, 'end-frame.jpg');
+        input.end_image_url = endImageUrl;
+        console.log("End frame uploaded:", endImageUrl);
+      }
+      
+      // Log if loop was automatically disabled
+      if (hasKeyframes && values.loop) {
+        console.log("Loop automatically disabled due to keyframes being present");
+        toast({
+          title: "Loop disabled",
+          description: "Loop has been automatically disabled because keyframes are not compatible with looping.",
+          variant: "default"
+        });
       }
       
       console.log("Generating video with inputs:", input);
@@ -124,21 +149,45 @@ export const useVideoGeneration = () => {
                 throw new Error("No video output received from the API");
               }
               
+              // Download and store video in Supabase
+              console.log("Downloading and storing video...");
+              const storedVideoUrl = await downloadAndStoreVideo(videoOutput, `${values.prompt.substring(0, 20)}.mp4`);
+              
               setIsProcessing(false);
               
-              setGeneratedClips([
-                { 
-                  id: `clip-${Date.now()}`, 
-                  title: values.prompt.substring(0, 30) + "...", 
-                  duration: values.duration + "s", 
-                  thumbnail: startFrame || "", 
-                  url: videoOutput
-                }
-              ]);
+              const newClip = { 
+                id: `clip-${Date.now()}`, 
+                title: values.prompt.substring(0, 50) + (values.prompt.length > 50 ? "..." : ""), 
+                duration: values.duration + "s", 
+                thumbnail: startFrame || "", 
+                url: storedVideoUrl
+              };
+              
+              setGeneratedClips([newClip]);
+              
+              // Save to database with stored video URL
+              try {
+                await saveVideoClip({
+                  title: newClip.title,
+                  prompt: values.prompt,
+                  duration: durationSeconds,
+                  aspect_ratio: values.aspect_ratio,
+                  video_url: storedVideoUrl,
+                  thumbnail_url: startFrame || undefined,
+                  start_frame_url: startImageUrl,
+                  end_frame_url: endImageUrl,
+                  cost_credits: cost,
+                  status: 'completed'
+                });
+                console.log("Video clip saved to database");
+              } catch (dbError) {
+                console.error("Error saving to database:", dbError);
+                // Still show success message since video was generated
+              }
               
               toast({
                 title: "Clip generated",
-                description: "Your video clip has been generated successfully."
+                description: "Your video clip has been generated successfully and saved to history."
               });
               
               if (onSuccess) onSuccess();
@@ -169,7 +218,7 @@ export const useVideoGeneration = () => {
       setIsProcessing(false);
       toast({
         title: "Generation failed",
-        description: "There was an error generating your video clip.",
+        description: "There was an error generating your video clip: " + (error instanceof Error ? error.message : "Unknown error"),
         variant: "destructive"
       });
     }

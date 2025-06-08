@@ -9,12 +9,14 @@ export interface GenerateSubtitlesParams {
 }
 
 export interface SubtitlesResult {
+  id?: string;
   preview: string;
   srt_file: string;
   vtt_file: string;
-  srtUrl?: string;
-  vttUrl?: string;
+  srt_url?: string;
+  vtt_url?: string;
   text?: string;
+  preview_text?: string;
   error?: string;
 }
 

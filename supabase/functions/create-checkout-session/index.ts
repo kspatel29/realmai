@@ -7,6 +7,21 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
+// Pre-configured Stripe price IDs for each subscription plan
+const SUBSCRIPTION_PRICE_IDS = {
+  "essentials": "price_1RTBqlRuznwovkUGacCIEldb", // For product prod_SNxmEhAG1n0n6e
+  "creator-pro": "price_1RTBsBRuznwovkUGRCA7YY3m", // For product prod_SNxnqjwYw3j065
+  "studio-pro": "price_REPLACE_WITH_STUDIO_PRO_PRICE_ID", // Create this product and price in Stripe
+};
+
+// Pre-configured Stripe price IDs for credit packages
+const CREDIT_PACKAGE_PRICE_IDS = {
+  "small": "price_1RTCmaRuznwovkUGYdHsLwmk", // Small Pack: prod_SNykS8eG43JidY
+  "medium": "price_1RTCn3RuznwovkUGG9S8BUha", // Medium Pack: prod_SNykr0YszT0cAL
+  "large": "price_1RTCngRuznwovkUGmOR5BU90", // Large Pack: prod_SNyl6DVUg2cysA
+  "xl": "price_1RTCoARuznwovkUGeMS75yDi", // XL Pack: prod_SNylh8po1jVw80
+};
+
 serve(async (req) => {
   // Handle CORS preflight requests
   if (req.method === "OPTIONS") {
@@ -56,18 +71,36 @@ serve(async (req) => {
       mode: mode,
       success_url: `${req.headers.get("origin")}/dashboard/billing?session_id={CHECKOUT_SESSION_ID}&success=true`,
       cancel_url: `${req.headers.get("origin")}/dashboard/billing?canceled=true`,
-      customer_email: null, // Let Stripe collect the email
       client_reference_id: userId,
     };
 
     let sessionParams;
 
     if (mode === 'payment') {
-      // One-time payment for credit packages
-      if (!packageId || !credits || !price) {
-        console.error("Missing package details", { packageId, credits, price });
+      // One-time payment for credit packages using pre-configured price IDs
+      if (!packageId) {
+        console.error("Missing package ID", { packageId });
         return new Response(
-          JSON.stringify({ error: "Missing package information for one-time payment" }),
+          JSON.stringify({ error: "Missing package ID for credit purchase" }),
+          {
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+            status: 400,
+          }
+        );
+      }
+
+      // Get the pre-configured price ID for this credit package
+      const priceId = CREDIT_PACKAGE_PRICE_IDS[packageId as keyof typeof CREDIT_PACKAGE_PRICE_IDS];
+      
+      console.log(`Found price ID for package ${packageId}: ${priceId}`);
+      
+      if (!priceId) {
+        console.error(`No price ID configured for package: ${packageId}`);
+        return new Response(
+          JSON.stringify({ 
+            error: `No price ID configured for credit package ${packageId}`,
+            details: `Available packages: ${Object.keys(CREDIT_PACKAGE_PRICE_IDS).join(', ')}`
+          }),
           {
             headers: { ...corsHeaders, "Content-Type": "application/json" },
             status: 400,
@@ -75,35 +108,28 @@ serve(async (req) => {
         );
       }
       
-      console.log(`Creating payment session for package ${packageId}, credits: ${credits}, price: ${price}`);
+      console.log(`Creating payment session for package ${packageId}, credits: ${credits}, using price ID: ${priceId}`);
       sessionParams = {
         ...baseParams,
         line_items: [
           {
-            price_data: {
-              currency: 'usd',
-              product_data: {
-                name: `${credits} Credits Package`,
-                description: `Purchase of ${credits} credits`,
-              },
-              unit_amount: price * 100, // Convert to cents
-            },
+            price: priceId,
             quantity: 1,
           },
         ],
         metadata: {
           userId: userId,
           packageId: packageId,
-          credits: credits.toString(),
+          credits: credits?.toString() || "0",
           type: 'credit_purchase'
         },
       };
     } else if (mode === 'subscription') {
-      // Subscription payment
-      if (!subscriptionPlanId || !price) {
-        console.error("Missing subscription details", { subscriptionPlanId, price });
+      // Subscription payment using pre-configured price IDs
+      if (!subscriptionPlanId) {
+        console.error("Missing subscription plan ID", { subscriptionPlanId });
         return new Response(
-          JSON.stringify({ error: "Missing subscription information" }),
+          JSON.stringify({ error: "Missing subscription plan ID" }),
           {
             headers: { ...corsHeaders, "Content-Type": "application/json" },
             status: 400,
@@ -111,27 +137,33 @@ serve(async (req) => {
         );
       }
       
-      console.log(`Creating subscription session for plan ${subscriptionPlanId}, price: ${price}`);
+      console.log(`Creating subscription session for plan ${subscriptionPlanId}`);
+      console.log(`Available price IDs:`, SUBSCRIPTION_PRICE_IDS);
       
-      // Create or retrieve the product for this subscription plan
-      const product = await stripe.products.create({
-        name: `${subscriptionPlanId.charAt(0).toUpperCase() + subscriptionPlanId.slice(1)} Plan`,
-        description: `Subscription to the ${subscriptionPlanId} plan`,
-      });
+      // Get the pre-configured price ID for this subscription plan
+      const priceId = SUBSCRIPTION_PRICE_IDS[subscriptionPlanId as keyof typeof SUBSCRIPTION_PRICE_IDS];
       
-      // Create price object for the subscription
-      const priceObj = await stripe.prices.create({
-        unit_amount: price * 100, // Convert to cents
-        currency: 'usd',
-        recurring: { interval: 'month' },
-        product: product.id,
-      });
+      console.log(`Found price ID for plan ${subscriptionPlanId}: ${priceId}`);
+      
+      if (!priceId || priceId.includes("REPLACE_WITH")) {
+        console.error(`No price ID configured for plan: ${subscriptionPlanId}`);
+        return new Response(
+          JSON.stringify({ 
+            error: `Please configure the price ID for subscription plan ${subscriptionPlanId} in the Stripe dashboard`,
+            details: `You need to create a price for this plan and update SUBSCRIPTION_PRICE_IDS in the edge function`
+          }),
+          {
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+            status: 400,
+          }
+        );
+      }
       
       sessionParams = {
         ...baseParams,
         line_items: [
           {
-            price: priceObj.id,
+            price: priceId,
             quantity: 1,
           },
         ],

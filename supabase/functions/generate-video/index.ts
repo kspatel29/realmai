@@ -1,6 +1,7 @@
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 import Replicate from "https://esm.sh/replicate@0.25.2"
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 
 // CORS headers for cross-origin requests
 const corsHeaders = {
@@ -21,6 +22,21 @@ serve(async (req) => {
     if (!REPLICATE_API_TOKEN) {
       console.error("REPLICATE_API_TOKEN is not set");
       throw new Error("API configuration error: REPLICATE_API_TOKEN is not set");
+    }
+
+    // Initialize Supabase client
+    const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
+    const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+    const supabase = createClient(supabaseUrl, supabaseServiceKey);
+
+    // Get user from Authorization header
+    const authHeader = req.headers.get('Authorization');
+    let userId = null;
+    if (authHeader) {
+      const { data: { user }, error } = await supabase.auth.getUser(authHeader.replace('Bearer ', ''));
+      if (user) {
+        userId = user.id;
+      }
     }
 
     // Initialize the Replicate client
@@ -52,9 +68,61 @@ serve(async (req) => {
         const prediction = await replicate.predictions.get(body.predictionId);
         console.log("Status check response:", JSON.stringify(prediction));
         
-        // If prediction has succeeded and has output, return it directly
-        if (prediction.status === "succeeded" && prediction.output) {
+        // If prediction has succeeded and has output, save to database and return
+        if (prediction.status === "succeeded" && prediction.output && userId) {
           console.log("Prediction succeeded with output:", prediction.output);
+          
+          // Download and store the video in Supabase storage
+          try {
+            const videoResponse = await fetch(prediction.output);
+            if (videoResponse.ok) {
+              const videoBlob = await videoResponse.blob();
+              const fileName = `generated_video_${Date.now()}.mp4`;
+              const filePath = `${userId}/${fileName}`;
+              
+              // Upload to Supabase storage
+              const { data: uploadData, error: uploadError } = await supabase.storage
+                .from('video-clips')
+                .upload(filePath, videoBlob, {
+                  contentType: 'video/mp4',
+                  cacheControl: '3600'
+                });
+
+              if (uploadError) {
+                console.error('Error uploading video to storage:', uploadError);
+              } else {
+                // Get public URL
+                const { data: { publicUrl } } = supabase.storage
+                  .from('video-clips')
+                  .getPublicUrl(uploadData.path);
+
+                // Save video clip record to database
+                const { data: videoClipData, error: dbError } = await supabase
+                  .from('video_clips')
+                  .insert({
+                    user_id: userId,
+                    title: body.prompt || 'Generated Video',
+                    prompt: body.prompt || '',
+                    duration: body.duration || 5,
+                    aspect_ratio: body.aspect_ratio || '16:9',
+                    video_url: publicUrl,
+                    cost_credits: body.cost_credits || 60,
+                    status: 'completed'
+                  })
+                  .select()
+                  .single();
+
+                if (dbError) {
+                  console.error('Error saving video clip to database:', dbError);
+                } else {
+                  console.log('Video clip saved to database:', videoClipData);
+                }
+              }
+            }
+          } catch (storageError) {
+            console.error('Error handling video storage:', storageError);
+          }
+          
           return new Response(JSON.stringify({ 
             status: "succeeded",
             output: prediction.output 
@@ -72,47 +140,44 @@ serve(async (req) => {
       }
     }
 
-    // Validate input for video generation
-    if (!body.prompt) {
-      throw new Error("Missing required field: prompt is required");
+    // Validate input for video generation - check if prompt exists and is not empty
+    if (!body.prompt || body.prompt.trim() === '') {
+      throw new Error("Missing required field: prompt is required and cannot be empty");
     }
 
     console.log("Processing input for video generation:", JSON.stringify(body));
     
-    // Process input based on schema
+    // Process input based on Luma Ray Flash schema - map fields correctly
     const input: Record<string, any> = {
-      prompt: body.prompt,
-      negative_prompt: body.negative_prompt || "",
+      prompt: body.prompt.trim(),
       duration: body.duration ? parseInt(String(body.duration), 10) : 5,
-      cfg_scale: typeof body.cfg_scale === 'number' ? body.cfg_scale : 0.5,
+      aspect_ratio: body.aspect_ratio || "16:9",
+      loop: body.loop || false,
     };
     
-    // Add aspect ratio if provided
-    if (body.aspect_ratio) {
-      input.aspect_ratio = body.aspect_ratio;
-    } else {
-      input.aspect_ratio = "16:9"; // Default aspect ratio
+    // Add optional fields if provided - map to correct API field names
+    if (body.start_image_url && typeof body.start_image_url === 'string') {
+      input.start_image_url = body.start_image_url;
+      console.log("Added start_image_url to input");
     }
     
-    // Add start_image if provided
-    if (body.start_image && typeof body.start_image === 'string') {
-      input.start_image = body.start_image;
+    if (body.end_image_url && typeof body.end_image_url === 'string') {
+      input.end_image_url = body.end_image_url;
+      console.log("Added end_image_url to input");
     }
-    
-    // Add end_image if provided
-    if (body.end_image && typeof body.end_image === 'string') {
-      input.end_image = body.end_image;
-    }
-    
-    console.log("Using Replicate official model: kwaivgi/kling-v1.6-pro");
-    console.log("With input:", JSON.stringify(input));
 
-    // Create prediction using the official model approach (no version needed)
+    if (body.concepts && Array.isArray(body.concepts)) {
+      input.concepts = body.concepts;
+    }
+    
+    console.log("Using Luma Ray Flash model: luma/ray-flash-2-720p");
+    console.log("Final input for API:", JSON.stringify(input));
+
+    // Create prediction using the Luma Ray Flash model
     try {
       console.log("Creating prediction...");
-      // For official models, we use the run method directly with the model name
       const prediction = await replicate.predictions.create({
-        model: "kwaivgi/kling-v1.6-pro",
+        model: "luma/ray-flash-2-720p",
         input
       });
       

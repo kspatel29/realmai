@@ -58,8 +58,6 @@ const VideoDubbing = () => {
     isLoading: isLoadingVideos,
     uploadVideo,
     deleteVideo,
-    cleanupUnusedVideos,
-    markVideoAsUsed,
   } = useVideos();
   const {
     jobs: dubbingJobs,
@@ -68,18 +66,6 @@ const VideoDubbing = () => {
     refreshJobStatus,
     isUpdating,
   } = useDubbingJobs();
-
-  useEffect(() => {
-    return () => {
-      if (!hasCleanedUpRef.current && videos && videos.length > 0) {
-        const unusedVideos = videos.filter((v) => v.used_in_job === null);
-        if (unusedVideos.length > 0) {
-          hasCleanedUpRef.current = true;
-          cleanupUnusedVideos.mutate();
-        }
-      }
-    };
-  }, [videos, cleanupUnusedVideos]);
 
   useEffect(() => {
     if (selectedVideo) {
@@ -119,23 +105,13 @@ const VideoDubbing = () => {
 
   const loadVideoURL = async (video: VideoType) => {
     try {
-      if (!user || !video.filename) return;
+      if (!user || !video.video_url) return;
 
-      const filePath = `${user.id}/${video.id}/${video.filename}`;
-      const { data, error } = await supabase.storage
-        .from("videos")
-        .createSignedUrl(filePath, 3600);
-
-      if (error) {
-        console.error("Error creating signed URL:", error);
-        toast.error("Could not load video");
-        return;
-      }
-
-      setVideoURL(data.signedUrl);
+      // For video_clips, we already have the video_url, so we can use it directly
+      setVideoURL(video.video_url);
 
       const videoElement = document.createElement("video");
-      videoElement.src = data.signedUrl;
+      videoElement.src = video.video_url;
 
       videoElement.onloadedmetadata = () => {
         console.log(`Video duration loaded: ${videoElement.duration} seconds`);
@@ -207,28 +183,26 @@ const VideoDubbing = () => {
 
       const fileNameWithoutExt = file.name.split(".").slice(0, -1).join(".");
 
-      uploadVideo.mutate(
-        {
-          file,
-          title: fileNameWithoutExt,
-        },
-        {
-          onSuccess: (newVideo) => {
-            setProgress(100);
-            setTimeout(() => {
-              setIsUploading(false);
-              setProgress(0);
-              setSelectedVideo(newVideo as VideoType);
-              setUploadDialogOpen(false);
-            }, 500);
-          },
-          onError: () => {
-            clearInterval(progressInterval);
+      uploadVideo.mutate({
+        title: fileNameWithoutExt,
+        prompt: fileNameWithoutExt,
+        file: file  // Pass the actual file instead of blob URL
+      }, {
+        onSuccess: (newVideo) => {
+          setProgress(100);
+          setTimeout(() => {
             setIsUploading(false);
             setProgress(0);
-          },
-        }
-      );
+            setSelectedVideo(newVideo as VideoType);
+            setUploadDialogOpen(false);
+          }, 500);
+        },
+        onError: () => {
+          clearInterval(progressInterval);
+          setIsUploading(false);
+          setProgress(0);
+        },
+      });
     }
   };
 
@@ -308,13 +282,6 @@ const VideoDubbing = () => {
       });
 
       console.log("Job created in database:", newJob);
-
-      if (selectedVideo) {
-        markVideoAsUsed.mutate({
-          videoId: selectedVideo.id,
-          jobId: newJob.id,
-        });
-      }
 
       toast.success(`Dubbing job submitted successfully!`);
       setTimeout(() => {
@@ -433,12 +400,7 @@ const VideoDubbing = () => {
                       {selectedVideo.title}
                     </h3>
                     <p className="text-sm text-muted-foreground">
-                      Size:{" "}
-                      {selectedVideo.file_size
-                        ? `${(selectedVideo.file_size / (1024 * 1024)).toFixed(
-                            2
-                          )} MB`
-                        : "Unknown"}
+                      Duration: {selectedVideo.duration}s
                     </p>
                     <p className="text-sm text-muted-foreground">
                       Uploaded:{" "}

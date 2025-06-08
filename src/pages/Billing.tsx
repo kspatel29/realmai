@@ -1,12 +1,12 @@
+
 import { useState, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Coins, CreditCard } from "lucide-react";
+import { Coins, CreditCard, Settings, History } from "lucide-react";
 import { useCredits } from "@/hooks/useCredits";
 import ServiceCostDisplay from "@/components/ServiceCostDisplay";
-import { SUBSCRIPTION_PLANS } from "@/constants/pricing";
 import { Elements } from "@stripe/react-stripe-js";
 import { useSearchParams } from "react-router-dom";
 import { Alert, AlertDescription } from "@/components/ui/alert";
@@ -15,14 +15,16 @@ import { AlertCircle } from "lucide-react";
 import PaymentMethodForm from "@/features/billing/components/PaymentMethodForm";
 import ChangePlanForm from "@/features/billing/components/ChangePlanForm";
 import CheckoutForm from "@/features/billing/components/CheckoutForm";
-import CreditPackages from "@/features/billing/components/CreditPackages";
-import SubscriptionPlans from "@/features/billing/components/SubscriptionPlans";
+import CreditPackageSelection from "@/features/billing/components/CreditPackageSelection";
+import EnhancedSubscriptionPlans from "@/features/billing/components/EnhancedSubscriptionPlans";
 import CurrentPlan from "@/features/billing/components/CurrentPlan";
-import TransactionHistory from "@/features/billing/components/TransactionHistory";
-import PaymentMethodDisplay from "@/features/billing/components/PaymentMethodDisplay";
+import EnhancedTransactionHistory from "@/features/billing/components/EnhancedTransactionHistory";
+import PaymentMethodManager from "@/features/billing/components/PaymentMethodManager";
+import SubscriptionManagement from "@/features/billing/components/SubscriptionManagement";
 import { useStripeSetup } from "@/features/billing/hooks/useStripeSetup";
 import { useBillingData } from "@/features/billing/hooks/useBillingData";
 import { usePaymentIntents } from "@/features/billing/hooks/usePaymentIntents";
+import { usePaymentMethods } from "@/features/billing/hooks/usePaymentMethods";
 
 const Billing = () => {
   const { credits } = useCredits();
@@ -36,6 +38,7 @@ const Billing = () => {
     setActiveTab,
     fetchPaymentHistory,
     checkPaymentMethod,
+    fetchUserSubscription,
     currentPlan 
   } = useBillingData();
   
@@ -51,13 +54,24 @@ const Billing = () => {
     cancelPayment,
     cancelPaymentMethodAddition,
     setSetupIntent
-  } = usePaymentIntents(checkPaymentMethod, fetchPaymentHistory);
+  } = usePaymentIntents(checkPaymentMethod, fetchPaymentHistory, fetchUserSubscription);
+
+  const {
+    paymentMethods,
+    isLoading: paymentMethodsLoading,
+    fetchPaymentMethods,
+    removePaymentMethod,
+    setDefaultPaymentMethod,
+  } = usePaymentMethods();
 
   const [isPaymentMethodModalOpen, setIsPaymentMethodModalOpen] = useState(false);
   const [isChangePlanModalOpen, setIsChangePlanModalOpen] = useState(false);
-  const [selectedPlanForChange, setSelectedPlanForChange] = useState<typeof SUBSCRIPTION_PLANS[0] | null>(null);
   const [showSuccessAlert, setShowSuccessAlert] = useState(false);
-  
+  const [autoPayment, setAutoPayment] = useState(true); // Mock state for auto-payment
+
+  // Mock subscription status - in real app, this would come from user profile
+  const isSubscribed = currentPlan?.id !== 'starter';
+
   useEffect(() => {
     const success = searchParams.get('success');
     const sessionId = searchParams.get('session_id');
@@ -72,24 +86,15 @@ const Billing = () => {
     setSetupIntent(null);
     setIsPaymentMethodModalOpen(false);
     checkPaymentMethod();
+    fetchPaymentMethods();
   };
 
-  const handleChangePlan = (plan: typeof SUBSCRIPTION_PLANS[0]) => {
-    if (plan.price === null) {
-      window.open('mailto:sales@yourdomain.com?subject=Enterprise Plan Inquiry', '_blank');
+  const handleChangePlan = (plan: typeof currentPlan) => {
+    if (plan?.price === null) {
+      window.open('mailto:realmaidevs@gmail.com?subject=Enterprise Plan Inquiry', '_blank');
       return;
     }
     handleSubscribeToPlan(plan);
-  };
-
-  const handleChangePlanSuccess = () => {
-    setIsChangePlanModalOpen(false);
-    setSelectedPlanForChange(null);
-  };
-
-  const cancelPlanChange = () => {
-    setIsChangePlanModalOpen(false);
-    setSelectedPlanForChange(null);
   };
 
   const openPaymentMethodModal = async () => {
@@ -97,6 +102,21 @@ const Billing = () => {
     if (success) {
       setIsPaymentMethodModalOpen(true);
     }
+  };
+
+  const handleToggleAutoPayment = (enabled: boolean) => {
+    setAutoPayment(enabled);
+    // In real app, this would update user preferences
+  };
+
+  const handleDownloadReceipt = (transactionId: string) => {
+    // Mock implementation - in real app, this would generate/download receipt
+    console.log('Download receipt for transaction:', transactionId);
+  };
+
+  const handleSubscriptionChange = () => {
+    fetchUserSubscription();
+    fetchPaymentMethods();
   };
 
   return (
@@ -124,17 +144,21 @@ const Billing = () => {
       )}
 
       <Tabs defaultValue="credits" value={activeTab} onValueChange={setActiveTab} className="w-full">
-        <TabsList className="grid grid-cols-3 w-full max-w-md">
+        <TabsList className="grid grid-cols-4 w-full max-w-lg">
           <TabsTrigger value="credits" className="flex items-center gap-2">
             <Coins className="h-4 w-4" />
-            <span>Buy Credits</span>
+            <span>Credits</span>
           </TabsTrigger>
           <TabsTrigger value="subscription" className="flex items-center gap-2">
             <CreditCard className="h-4 w-4" />
-            <span>Subscription</span>
+            <span>Plans</span>
+          </TabsTrigger>
+          <TabsTrigger value="payment-methods" className="flex items-center gap-2">
+            <Settings className="h-4 w-4" />
+            <span>Payment</span>
           </TabsTrigger>
           <TabsTrigger value="history" className="flex items-center gap-2">
-            <CreditCard className="h-4 w-4" />
+            <History className="h-4 w-4" />
             <span>History</span>
           </TabsTrigger>
         </TabsList>
@@ -158,36 +182,22 @@ const Billing = () => {
                 </Elements>
               </CardContent>
             </Card>
-          ) : setupIntent && isPaymentMethodModalOpen ? (
-            <Card>
-              <CardHeader>
-                <CardTitle>Add Payment Method</CardTitle>
-                <CardDescription>
-                  Add a payment method to make purchases
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <Elements stripe={stripePromise} options={getStripeElementsOptions(setupIntent.clientSecret)}>
-                  <PaymentMethodForm 
-                    onSuccess={handlePaymentMethodSuccess} 
-                    onCancel={cancelPaymentMethodAddition}
-                  />
-                </Elements>
-              </CardContent>
-            </Card>
           ) : (
-            <CreditPackages 
-              onSelectPackage={handleBuyCredits}
-              isLoading={isLoading}
-            />
+            <>
+              <CreditPackageSelection 
+                onSelectPackage={handleBuyCredits}
+                isLoading={isLoading}
+                isSubscribed={isSubscribed}
+              />
+
+              <Separator className="my-8" />
+
+              <div className="space-y-6">
+                <h2 className="text-xl font-semibold">Service Cost Breakdown</h2>
+                <ServiceCostDisplay showSummary={true} />
+              </div>
+            </>
           )}
-
-          <Separator className="my-8" />
-
-          <div className="space-y-6">
-            <h2 className="text-xl font-semibold">Service Cost Breakdown</h2>
-            <ServiceCostDisplay showSummary={true} />
-          </div>
         </TabsContent>
 
         <TabsContent value="subscription" className="space-y-6 mt-6">
@@ -203,47 +213,52 @@ const Billing = () => {
             </CardContent>
           </Card>
 
+          <SubscriptionManagement 
+            currentPlan={currentPlan} 
+            onPlanChange={handleSubscriptionChange}
+          />
+
           <Card>
             <CardHeader>
               <CardTitle>Available Plans</CardTitle>
               <CardDescription>Select a plan that fits your needs</CardDescription>
             </CardHeader>
             <CardContent>
-              <SubscriptionPlans 
-                currentPlanId={currentPlan?.id} 
-                onSelectPlan={handleChangePlan} 
+              <EnhancedSubscriptionPlans 
+                currentPlanId={currentPlan?.id || 'starter'} 
+                onSelectPlan={handleChangePlan}
+                isLoading={isLoading}
               />
             </CardContent>
           </Card>
+        </TabsContent>
 
+        <TabsContent value="payment-methods" className="mt-6">
           <Card>
             <CardHeader>
-              <CardTitle>Payment Method</CardTitle>
-              <CardDescription>Manage your payment details</CardDescription>
+              <CardTitle>Payment Method Management</CardTitle>
+              <CardDescription>Manage your payment methods and billing preferences</CardDescription>
             </CardHeader>
             <CardContent>
-              <PaymentMethodDisplay 
-                hasPaymentMethod={hasPaymentMethod}
-                isLoading={isLoading}
-                onUpdatePayment={openPaymentMethodModal}
+              <PaymentMethodManager
+                paymentMethods={paymentMethods}
+                autoPayment={autoPayment}
+                onAddPaymentMethod={openPaymentMethodModal}
+                onRemovePaymentMethod={removePaymentMethod}
+                onSetDefaultPaymentMethod={setDefaultPaymentMethod}
+                onToggleAutoPayment={handleToggleAutoPayment}
+                isLoading={paymentMethodsLoading}
               />
             </CardContent>
           </Card>
         </TabsContent>
 
         <TabsContent value="history" className="mt-6">
-          <Card>
-            <CardHeader>
-              <CardTitle>Billing History</CardTitle>
-              <CardDescription>View your past transactions</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <TransactionHistory 
-                transactions={transactions}
-                isLoading={isLoading}
-              />
-            </CardContent>
-          </Card>
+          <EnhancedTransactionHistory 
+            transactions={transactions}
+            isLoading={isLoading}
+            onDownloadReceipt={handleDownloadReceipt}
+          />
         </TabsContent>
       </Tabs>
 
@@ -271,25 +286,6 @@ const Billing = () => {
             <div className="p-4 text-center">
               <p className="text-red-500">Unable to load payment form. Please try again later.</p>
             </div>
-          )}
-        </DialogContent>
-      </Dialog>
-
-      <Dialog open={isChangePlanModalOpen} onOpenChange={setIsChangePlanModalOpen}>
-        <DialogContent className="sm:max-w-[500px]">
-          <DialogHeader>
-            <DialogTitle>Change Subscription Plan</DialogTitle>
-            <DialogDescription>
-              You're changing from {currentPlan?.name} to {selectedPlanForChange?.name}
-            </DialogDescription>
-          </DialogHeader>
-          {selectedPlanForChange && currentPlan && (
-            <ChangePlanForm
-              currentPlan={currentPlan} 
-              selectedPlan={selectedPlanForChange}
-              onSuccess={handleChangePlanSuccess} 
-              onCancel={cancelPlanChange}
-            />
           )}
         </DialogContent>
       </Dialog>

@@ -1,10 +1,10 @@
-
 import { useState } from 'react';
 import { checkDubbingJobStatus } from '@/services/api';
 import { useUpdateDubbingJob } from './useUpdateDubbingJob';
 import { DubbingJob } from './types';
 import { toast } from 'sonner';
 import { SieveDubbingResponse } from '@/services/api/types';
+import { downloadAndStoreDubbedVideo } from '@/services/videoClipsService';
 
 export const useRefreshJobStatus = (jobs: DubbingJob[], refetch: () => void) => {
   const [isUpdating, setIsUpdating] = useState(false);
@@ -57,15 +57,35 @@ export const useRefreshJobStatus = (jobs: DubbingJob[], refetch: () => void) => 
             console.log(`Job ${job.sieve_job_id} API status:`, response.status, 
               "Output URL:", response.outputs?.output_0?.url);
             
-            // If the job has an output URL, mark it as succeeded
+            // If the job has an output URL, download and store it, then mark as succeeded
             if (response.outputs?.output_0?.url) {
-              console.log(`Job ${job.sieve_job_id} has output URL, marking as succeeded`);
-              return updateJob.mutateAsync({
-                id: job.id,
-                status: "succeeded",
-                output_url: response.outputs.output_0.url,
-                error: null
-              });
+              console.log(`Job ${job.sieve_job_id} has output URL, downloading and storing...`);
+              
+              try {
+                // Download and store the video in Supabase
+                const storedUrl = await downloadAndStoreDubbedVideo(
+                  response.outputs.output_0.url, 
+                  `dubbed_video_${job.languages.join('_')}.mp4`
+                );
+                
+                console.log(`Video stored successfully for job ${job.sieve_job_id}:`, storedUrl);
+                
+                return updateJob.mutateAsync({
+                  id: job.id,
+                  status: "succeeded",
+                  output_url: storedUrl,
+                  error: null
+                });
+              } catch (downloadError) {
+                console.error(`Failed to download video for job ${job.sieve_job_id}:`, downloadError);
+                // Fallback to original URL if download fails
+                return updateJob.mutateAsync({
+                  id: job.id,
+                  status: "succeeded",
+                  output_url: response.outputs.output_0.url,
+                  error: null
+                });
+              }
             }
             
             // If the job has failed or has an error, mark it as failed

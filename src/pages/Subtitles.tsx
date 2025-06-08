@@ -1,5 +1,5 @@
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useSubtitlesCost } from "@/features/subtitles/useSubtitlesCost";
 import { useSubtitlesProcess } from "@/features/subtitles/useSubtitlesProcess";
@@ -64,18 +64,17 @@ const Subtitles = () => {
     updateFileDuration();
   }, [uploadedFileUrl, getUploadedFileDuration]);
 
+  // Memoize cost calculation to prevent excessive API calls
+  const costCalculationKey = useMemo(() => {
+    return `${formValues?.model_name || 'small'}_${fileDuration || 0}`;
+  }, [formValues?.model_name, fileDuration]);
+
   useEffect(() => {
     const updateCost = async () => {
-      if (!formValues) {
-        const cost = await calculateCost();
-        setTotalCost(cost);
-        return;
-      }
-      
       setIsCalculatingCost(true);
       
       try {
-        if (fileDuration) {
+        if (fileDuration && formValues) {
           const isPremiumModel = formValues.model_name === "large-v2";
           
           const cost = await calculateCostFromFileDuration(
@@ -86,21 +85,24 @@ const Subtitles = () => {
           
           console.log(`Subtitles cost for ${fileDuration}s video with ${isPremiumModel ? "premium" : "basic"} model: ${cost} credits`);
           setTotalCost(cost);
-        } else {
+        } else if (formValues) {
           const cost = await calculateCost(formValues.model_name);
+          setTotalCost(cost);
+        } else {
+          const cost = await calculateCost();
           setTotalCost(cost);
         }
       } catch (error) {
         console.error("Error calculating subtitles cost:", error);
-        const cost = await calculateCost(formValues.model_name);
-        setTotalCost(cost);
+        const fallbackCost = formValues?.model_name === "large-v2" ? 8 : 3;
+        setTotalCost(fallbackCost);
       } finally {
         setIsCalculatingCost(false);
       }
     };
     
     updateCost();
-  }, [formValues, fileDuration, calculateCost]);
+  }, [costCalculationKey, calculateCost]);
 
   const handleGenerateSubtitles = (values: SubtitlesFormValues) => {
     console.log("Generate subtitles with file URL:", uploadedFileUrl);
@@ -180,18 +182,7 @@ const Subtitles = () => {
             <UploadTab
               isUploading={isUploading}
               setIsUploading={setIsUploading}
-              onFileUploaded={(file: File) => {
-                return new Promise<void>((resolve) => {
-                  const fileReader = new FileReader();
-                  fileReader.onload = (e) => {
-                    if (e.target?.result && typeof e.target.result === 'string') {
-                      handleFileUploaded(file, e.target.result);
-                    }
-                    resolve();
-                  };
-                  fileReader.readAsDataURL(file);
-                });
-              }}
+              onFileUploaded={handleFileUploaded}
             />
             
             {uploadedFileUrl && (
