@@ -74,7 +74,7 @@ const Hero = () => {
             />
             {/* Floating hero image, larger, no border, fully visible */}
             <motion.img
-              src="/realmAI-banner.png"
+              src="/dubgate-banner.png"
               alt="Dubgate Global Banner"
               initial={{ opacity: 0, y: 40 }}
               animate={{ opacity: 1, y: [0, -24, 0] }}

@@ -53,32 +53,7 @@ const Testimonials = () => {
       </div>
 
       {/* Animated gradient orbs */}
-      <div className="absolute inset-0">
-        <motion.div
-          animate={{
-            scale: [1, 1.2, 1],
-            opacity: [0.3, 0.2, 0.3],
-          }}
-          transition={{
-            duration: 8,
-            repeat: Infinity,
-            ease: "easeInOut",
-          }}
-          className="absolute top-20 right-10 w-96 h-96 bg-blue-500/20 rounded-full filter blur-3xl"
-        />
-        <motion.div
-          animate={{
-            scale: [1.2, 1, 1.2],
-            opacity: [0.2, 0.3, 0.2],
-          }}
-          transition={{
-            duration: 8,
-            repeat: Infinity,
-            ease: "easeInOut",
-          }}
-          className="absolute bottom-10 left-10 w-96 h-96 bg-purple-500/20 rounded-full filter blur-3xl"
-        />
-      </div>
+      {/* Removed animated orbs for a cleaner look */}
       
       <div className="container mx-auto px-6 relative z-10">
         <motion.div 

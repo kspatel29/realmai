@@ -71,17 +71,20 @@ const Impact = () => {
               whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true }}
               transition={{ duration: 0.5, delay: index * 0.1 }}
-              className="text-center"
+              className="text-center relative"
             >
-              <div className="text-5xl font-bold mb-4 bg-gradient-to-r from-[#ff5c5c] via-[#ffb3b3] to-[#ff5c5c] bg-clip-text text-transparent">
-                {stat.value}
+              <div className="absolute inset-0 z-0 rounded-2xl bg-gradient-to-r from-[#ff5c5c]/20 via-[#ffb3b3]/20 to-[#ff5c5c]/20 blur-2xl pointer-events-none" />
+              <div className="relative z-10 p-6 rounded-2xl">
+                <div className="text-5xl font-bold mb-4 bg-gradient-to-r from-[#ff5c5c] via-[#ffb3b3] to-[#ff5c5c] bg-clip-text text-transparent">
+                  {stat.value}
+                </div>
+                <h3 className="text-xl font-semibold mb-2 bg-gradient-to-r from-[#ff5c5c] via-[#ffb3b3] to-[#ff5c5c] bg-clip-text text-transparent">
+                  {stat.label}
+                </h3>
+                <p className="text-gray-400">
+                  {stat.description}
+                </p>
               </div>
-              <h3 className="text-xl font-semibold mb-2 text-white">
-                {stat.label}
-              </h3>
-              <p className="text-gray-400">
-                {stat.description}
-              </p>
             </motion.div>
           ))}
         </div>

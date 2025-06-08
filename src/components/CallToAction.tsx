@@ -5,10 +5,124 @@ import { SUBSCRIPTION_PLANS, CREDIT_PACKAGES, SERVICE_CREDIT_COSTS } from "@/con
 import { useAuth } from "@/hooks/useAuth";
 import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
+import { useRef, useState, useEffect } from "react";
 
 const CallToAction = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
+
+  // Animated canvas background (copied from Features)
+  const containerRef = useRef<HTMLDivElement>(null);
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const [mousePosition, setMousePosition] = useState<{ x: number; y: number } | null>(null);
+
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+
+    // Set canvas size
+    const resizeCanvas = () => {
+      const dpr = window.devicePixelRatio || 1;
+      const rect = canvas.getBoundingClientRect();
+      canvas.width = rect.width * dpr;
+      canvas.height = rect.height * dpr;
+      canvas.style.width = `${rect.width}px`;
+      canvas.style.height = `${rect.height}px`;
+      ctx.setTransform(1, 0, 0, 1, 0, 0); // reset transform
+      ctx.scale(dpr, dpr);
+    };
+    resizeCanvas();
+    window.addEventListener('resize', resizeCanvas);
+
+    // Dot properties
+    const dots: { x: number; y: number; baseX: number; baseY: number; size: number; vx: number; vy: number }[] = [];
+    const gridSize = 40;
+    const dotSize = 1.5;
+    const maxDistance = 150;
+    const springStrength = 0.1;
+    const friction = 0.8;
+
+    // Create dots
+    for (let x = 0; x < canvas.width; x += gridSize) {
+      for (let y = 0; y < canvas.height; y += gridSize) {
+        dots.push({
+          x,
+          y,
+          baseX: x,
+          baseY: y,
+          size: dotSize,
+          vx: 0,
+          vy: 0
+        });
+      }
+    }
+
+    // Animation
+    const animate = () => {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      dots.forEach(dot => {
+        // Calculate force
+        if (mousePosition) {
+          const dx = mousePosition.x - dot.x;
+          const dy = mousePosition.y - dot.y;
+          const distance = Math.sqrt(dx * dx + dy * dy);
+          if (distance < maxDistance) {
+            const angle = Math.atan2(dy, dx);
+            const force = (maxDistance - distance) / maxDistance;
+            dot.vx -= Math.cos(angle) * force * 0.5;
+            dot.vy -= Math.sin(angle) * force * 0.5;
+          }
+        }
+        // Spring force to return to base position
+        const springX = (dot.baseX - dot.x) * springStrength;
+        const springY = (dot.baseY - dot.y) * springStrength;
+        dot.vx += springX;
+        dot.vy += springY;
+        // Apply friction
+        dot.vx *= friction;
+        dot.vy *= friction;
+        // Update position
+        dot.x += dot.vx;
+        dot.y += dot.vy;
+        // Draw dot
+        ctx.beginPath();
+        ctx.arc(dot.x, dot.y, dot.size, 0, Math.PI * 2);
+        // Set color based on distance
+        if (mousePosition) {
+          const dx = mousePosition.x - dot.x;
+          const dy = mousePosition.y - dot.y;
+          const distance = Math.sqrt(dx * dx + dy * dy);
+          if (distance < maxDistance) {
+            const intensity = (maxDistance - distance) / maxDistance;
+            ctx.fillStyle = `rgba(255, 92, 92, ${intensity * 0.6})`;
+          } else {
+            ctx.fillStyle = 'rgba(79, 79, 79, 0.2)';
+          }
+        } else {
+          ctx.fillStyle = 'rgba(79, 79, 79, 0.2)';
+        }
+        ctx.fill();
+      });
+      requestAnimationFrame(animate);
+    };
+    animate();
+    return () => {
+      window.removeEventListener('resize', resizeCanvas);
+    };
+  }, [mousePosition]);
+
+  const handleMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
+    const rect = e.currentTarget.getBoundingClientRect();
+    setMousePosition({
+      x: e.clientX - rect.left,
+      y: e.clientY - rect.top
+    });
+  };
+  const handleMouseLeave = () => {
+    setMousePosition(null);
+  };
 
   const handlePricingAction = () => {
     if (user) {
@@ -19,40 +133,9 @@ const CallToAction = () => {
   };
 
   return (
-    <section id="pricing" className="py-24 bg-[#0A0A0A] relative overflow-hidden">
-      {/* Background grid */}
-      <div className="absolute inset-0">
-        <div className="absolute inset-0 bg-[linear-gradient(to_right,#4f4f4f2e_1px,transparent_1px),linear-gradient(to_bottom,#4f4f4f2e_1px,transparent_1px)] bg-[size:14px_24px]"></div>
-        <div className="absolute inset-0 bg-gradient-to-b from-transparent via-[#0A0A0A] to-[#0A0A0A]"></div>
-      </div>
-
-      {/* Animated gradient orbs */}
-      <div className="absolute inset-0">
-        <motion.div
-          animate={{
-            scale: [1, 1.2, 1],
-            opacity: [0.3, 0.2, 0.3],
-          }}
-          transition={{
-            duration: 8,
-            repeat: Infinity,
-            ease: "easeInOut",
-          }}
-          className="absolute top-20 right-10 w-96 h-96 bg-blue-500/20 rounded-full filter blur-3xl"
-        />
-        <motion.div
-          animate={{
-            scale: [1.2, 1, 1.2],
-            opacity: [0.2, 0.3, 0.2],
-          }}
-          transition={{
-            duration: 8,
-            repeat: Infinity,
-            ease: "easeInOut",
-          }}
-          className="absolute bottom-10 left-10 w-96 h-96 bg-purple-500/20 rounded-full filter blur-3xl"
-        />
-      </div>
+    <section id="pricing" className="pt-24 pb-16 bg-[#0A0A0A] relative overflow-hidden" ref={containerRef} onMouseMove={handleMouseMove} onMouseLeave={handleMouseLeave}>
+      {/* Canvas background */}
+      <canvas ref={canvasRef} className="absolute inset-0 w-full h-full" />
 
       <div className="container mx-auto px-6 relative z-10">
         <motion.div 
@@ -67,10 +150,10 @@ const CallToAction = () => {
             whileInView={{ opacity: 1, scale: 1 }}
             viewport={{ once: true }}
             transition={{ duration: 0.5, delay: 0.2 }}
-            className="inline-flex items-center px-4 py-2 bg-gradient-to-r from-blue-500/10 to-purple-500/10 rounded-full border border-white/10 mb-4"
+            className="inline-flex items-center px-4 py-2 bg-gradient-to-r from-[#ff5c5c]/10 to-[#ffb3b3]/10 rounded-full border border-white/10 mb-4"
           >
-            <Sparkles className="w-4 h-4 text-blue-400 mr-2" />
-            <span className="text-sm font-medium bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent">
+            <Sparkles className="w-4 h-4 text-[#ff5c5c] mr-2" />
+            <span className="text-sm font-medium bg-gradient-to-r from-[#ff5c5c] to-[#ffb3b3] bg-clip-text text-transparent">
               Pricing Plans
             </span>
           </motion.div>
@@ -80,12 +163,9 @@ const CallToAction = () => {
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
             transition={{ duration: 0.8, delay: 0.4 }}
-            className="text-4xl md:text-5xl font-bold mb-6"
+            className="text-4xl md:text-5xl font-bold mb-6 bg-gradient-to-r from-[#ff5c5c] via-[#ffb3b3] to-[#ff5c5c] bg-clip-text text-transparent"
           >
-            Choose the Right Plan for Your{" "}
-            <span className="bg-gradient-to-r from-blue-400 via-purple-400 to-pink-400 bg-clip-text text-transparent">
-              Growth
-            </span>
+            Choose the Right Plan for Your Growth
           </motion.h2>
           
           <motion.p
@@ -107,30 +187,32 @@ const CallToAction = () => {
               whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true }}
               transition={{ duration: 0.5, delay: index * 0.1 }}
-              className={`relative group ${
+              className={`relative group overflow-hidden rounded-2xl ${
                 plan.id === 'creator-pro' ? 'md:scale-110 relative z-10' : ''
               }`}
             >
-              <div className="absolute inset-0 bg-gradient-to-r from-blue-500/20 via-purple-500/20 to-pink-500/20 rounded-2xl blur-xl group-hover:blur-2xl transition-all duration-500"></div>
-              <div className="relative bg-[#0A0A0A] rounded-2xl overflow-hidden border border-white/10 hover:border-white/20 transition-all duration-500">
-                {plan.id === 'creator-pro' && (
-                  <div className="bg-gradient-to-r from-blue-500 to-purple-500 text-white text-center py-2 text-sm font-medium">
-                    Most Popular
+              {/* Diagonal ribbon for Most Popular */}
+              {plan.id === 'creator-pro' && (
+                <div className="absolute -left-8 top-6 z-20 w-40 transform -rotate-45 select-none pointer-events-none">
+                  <div className="bg-[#ff5c5c] text-white text-xs font-bold py-2 text-center shadow-lg" style={{letterSpacing: '0.04em', borderRadius: '4px 4px 0 0'}}>
+                    MOST POPULAR
                   </div>
-                )}
+                </div>
+              )}
+              <div className={`relative bg-[#0A0A0A] rounded-2xl overflow-hidden border transition-all duration-500 ${plan.id === 'creator-pro' ? 'border-[#ff5c5c]' : 'border-white/10 hover:border-white/20'}`}>
                 <div className="p-8">
-                  <h3 className="text-2xl font-bold mb-2 text-white">{plan.name}</h3>
-                  <div className="flex items-end mb-6">
-                    <span className="text-4xl font-bold bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent">
+                  <h3 className="text-2xl font-bold mb-2 text-white text-center">{plan.name}</h3>
+                  <div className="flex items-end mb-6 justify-center text-center">
+                    <span className="text-4xl font-bold bg-gradient-to-r from-[#ff5c5c] via-[#ffb3b3] to-[#ff5c5c] bg-clip-text text-transparent">
                       {plan.price !== null ? `$${plan.price}` : "Custom"}
                     </span>
                     <span className="text-gray-400 ml-2">{plan.price !== null ? "per month" : ""}</span>
                   </div>
                   
                   {plan.creditsPerMonth && (
-                    <div className="flex items-center justify-center gap-2 bg-white/5 p-3 rounded-lg mb-6">
+                    <div className="flex items-center justify-center bg-white/5 p-3 rounded-lg mb-6 text-center whitespace-nowrap gap-2">
                       <Coins className="h-5 w-5 text-yellow-400" />
-                      <span className="text-lg font-medium text-white">{plan.creditsPerMonth} credits monthly</span>
+                      <span className="text-base font-medium text-white">{plan.creditsPerMonth} credits/month</span>
                     </div>
                   )}
                   
@@ -139,18 +221,14 @@ const CallToAction = () => {
                   </p>
                   
                   <Button 
-                    className={`w-full h-12 ${
-                      plan.id === 'creator-pro' 
-                        ? 'bg-gradient-to-r from-blue-500 to-purple-500 hover:from-blue-600 hover:to-purple-600' 
-                        : 'bg-white/5 hover:bg-white/10'
-                    }`}
-                    variant={plan.id === 'creator-pro' ? 'default' : 'outline'}
+                    className={`w-full h-12 font-semibold bg-white text-[#ff5c5c] border-0 shadow-md transition-all duration-300 hover:bg-[#ffeaea] hover:text-[#ff5c5c] focus:bg-[#ffeaea] focus:text-[#ff5c5c] active:bg-[#ffeaea] active:text-[#ff5c5c]`}
+                    variant="default"
                     size="lg"
                     onClick={handlePricingAction}
                   >
                     <span className="relative z-10 flex items-center">
                       {plan.id === 'studio-pro' ? 'Contact Sales' : user ? 'Upgrade Plan' : 'Sign Up'}
-                      <ArrowRight className="ml-2 h-4 w-4" />
+                      <ArrowRight className="ml-2 h-4 w-4 text-[#ff5c5c]" />
                     </span>
                   </Button>
                   
@@ -179,7 +257,7 @@ const CallToAction = () => {
           className="mt-20 text-center"
         >
           <div className="flex items-center justify-center gap-2 mb-4">
-            <Package className="h-6 w-6 text-purple-400" />
+            <Package className="h-6 w-6 text-[#ff5c5c]" />
             <h3 className="text-2xl font-bold text-white">Creator Access Packs</h3>
           </div>
           <p className="text-lg text-gray-400 mb-10 max-w-2xl mx-auto">
@@ -196,8 +274,8 @@ const CallToAction = () => {
                 transition={{ duration: 0.5, delay: index * 0.1 }}
                 className="relative group"
               >
-                <div className="absolute inset-0 bg-gradient-to-r from-blue-500/20 via-purple-500/20 to-pink-500/20 rounded-xl blur-xl group-hover:blur-2xl transition-all duration-500"></div>
-                <div className="relative bg-[#0A0A0A] rounded-xl p-6 border border-white/10 hover:border-white/20 transition-all duration-500">
+                <div className="absolute inset-0 bg-gradient-to-r from-[#ff5c5c]/20 via-[#ffb3b3]/20 to-[#ff5c5c]/20 rounded-xl blur-xl group-hover:blur-2xl transition-all duration-500"></div>
+                <div className="relative bg-[#0A0A0A] rounded-xl p-6 border border-white/10 hover:border-white/20 transition-all duration-500 hover:shadow-lg hover:-translate-y-1">
                   <div className="flex justify-between items-start mb-3">
                     <h4 className="text-xl font-bold text-white">{pkg.name}</h4>
                     <div className="bg-gradient-to-r from-blue-500/20 to-purple-500/20 text-blue-400 px-2 py-1 rounded text-sm font-medium">
@@ -213,8 +291,7 @@ const CallToAction = () => {
                     ${(pkg.price / pkg.credits * 100).toFixed(1)}¢ per credit
                   </div>
                   <Button 
-                    variant="outline" 
-                    className="w-full bg-white/5 hover:bg-white/10 border-white/10 hover:border-white/20"
+                    className="w-full h-12 font-semibold bg-white text-[#ff5c5c] border-0 shadow-md transition-all duration-300 hover:bg-[#ff5c5c] hover:text-white focus:bg-[#ff5c5c] focus:text-white active:bg-[#ff5c5c] active:text-white"
                     onClick={handlePricingAction}
                   >
                     {user ? 'Buy Credits' : 'Get Started'}
@@ -232,7 +309,6 @@ const CallToAction = () => {
           transition={{ duration: 0.8, delay: 0.6 }}
           className="mt-20 relative group"
         >
-          <div className="absolute inset-0 bg-gradient-to-r from-blue-500/20 via-purple-500/20 to-pink-500/20 rounded-xl blur-xl group-hover:blur-2xl transition-all duration-500"></div>
           <div className="relative bg-[#0A0A0A] rounded-xl p-8 max-w-4xl mx-auto border border-white/10 hover:border-white/20 transition-all duration-500">
             <div className="text-center mb-8">
               <h3 className="text-xl font-bold mb-2 text-white">Service Cost Breakdown</h3>
@@ -241,8 +317,7 @@ const CallToAction = () => {
             
             <div className="grid gap-6 md:grid-cols-3">
               <div className="relative group">
-                <div className="absolute inset-0 bg-gradient-to-r from-blue-500/20 to-purple-500/20 rounded-lg blur-xl group-hover:blur-2xl transition-all duration-500"></div>
-                <div className="relative bg-[#0A0A0A] rounded-lg p-5 border border-white/10 hover:border-white/20 transition-all duration-500">
+                <div className="relative bg-[#111] rounded-lg p-5 border border-white/10 hover:border-white/20 transition-all duration-500">
                   <h4 className="font-medium mb-3 flex items-center text-blue-400">
                     <Coins className="h-4 w-4 text-blue-400 mr-2" />
                     Video Dubbing
@@ -260,8 +335,7 @@ const CallToAction = () => {
                 </div>
               </div>
               <div className="relative group">
-                <div className="absolute inset-0 bg-gradient-to-r from-purple-500/20 to-pink-500/20 rounded-lg blur-xl group-hover:blur-2xl transition-all duration-500"></div>
-                <div className="relative bg-[#0A0A0A] rounded-lg p-5 border border-white/10 hover:border-white/20 transition-all duration-500">
+                <div className="relative bg-[#111] rounded-lg p-5 border border-white/10 hover:border-white/20 transition-all duration-500">
                   <h4 className="font-medium mb-3 flex items-center text-purple-400">
                     <Coins className="h-4 w-4 text-purple-400 mr-2" />
                     Subtitles
@@ -279,8 +353,7 @@ const CallToAction = () => {
                 </div>
               </div>
               <div className="relative group">
-                <div className="absolute inset-0 bg-gradient-to-r from-pink-500/20 to-orange-500/20 rounded-lg blur-xl group-hover:blur-2xl transition-all duration-500"></div>
-                <div className="relative bg-[#0A0A0A] rounded-lg p-5 border border-white/10 hover:border-white/20 transition-all duration-500">
+                <div className="relative bg-[#111] rounded-lg p-5 border border-white/10 hover:border-white/20 transition-all duration-500">
                   <h4 className="font-medium mb-3 flex items-center text-pink-400">
                     <Coins className="h-4 w-4 text-pink-400 mr-2" />
                     Video Generation

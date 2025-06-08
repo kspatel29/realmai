@@ -1,4 +1,3 @@
-
 import { Link, useLocation } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { 
@@ -95,7 +94,7 @@ const DashboardSidebar = ({ isSidebarOpen, toggleSidebar }: DashboardSidebarProp
         >
           <div className="flex h-16 items-center justify-between px-4 border-b border-sidebar-border">
             <Link to="/dashboard" className="flex items-center gap-2">
-              <span className="text-xl font-bold text-youtube-red">RealmAI</span>
+              <span className="text-xl font-bold text-youtube-red">Dubgate</span>
             </Link>
             <Button 
               variant="ghost" 
@@ -171,7 +170,7 @@ const DashboardSidebar = ({ isSidebarOpen, toggleSidebar }: DashboardSidebarProp
     <Sidebar>
       <div className="flex h-16 items-center px-4 border-b border-sidebar-border">
         <Link to="/dashboard" className="flex items-center gap-2">
-          <span className="text-xl font-bold text-youtube-red">RealmAI</span>
+          <span className="text-xl font-bold text-youtube-red">Dubgate</span>
         </Link>
       </div>
       <SidebarContent>

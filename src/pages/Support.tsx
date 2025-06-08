@@ -278,7 +278,7 @@ const Support = () => {
                 <div>
                   <p className="font-medium">Email Support</p>
                   <p className="text-sm text-muted-foreground">
-                    support@realmaiapp.com
+                    support@dubgate.com
                   </p>
                 </div>
               </div>
