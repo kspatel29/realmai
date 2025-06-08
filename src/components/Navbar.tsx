@@ -31,7 +31,6 @@ const Navbar = () => {
           <a href="#features" className="text-white font-medium text-base tracking-wide transition-colors duration-200 hover:text-red-400 hover:font-semibold">Features</a>
           <a href="#testimonials" className="text-white font-medium text-base tracking-wide transition-colors duration-200 hover:text-red-400 hover:font-semibold">Impact</a>
           <a href="#pricing" className="text-white font-medium text-base tracking-wide transition-colors duration-200 hover:text-red-400 hover:font-semibold">Pricing</a>
-          <a href="#about" className="text-white font-medium text-base tracking-wide transition-colors duration-200 hover:text-red-400 hover:font-semibold">About</a>
           <Link to="/signin" className="text-white font-medium text-base hover:text-red-400 transition-colors duration-200 px-4">Sign In</Link>
           <Link to="/signup" className="px-7 py-2 rounded-2xl bg-[#ff5c5c] text-white font-bold shadow-md hover:opacity-90 transition-opacity duration-200">Get Started</Link>
         </div>
@@ -49,7 +48,6 @@ const Navbar = () => {
             <a href="#features" className="text-white font-medium text-lg py-2 transition-colors duration-200 hover:text-red-400 hover:font-semibold">Features</a>
             <a href="#testimonials" className="text-white font-medium text-lg py-2 transition-colors duration-200 hover:text-red-400 hover:font-semibold">Impact</a>
             <a href="#pricing" className="text-white font-medium text-lg py-2 transition-colors duration-200 hover:text-red-400 hover:font-semibold">Pricing</a>
-            <a href="#about" className="text-white font-medium text-lg py-2 transition-colors duration-200 hover:text-red-400 hover:font-semibold">About</a>
             <Link to="/signin" className="text-white font-medium text-lg py-2 hover:text-red-400 transition-colors duration-200">Sign In</Link>
             <Link to="/signup" className="w-full bg-[#ff5c5c] text-white font-bold text-lg rounded-2xl shadow-md py-2 text-center hover:opacity-90 transition-opacity duration-200">Get Started</Link>
           </div>
