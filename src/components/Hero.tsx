@@ -1,7 +1,7 @@
 import { Button } from "@/components/ui/button";
 import { motion } from "framer-motion";
 
-const HERO_BG = "#111113";
+const HERO_BG = "#000";
 const HERO_IMG_SIZE = 480; // px
 
 const Hero = () => {
@@ -51,8 +51,8 @@ const Hero = () => {
           </Button>
         </div>
         {/* Right: Image with morphing blurred background and gentle float */}
-        <div className="flex items-center justify-center w-full relative min-h-[320px] mt-8">
-          <div className="relative w-full max-w-2xl">
+        <div className="flex items-center justify-center w-full relative min-h-[320px] mt-4" style={{ maxHeight: '60vh' }}>
+          <div className="relative w-full max-w-2xl h-full">
             {/* Morphing blurred orb background exactly behind the image */}
             <motion.div
               initial={{ scale: 1, borderRadius: "50%" }}
@@ -79,8 +79,8 @@ const Hero = () => {
               initial={{ opacity: 0, y: 40 }}
               animate={{ opacity: 1, y: [0, -24, 0] }}
               transition={{ opacity: { duration: 0.8, delay: 0.4 }, y: { duration: 7, repeat: Infinity, repeatType: "reverse", ease: "easeInOut", delay: 0.5 } }}
-              className="w-full rounded-3xl object-cover z-10 shadow-2xl relative"
-              style={{ background: HERO_BG, objectFit: 'cover', aspectRatio: '16/9' }}
+              className="w-full h-full max-h-[60vh] rounded-3xl object-contain z-10 shadow-2xl relative bg-[#111113]"
+              style={{ background: HERO_BG }}
             />
           </div>
         </div>

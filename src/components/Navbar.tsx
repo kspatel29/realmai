@@ -19,14 +19,14 @@ const Navbar = () => {
       <nav
         className={`w-full max-w-6xl mx-auto px-8 flex items-center justify-between transition-all duration-500 ${
           isScrolled
-            ? 'bg-[#18181b] shadow-2xl'
+            ? 'bg-black/60 backdrop-blur-md shadow-2xl'
             : 'bg-transparent shadow-none'
         } py-5 rounded-3xl`}
       >
-        <Link to="/" className="flex items-center min-w-[120px] space-x-3">
+        <a href="#" className="flex items-center min-w-[120px] space-x-3" onClick={e => { e.preventDefault(); window.scrollTo({ top: 0, behavior: 'smooth' }); }}>
           <img src="/dubgate.png" alt="Dubgate" className="h-10 w-10 object-contain" />
           <span className="text-2xl font-extrabold tracking-wide text-white" style={{letterSpacing: '0.02em'}}>Dubgate</span>
-        </Link>
+        </a>
         <div className="hidden md:flex items-center space-x-10">
           <a href="#features" className="text-white font-medium text-base tracking-wide transition-colors duration-200 hover:text-red-400 hover:font-semibold">Features</a>
           <a href="#testimonials" className="text-white font-medium text-base tracking-wide transition-colors duration-200 hover:text-red-400 hover:font-semibold">Impact</a>
@@ -43,7 +43,7 @@ const Navbar = () => {
         </button>
       </nav>
       {isMobileMenuOpen && (
-        <div className="md:hidden absolute top-full left-0 right-0 mt-2 mx-4 bg-[#18181b] rounded-3xl shadow-2xl">
+        <div className="md:hidden absolute top-full left-0 right-0 mt-2 mx-4 bg-black/60 backdrop-blur-md rounded-3xl shadow-2xl">
           <div className="px-6 py-6 flex flex-col space-y-4">
             <a href="#features" className="text-white font-medium text-lg py-2 transition-colors duration-200 hover:text-red-400 hover:font-semibold">Features</a>
             <a href="#testimonials" className="text-white font-medium text-lg py-2 transition-colors duration-200 hover:text-red-400 hover:font-semibold">Impact</a>
