@@ -45,23 +45,60 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   useEffect(() => {
     // Set up auth state listener
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (_event, session) => {
-        console.log("Auth state changed:", _event, session?.user?.email);
-        setSession(session);
-        setUser(formatUser(session));
-        setIsLoading(false);
+      async (event, session) => {
+        console.log("Auth state changed:", event, session?.user?.email);
+
+        // Handle different auth events
+        switch (event) {
+          case 'SIGNED_IN':
+            console.log("User signed in successfully");
+            setSession(session);
+            setUser(formatUser(session));
+            setIsLoading(false);
+            break;
+          case 'SIGNED_OUT':
+            console.log("User signed out");
+            setSession(null);
+            setUser(null);
+            setIsLoading(false);
+            break;
+          case 'TOKEN_REFRESHED':
+            console.log("Token refreshed");
+            setSession(session);
+            setUser(formatUser(session));
+            break;
+          case 'USER_UPDATED':
+            console.log("User updated");
+            setSession(session);
+            setUser(formatUser(session));
+            break;
+          default:
+            setSession(session);
+            setUser(formatUser(session));
+            setIsLoading(false);
+        }
       }
     );
 
     // Get initial session
     const initializeAuth = async () => {
       try {
-        const { data: { session } } = await supabase.auth.getSession();
-        console.log("Initial session:", session?.user?.email);
-        setSession(session);
-        setUser(formatUser(session));
+        console.log("Initializing authentication...");
+        const { data: { session }, error } = await supabase.auth.getSession();
+
+        if (error) {
+          console.error("Error getting initial session:", error);
+          // Don't throw here, just log and continue
+        } else {
+          console.log("Initial session:", session?.user?.email || "No session");
+          setSession(session);
+          setUser(formatUser(session));
+        }
       } catch (error) {
-        console.error("Error getting session:", error);
+        console.error("Error initializing auth:", error);
+        // Clear any potentially corrupted session data
+        setSession(null);
+        setUser(null);
       } finally {
         setIsLoading(false);
       }
@@ -109,7 +146,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     setIsLoading(true);
     try {
       console.log("Attempting signup with email:", email);
-      
+
       const { data, error } = await supabase.auth.signUp({
         email,
         password,
@@ -119,14 +156,21 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
           }
         }
       });
-      
+
       if (error) {
         console.error("Signup error:", error);
         throw error;
       }
-      
+
       console.log("Signup result:", data);
-      toast.success("Account created successfully! Please check your email for verification.");
+
+      // Check if email confirmation is required
+      if (data.user && !data.session) {
+        toast.success("Account created successfully! Please check your email for verification.");
+      } else if (data.session) {
+        toast.success("Account created and logged in successfully!");
+        navigate("/dashboard");
+      }
     } catch (error) {
       console.error("Signup error:", error);
       toast.error(error instanceof Error ? error.message : "Signup failed");
@@ -220,14 +264,17 @@ export const useAuth = () => {
 };
 
 export const RequireAuth = ({ children }: { children: ReactNode }) => {
-  const { isAuthenticated, isLoading } = useAuth();
+  const { isAuthenticated, isLoading, user } = useAuth();
   const navigate = useNavigate();
 
   useEffect(() => {
+    console.log("RequireAuth - isLoading:", isLoading, "isAuthenticated:", isAuthenticated, "user:", user?.email);
+
     if (!isLoading && !isAuthenticated) {
+      console.log("User not authenticated, redirecting to signin");
       navigate("/signin", { replace: true });
     }
-  }, [isAuthenticated, isLoading, navigate]);
+  }, [isAuthenticated, isLoading, navigate, user]);
 
   if (isLoading) {
     return (
@@ -237,5 +284,10 @@ export const RequireAuth = ({ children }: { children: ReactNode }) => {
     );
   }
 
-  return isAuthenticated ? <>{children}</> : null;
+  if (!isAuthenticated) {
+    console.log("User not authenticated, showing null");
+    return null;
+  }
+
+  return <>{children}</>;
 };

@@ -6,7 +6,8 @@ import { Label } from "@/components/ui/label";
 import { useAuth } from "@/hooks/useAuth";
 import { ArrowRight } from "lucide-react";
 import { toast } from "sonner";
-import { supabase } from "@/integrations/supabase/client";
+import { supabase, getRedirectUrl } from "@/integrations/supabase/client";
+import { AUTH_CONFIG } from "@/config/auth";
 
 const SignIn = () => {
   const [email, setEmail] = useState("");
@@ -37,19 +38,24 @@ const SignIn = () => {
   const handleGoogleSignIn = async () => {
     setIsLoading(true);
     try {
+      console.log("Initiating Google OAuth sign-in");
+      const redirectUrl = getRedirectUrl('/dashboard');
+      console.log("Redirect URL:", redirectUrl);
+
       const { data, error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
         options: {
-          redirectTo: `${window.location.origin}/dashboard`,
-          queryParams: {
-            access_type: 'offline',
-            prompt: 'consent',
-          }
+          redirectTo: redirectUrl,
+          queryParams: AUTH_CONFIG.OAUTH_CONFIG.queryParams
         }
       });
-      
-      if (error) throw error;
-      
+
+      if (error) {
+        console.error("Google OAuth error:", error);
+        throw error;
+      }
+
+      console.log("Google OAuth initiated successfully");
       // Google OAuth will handle the redirect
     } catch (err) {
       console.error("Google sign-in error:", err);
