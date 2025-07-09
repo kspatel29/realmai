@@ -249,6 +249,19 @@ const CallToAction = () => {
           ))}
         </div>
 
+        {/* USD Disclaimer */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true }}
+          transition={{ duration: 0.8, delay: 0.3 }}
+          className="mt-8 text-center"
+        >
+          <p className="text-sm text-gray-500">
+            * All prices are in USD
+          </p>
+        </motion.div>
+
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           whileInView={{ opacity: 1, y: 0 }}

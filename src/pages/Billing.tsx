@@ -184,11 +184,17 @@ const Billing = () => {
             </Card>
           ) : (
             <>
-              <CreditPackageSelection 
+              <CreditPackageSelection
                 onSelectPackage={handleBuyCredits}
                 isLoading={isLoading}
                 isSubscribed={isSubscribed}
               />
+
+              <div className="text-center mt-6">
+                <p className="text-sm text-muted-foreground">
+                  * All prices are in USD
+                </p>
+              </div>
 
               <Separator className="my-8" />
 
@@ -224,11 +230,16 @@ const Billing = () => {
               <CardDescription>Select a plan that fits your needs</CardDescription>
             </CardHeader>
             <CardContent>
-              <EnhancedSubscriptionPlans 
-                currentPlanId={currentPlan?.id || 'starter'} 
+              <EnhancedSubscriptionPlans
+                currentPlanId={currentPlan?.id || 'starter'}
                 onSelectPlan={handleChangePlan}
                 isLoading={isLoading}
               />
+              <div className="mt-6 text-center">
+                <p className="text-sm text-muted-foreground">
+                  * All prices are in USD
+                </p>
+              </div>
             </CardContent>
           </Card>
         </TabsContent>
